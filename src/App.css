@@ -747,3 +747,139 @@ body {
   font-size: 12px;
   opacity: 0.8;
 }
+
+.base-resource-summary {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* =========================
+   SEND ARMY
+   ========================= */
+
+.send-menu {
+  grid-template-columns: 1fr;
+  min-width: 270px;
+}
+
+.send-menu-title {
+  color: white;
+
+  font-size: 14px;
+  font-weight: bold;
+
+  text-align: center;
+}
+
+.send-menu-message {
+  padding: 8px;
+
+  color: rgba(255, 255, 255, 0.7);
+
+  font-size: 13px;
+  text-align: center;
+}
+
+.army-selector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 16px;
+
+  padding: 7px 4px;
+
+  color: white;
+}
+
+.army-selector-label {
+  display: flex;
+  flex-direction: column;
+
+  font-size: 14px;
+}
+
+.army-selector-label span {
+  margin-top: 2px;
+
+  font-size: 11px;
+  opacity: 0.65;
+}
+
+.army-selector-controls {
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.army-selector-controls button {
+  min-width: 42px;
+  height: 30px;
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+
+  background: rgba(255, 255, 255, 0.08);
+  color: white;
+
+  cursor: pointer;
+}
+
+.army-selector-controls button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.destination-menu {
+  grid-template-columns: repeat(2, 1fr);
+
+  min-width: 270px;
+}
+
+.destination-menu .send-menu-title {
+  grid-column: 1 / -1;
+}
+
+
+/* =========================
+   ARMY MOVEMENTS
+   ========================= */
+
+.army-movement {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  padding-top: 8px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.army-movement-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.army-movement-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.army-movement-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.movement-label {
+  opacity: 0.6;
+}
+
+.cargo-capacity {
+  color: white;
+  font-size: 13px;
+  text-align: center;
+}

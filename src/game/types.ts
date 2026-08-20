@@ -121,3 +121,21 @@ export interface Player {
   color: string;
   avatar: string;
 }
+
+export interface ArmyMission {
+  id: number;
+  type: "transfer";
+
+  originBaseId: number;
+  destinationBaseId: number;
+
+  armies: ArmyCounts;
+
+  resources: {
+    water: number;
+    fire: number;
+    grass: number;
+  };
+
+  secondsRemaining: number;
+}
