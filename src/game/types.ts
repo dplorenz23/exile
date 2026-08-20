@@ -124,7 +124,10 @@ export interface Player {
 
 export interface ArmyMission {
   id: number;
-  type: "transfer";
+
+  type: "transfer" | "attack";
+
+  phase: "outbound" | "returning";
 
   originBaseId: number;
   destinationBaseId: number;
@@ -138,4 +141,34 @@ export interface ArmyMission {
   };
 
   secondsRemaining: number;
+}
+
+export interface CombatResult {
+  attackerSurvivors: ArmyCounts;
+  defenderSurvivors: ArmyCounts;
+
+  militiaSurvived: boolean;
+
+  attackerWon: boolean;
+  baseDestroyed: boolean;
+}
+
+export interface BattleReport {
+  id: number;
+  gameSeconds: number;
+
+  attackerPlayerId: number;
+  defenderPlayerId: number;
+
+  row: number;
+  col: number;
+
+  attackerArmies: ArmyCounts;
+  defenderArmies: ArmyCounts;
+
+  attackerSurvivors: ArmyCounts;
+  defenderSurvivors: ArmyCounts;
+
+  militiaSurvived: boolean;
+  baseDestroyed: boolean;
 }

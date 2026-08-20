@@ -13,26 +13,41 @@ interface BaseActionsProps {
   base?: Base;
   resources: BaseResources;
   ownedBases: Base[];
+  enemyBases: Base[];
 
   onTrainArmy: (resource: ResourceType) => void;
 
   onTransferArmies: (
-  destinationBaseId: number,
-  armies: ArmyCounts,
-  resources: BaseResources,
-) => void;
+    destinationBaseId: number,
+    armies: ArmyCounts,
+    resources: BaseResources,
+  ) => void;
+
+  onAttackArmies: (
+    destinationBaseId: number,
+    armies: ArmyCounts,
+  ) => void;
 }
 
 export default function BaseActions({
   base,
   resources,
   ownedBases,
+  enemyBases,
   onTrainArmy,
   onTransferArmies,
+  onAttackArmies,
 }: BaseActionsProps) {
   const [mode, setMode] = useState<
-  "main" | "train" | "send" | "cargo" | "destination"
->("main");
+    | "main"
+    | "train"
+    | "mission"
+    | "attack-armies"
+    | "attack-destination"
+    | "transfer-armies"
+    | "cargo"
+    | "transfer-destination"
+  >("main");
 
   const [selectedArmies, setSelectedArmies] =
     useState<ArmyCounts>({
@@ -229,9 +244,50 @@ export default function BaseActions({
   }
 
   /*
+   * Choose what the armies are being sent to do.
+  */
+  if (mode === "mission") {
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">
+          What are you sending them to do?
+        </div>
+
+        <button
+          className="base-action-button"
+          onClick={() => setMode("attack-armies")}
+        >
+          ⚔ Attack
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={() => setMode("transfer-armies")}
+        >
+          ⇄ Transfer
+        </button>
+
+        <button
+          className="base-action-button"
+          disabled
+        >
+          💰 Loot
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={resetSend}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  /*
    * Select armies to send.
    */
-  if (mode === "send") {
+  if (mode === "transfer-armies") {
     return (
       <div className="base-actions send-menu">
         <div className="send-menu-title">
@@ -346,16 +402,142 @@ export default function BaseActions({
 
       <button
         className="base-action-button"
-        onClick={() => setMode("destination")}
+        onClick={() => setMode("transfer-destination")}
       >
         Choose Destination
       </button>
 
       <button
         className="base-action-button"
-        onClick={() => setMode("send")}
+        onClick={() => setMode("transfer-armies")}
       >
         Back
+      </button>
+    </div>
+  );
+}
+/*
+ * Select armies for an attack.
+ */
+if (mode === "attack-armies") {
+  return (
+    <div className="base-actions send-menu">
+      <div className="send-menu-title">
+        Select Attacking Armies
+      </div>
+
+      <ArmySelector
+        icon="⚔️💧"
+        label="Water"
+        available={base.armies.water}
+        selected={selectedArmies.water}
+        onDecrease={() =>
+          changeArmyCount("water", -1)
+        }
+        onIncrease={() =>
+          changeArmyCount("water", 1)
+        }
+      />
+
+      <ArmySelector
+        icon="⚔️🔥"
+        label="Fire"
+        available={base.armies.fire}
+        selected={selectedArmies.fire}
+        onDecrease={() =>
+          changeArmyCount("fire", -1)
+        }
+        onIncrease={() =>
+          changeArmyCount("fire", 1)
+        }
+      />
+
+      <ArmySelector
+        icon="⚔️🌱"
+        label="Grass"
+        available={base.armies.grass}
+        selected={selectedArmies.grass}
+        onDecrease={() =>
+          changeArmyCount("grass", -1)
+        }
+        onIncrease={() =>
+          changeArmyCount("grass", 1)
+        }
+      />
+
+      <button
+        className="base-action-button"
+        disabled={totalSelected === 0}
+        onClick={() => setMode("attack-destination")}
+      >
+        Choose Target
+      </button>
+
+      <button
+        className="base-action-button"
+        onClick={() => setMode("mission")}
+      >
+        Back
+      </button>
+
+      <button
+        className="base-action-button"
+        onClick={resetSend}
+      >
+        Cancel
+      </button>
+    </div>
+  );
+}
+/*
+ * Choose an enemy base to attack.
+ */
+if (mode === "attack-destination") {
+  return (
+    <div className="base-actions destination-menu">
+      <div className="send-menu-title">
+        Choose Enemy Base
+      </div>
+
+      {enemyBases.map((destination) => {
+        const distance =
+          Math.abs(base.row - destination.row) +
+          Math.abs(base.col - destination.col);
+
+        const travelTime = distance * 5;
+
+        return (
+          <button
+            key={destination.id}
+            className="base-action-button"
+            onClick={() => {
+              onAttackArmies(
+                destination.id,
+                selectedArmies,
+              );
+
+              resetSend();
+            }}
+          >
+            Player {destination.playerId}
+            <br />
+            {travelTime}s travel
+          </button>
+        );
+      })}
+
+      <button
+        className="base-action-button"
+        onClick={() => setMode("attack-armies")}
+      >
+        Back
+      </button>
+
+      <button
+        className="base-action-button"
+        onClick={resetSend}
+      >
+        Cancel
       </button>
     </div>
   );
@@ -363,7 +545,7 @@ export default function BaseActions({
   /*
    * Choose another owned base.
    */
-  if (mode === "destination") {
+  if (mode === "transfer-destination") {
     const destinations = ownedBases.filter(
       (ownedBase) => ownedBase.id !== base.id,
     );
@@ -410,7 +592,7 @@ export default function BaseActions({
 
         <button
           className="base-action-button"
-          onClick={() => setMode("send")}
+          onClick={() => setMode("cargo")}
         >
           Back
         </button>
@@ -445,7 +627,7 @@ export default function BaseActions({
             base.armies.grass ===
           0
         }
-        onClick={() => setMode("send")}
+        onClick={() => setMode("mission")}
       >
         ➤ Send Army
       </button>
