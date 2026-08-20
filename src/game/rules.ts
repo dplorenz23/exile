@@ -2,6 +2,7 @@ import type {
   ArmyCounts,
   CombatResult,
   ResourceType,
+  ResourceCounts,
 } from "./types";
 
 export function getArmyCost(armiesBuilt: number) {
@@ -289,5 +290,124 @@ export function resolveCombat(
     attackerWon,
 
     baseDestroyed: attackerWon,
+  };
+}
+
+/*
+ * ============================================================
+ * RAID LOOT
+ * ============================================================
+ *
+ * Loot is automatically divided as evenly as possible
+ * among available Water, Fire, and Grass.
+ *
+ * If a resource pile runs out, its unused share is
+ * redistributed among the remaining resource types.
+ *
+ * Any final remainder goes to the resource pile with the
+ * most resources still remaining.
+ *
+ * Tie priority:
+ * Water -> Fire -> Grass
+ */
+export function calculateLoot(
+  availableResources: ResourceCounts,
+  capacity: number,
+): {
+  loot: ResourceCounts;
+  remaining: ResourceCounts;
+} {
+  const loot: ResourceCounts = {
+    water: 0,
+    fire: 0,
+    grass: 0,
+  };
+
+  const remaining: ResourceCounts = {
+    ...availableResources,
+  };
+
+  const resourceTypes: ResourceType[] = [
+    "water",
+    "fire",
+    "grass",
+  ];
+
+  let remainingCapacity = Math.min(
+    capacity,
+    remaining.water +
+      remaining.fire +
+      remaining.grass,
+  );
+
+  /*
+   * Repeatedly divide available capacity evenly among
+   * resource types that still have resources.
+   */
+  while (remainingCapacity > 0) {
+    const availableTypes = resourceTypes.filter(
+      (resource) => remaining[resource] > 0,
+    );
+
+    if (availableTypes.length === 0) {
+      break;
+    }
+
+    const evenShare = Math.floor(
+      remainingCapacity / availableTypes.length,
+    );
+
+    /*
+     * If we can no longer divide evenly because fewer
+     * units remain than resource types, finish below.
+     */
+    if (evenShare === 0) {
+      break;
+    }
+
+    availableTypes.forEach((resource) => {
+      const amountTaken = Math.min(
+        evenShare,
+        remaining[resource],
+      );
+
+      loot[resource] += amountTaken;
+      remaining[resource] -= amountTaken;
+      remainingCapacity -= amountTaken;
+    });
+  }
+
+  /*
+   * Any leftover capacity comes from whichever resource
+   * pile currently has the most remaining.
+   */
+  while (remainingCapacity > 0) {
+    let largestResource: ResourceType | null = null;
+    let largestAmount = 0;
+
+    resourceTypes.forEach((resource) => {
+      if (remaining[resource] > largestAmount) {
+        largestAmount = remaining[resource];
+        largestResource = resource;
+      }
+    });
+
+    if (!largestResource || largestAmount === 0) {
+      break;
+    }
+
+    const amountTaken = Math.min(
+      remainingCapacity,
+      remaining[largestResource],
+    );
+
+    loot[largestResource] += amountTaken;
+    remaining[largestResource] -= amountTaken;
+    remainingCapacity -= amountTaken;
+  }
+
+  return {
+    loot,
+    remaining,
   };
 }

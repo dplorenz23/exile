@@ -1,6 +1,9 @@
 import { mapOne } from "../game/maps/mapOne";
 import { players } from "../game/gameState";
-import type { Base } from "../game/types";
+import type {
+  Base,
+  Treasure,
+} from "../game/types";
 import Tile from "./Tile";
 
 const GRID_SIZE = 8;
@@ -8,11 +11,13 @@ const GRID_SIZE = 8;
 interface GameMapProps {
   selectedBaseId: number;
   bases: Base[];
+  treasures: Treasure[];
 }
 
 export default function GameMap({
   selectedBaseId,
   bases,
+  treasures,
 }: GameMapProps) {
   return (
     <div className="game-map">
@@ -21,6 +26,12 @@ export default function GameMap({
           (base) =>
             base.row === tile.row &&
             base.col === tile.col,
+        );
+
+        const treasure = treasures.find(
+          (treasure) =>
+            treasure.row === tile.row &&
+            treasure.col === tile.col,
         );
 
         const player = base
@@ -36,6 +47,7 @@ export default function GameMap({
             gridSize={GRID_SIZE}
             base={base}
             player={player}
+            treasure={treasure}
             isSelectedBase={base?.id === selectedBaseId}
           />
         );

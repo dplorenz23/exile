@@ -108,6 +108,22 @@ export const bases: Base[] = [
     armiesBuilt: 0,
     training: null,
 },
+ {
+  id: 6,
+  playerId: 2,
+  row: 4,
+  col: 4,
+  timeInLocationSeconds: 350,
+
+  armies: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
+
+    armiesBuilt: 0,
+    training: null,
+},
 ];
 
 export interface BaseResources {
@@ -116,16 +132,14 @@ export interface BaseResources {
   grass: number;
 }
 
-export const startingResourcesByBase: Record<number, BaseResources> = {
-  1: {
-    water: 50,
-    fire: 50,
-    grass: 50,
-  },
-
-  5: {
-    water: 50,
-    fire: 50,
-    grass: 50,
-  },
-};
+export const startingResourcesByBase: Record<number, BaseResources> =
+  Object.fromEntries(
+    bases.map((base) => [
+      base.id,
+      {
+        water: 50,
+        fire: 50,
+        grass: 50,
+      },
+    ]),
+  );

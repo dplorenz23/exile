@@ -2,6 +2,7 @@ import type {
   Base,
   Player,
   Tile as TileType,
+  Treasure,
 } from "../game/types";
 
 import BasePiece from "./BasePiece";
@@ -11,6 +12,7 @@ interface TileProps {
   gridSize: number;
   base?: Base;
   player?: Player;
+  treasure?: Treasure;
   isSelectedBase?: boolean;
 }
 
@@ -36,6 +38,7 @@ export default function Tile({
   gridSize,
   base,
   player,
+  treasure,
   isSelectedBase = false,
 }: TileProps) {
   const isTop = tile.row === 0;
@@ -75,6 +78,20 @@ export default function Tile({
         <span className="tile-multiplier">
           {tile.multiplier}×
         </span>
+      )}
+
+      {treasure && (
+        <div
+          className="treasure"
+          title={
+            `Treasure — ` +
+            `Water: ${treasure.resources.water}, ` +
+            `Fire: ${treasure.resources.fire}, ` +
+            `Grass: ${treasure.resources.grass}`
+          }
+        >
+          🧰
+        </div>
       )}
 
       {base && player && (

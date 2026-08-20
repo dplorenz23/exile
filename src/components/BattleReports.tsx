@@ -146,10 +146,26 @@ export default function BattleReports({
 
                     <div>
                       Defense:{" "}
-                      {formatArmies(
-                        report.defenderArmies,
-                      )}{" "}
-                      + 🛡️ Militia
+                      {report.defenderArmies.water +
+                        report.defenderArmies.fire +
+                        report.defenderArmies.grass ===
+                      0
+                        ? "🛡️ Militia"
+                        : `${formatArmies(report.defenderArmies)} + 🛡️ Militia`}
+                    </div>
+
+                    <div>
+                      Resources Looted:{" "}
+                      💧{report.resourcesLooted.water}{" "}
+                      🔥{report.resourcesLooted.fire}{" "}
+                      🌱{report.resourcesLooted.grass}
+                    </div>
+
+                    <div>
+                      Resources Remaining:{" "}
+                      💧{report.resourcesRemaining.water}{" "}
+                      🔥{report.resourcesRemaining.fire}{" "}
+                      🌱{report.resourcesRemaining.grass}
                     </div>
 
                     <div>

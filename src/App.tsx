@@ -12,8 +12,13 @@ import {
   players,
   startingResourcesByBase,
 } from "./game/gameState";
+
+import type { BaseResources } from "./game/gameState";
+
 import { mapOne } from "./game/maps/mapOne";
+
 import {
+  calculateLoot,
   getArmyCost,
   resolveCombat,
 } from "./game/rules";
@@ -21,13 +26,26 @@ import {
 import type {
   ArmyCounts,
   ArmyMission,
-  ResourceType,
   BattleReport,
+  ResourceType,
+  Treasure,
 } from "./game/types";
 
 import "./App.css";
 
 
+/*
+ * ============================================================
+ * BASE PRODUCTION MULTIPLIER
+ * ============================================================
+ *
+ * Time in location:
+ *
+ * 0–2 minutes   = 1x
+ * 2–5 minutes   = 2x
+ * 5–10 minutes  = 3x
+ * 10+ minutes   = 4x
+ */
 function getLocationMultiplier(seconds: number) {
   if (seconds >= 600) {
     return 4;
@@ -44,741 +62,1376 @@ function getLocationMultiplier(seconds: number) {
   return 1;
 }
 
+
 function App() {
+  /*
+   * ==========================================================
+   * LOCAL PLAYER
+   * ==========================================================
+   *
+   * For the current single-browser MVP, Player 1 is always us.
+   *
+   * Later, multiplayer will determine this dynamically.
+   */
   const yourPlayerId = 1;
 
+
   /*
+   * ==========================================================
    * LIVE GAME STATE
+   * ==========================================================
    *
-   * These values will change while the match is running.
+   * Everything that changes while a match is running lives
+   * here.
    */
   const [gameState, setGameState] = useState<{
-  gameSeconds: number;
-  bases: typeof startingBases;
-  resourcesByBase: typeof startingResourcesByBase;
-  armyMissions: ArmyMission[];
-  nextMissionId: number;
-  battleReports: BattleReport[];
-  nextBattleReportId: number;
-}>({
-  gameSeconds: 0,
-  bases: startingBases,
-  resourcesByBase: startingResourcesByBase,
-  armyMissions: [],
-  nextMissionId: 1,
-  battleReports: [],
-  nextBattleReportId: 1,
-});
+    gameSeconds: number;
 
+    bases: typeof startingBases;
+
+    resourcesByBase:
+      typeof startingResourcesByBase;
+
+    armyMissions: ArmyMission[];
+    nextMissionId: number;
+
+    battleReports: BattleReport[];
+    nextBattleReportId: number;
+
+    treasures: Treasure[];
+    nextTreasureId: number;
+  }>({
+    gameSeconds: 0,
+
+    bases: startingBases,
+
+    resourcesByBase:
+      startingResourcesByBase,
+
+    armyMissions: [],
+    nextMissionId: 1,
+
+    battleReports: [],
+    nextBattleReportId: 1,
+
+    treasures: [],
+    nextTreasureId: 1,
+  });
+
+
+  /*
+   * ==========================================================
+   * DERIVED PLAYER DATA
+   * ==========================================================
+   *
+   * These values are calculated from the live game state.
+   */
   const yourBases = gameState.bases.filter(
-    (base) => base.playerId === yourPlayerId,
+    (base) =>
+      base.playerId === yourPlayerId,
   );
 
   const enemyBases = gameState.bases.filter(
-    (base) => base.playerId !== yourPlayerId,
+    (base) =>
+      base.playerId !== yourPlayerId,
   );
 
-  const [selectedBaseId, setSelectedBaseId] = useState(
-    yourBases[0]?.id ?? 0,
-  );
+
+  /*
+   * ==========================================================
+   * SELECTED BASE
+   * ==========================================================
+   *
+   * The bottom-left base selector determines which of our
+   * bases is currently active in the UI.
+   */
+  const [selectedBaseId, setSelectedBaseId] =
+    useState(
+      yourBases[0]?.id ?? 0,
+    );
 
   const yourPlayer = players.find(
-    (player) => player.id === yourPlayerId,
+    (player) =>
+      player.id === yourPlayerId,
   );
 
-  const selectedBase = gameState.bases.find(
-  (base) => base.id === selectedBaseId,
-  );
+  const selectedBase =
+    gameState.bases.find(
+      (base) =>
+        base.id === selectedBaseId,
+    );
 
   const selectedResources =
-    gameState.resourcesByBase[selectedBaseId] ?? {
+    gameState.resourcesByBase[
+      selectedBaseId
+    ] ?? {
       water: 0,
       fire: 0,
       grass: 0,
     };
 
-  function handleAttackArmies(
-  destinationBaseId: number,
-  armies: ArmyCounts,
-) {
-  setGameState((current) => {
-    const originBase = current.bases.find(
-      (base) => base.id === selectedBaseId,
-    );
-
-    const destinationBase = current.bases.find(
-      (base) => base.id === destinationBaseId,
-    );
-
-    if (!originBase || !destinationBase) {
-      return current;
-    }
-
-    /*
-     * You may only attack an enemy base.
-     */
-    if (
-      originBase.playerId !== yourPlayerId ||
-      destinationBase.playerId === yourPlayerId
-    ) {
-      return current;
-    }
-
-    /*
-     * Verify the armies actually exist.
-     */
-    if (
-      armies.water > originBase.armies.water ||
-      armies.fire > originBase.armies.fire ||
-      armies.grass > originBase.armies.grass
-    ) {
-      return current;
-    }
-
-    const totalArmies =
-      armies.water +
-      armies.fire +
-      armies.grass;
-
-    if (totalArmies === 0) {
-      return current;
-    }
-
-    const distance =
-      Math.abs(
-        originBase.row - destinationBase.row,
-      ) +
-      Math.abs(
-        originBase.col - destinationBase.col,
-      );
-
-    const travelTime = distance * 5;
-
-    /*
-     * Armies leave the origin immediately.
-     */
-    const updatedBases = current.bases.map((base) => {
-      if (base.id !== originBase.id) {
-        return base;
-      }
-
-      return {
-        ...base,
-
-        armies: {
-          water:
-            base.armies.water - armies.water,
-
-          fire:
-            base.armies.fire - armies.fire,
-
-          grass:
-            base.armies.grass - armies.grass,
-        },
-      };
-    });
-
-    const newMission: ArmyMission = {
-      id: current.nextMissionId,
-      type: "attack",
-      phase: "outbound",
-
-      originBaseId: originBase.id,
-      destinationBaseId: destinationBase.id,
-
-      armies: {
-        ...armies,
-      },
-
-      /*
-       * Attacking armies do not deliberately
-       * carry resources outbound.
-       */
-      resources: {
-        water: 0,
-        fire: 0,
-        grass: 0,
-      },
-
-      secondsRemaining: travelTime,
-    };
-
-    return {
-      ...current,
-
-      bases: updatedBases,
-
-      armyMissions: [
-        ...current.armyMissions,
-        newMission,
-      ],
-
-      nextMissionId:
-        current.nextMissionId + 1,
-    };
-  });
-}
-
-  function handleTransferArmies(
-  destinationBaseId: number,
-  armies: ArmyCounts,
-  transferredResources: BaseResources,
-) {
-  setGameState((current) => {
-    const originBase = current.bases.find(
-      (base) => base.id === selectedBaseId,
-    );
-
-    const destinationBase = current.bases.find(
-      (base) => base.id === destinationBaseId,
-    );
-
-    if (!originBase || !destinationBase) {
-      return current;
-    }
-
-    /*
-     * Transfers are only allowed between your bases.
-     */
-    if (
-      originBase.playerId !== yourPlayerId ||
-      destinationBase.playerId !== yourPlayerId
-    ) {
-      return current;
-    }
-
-    /*
-     * Make sure the armies are really available.
-     */
-    if (
-      armies.water > originBase.armies.water ||
-      armies.fire > originBase.armies.fire ||
-      armies.grass > originBase.armies.grass
-    ) {
-      return current;
-    }
-
-    const totalArmies =
-      armies.water +
-      armies.fire +
-      armies.grass;
-
-    if (totalArmies === 0) {
-      return current;
-    }
-
-    const resources =
-  current.resourcesByBase[originBase.id];
-
-if (!resources) {
-  return current;
-}
-
-const cargoCapacity = totalArmies * 200;
-
-const totalCargo =
-  transferredResources.water +
-  transferredResources.fire +
-  transferredResources.grass;
-
-if (totalCargo > cargoCapacity) {
-  return current;
-}
-
-if (
-  transferredResources.water > resources.water ||
-  transferredResources.fire > resources.fire ||
-  transferredResources.grass > resources.grass
-) {
-  return current;
-}
-
-    const distance =
-      Math.abs(
-        originBase.row - destinationBase.row,
-      ) +
-      Math.abs(
-        originBase.col - destinationBase.col,
-      );
-
-    const travelTime = distance * 5;
-
-    /*
-     * Remove the armies immediately from the origin.
-     */
-    const updatedBases = current.bases.map((base) => {
-      if (base.id !== originBase.id) {
-        return base;
-      }
-
-      return {
-        ...base,
-
-        armies: {
-          water:
-            base.armies.water - armies.water,
-
-          fire:
-            base.armies.fire - armies.fire,
-
-          grass:
-            base.armies.grass - armies.grass,
-        },
-      };
-    });
-
-    const newMission: ArmyMission = {
-      id: current.nextMissionId,
-      type: "transfer",
-      phase: "outbound",
-
-      originBaseId: originBase.id,
-      destinationBaseId: destinationBase.id,
-
-      armies: {
-        ...armies,
-      },
-
-      resources: {
-        ...transferredResources,
-      },
-
-      secondsRemaining: travelTime,
-    };
-
-    const updatedResources = {
-      ...current.resourcesByBase,
-
-      [originBase.id]: {
-        water:
-          resources.water -
-          transferredResources.water,
-
-        fire:
-          resources.fire -
-          transferredResources.fire,
-
-        grass:
-          resources.grass -
-          transferredResources.grass,
-      },
-    };
-
-    return {
-      ...current,
-
-      bases: updatedBases,
-
-      resourcesByBase: updatedResources,
-
-      armyMissions: [
-        ...current.armyMissions,
-        newMission,
-      ],
-
-      nextMissionId: current.nextMissionId + 1,
-    };
-  });
-}
-
-  function handleTrainArmy(resource: ResourceType) {
-  setGameState((current) => {
-    const base = current.bases.find(
-      (base) => base.id === selectedBaseId,
-    );
-
-    if (!base) {
-      return current;
-    }
-
-    if (base.training) {
-      return current;
-    }
-
-    const resources =
-      current.resourcesByBase[selectedBaseId];
-
-    if (!resources) {
-      return current;
-    }
-
-    const cost = getArmyCost(base.armiesBuilt);
-
-    if (resources[resource] < cost) {
-      return current;
-    }
-
-    const updatedBases = current.bases.map((currentBase) => {
-      if (currentBase.id !== selectedBaseId) {
-        return currentBase;
-      }
-
-      return {
-        ...currentBase,
-
-        training: {
-          resource,
-          secondsRemaining: 10,
-        },
-      };
-    });
-
-    const updatedResources = {
-      ...current.resourcesByBase,
-
-      [selectedBaseId]: {
-        ...resources,
-        [resource]: resources[resource] - cost,
-      },
-    };
-
-    return {
-      ...current,
-      bases: updatedBases,
-      resourcesByBase: updatedResources,
-    };
-  });
-}
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setGameState((current) => {
-        /*
-        * First, age every base by one second.
-        */
-        let updatedBases = current.bases.map((base) => {
-        let updatedArmies = base.armies;
-        let updatedTraining = base.training;
-        let updatedArmiesBuilt = base.armiesBuilt;
-
-  if (base.training) {
-    const secondsRemaining =
-      base.training.secondsRemaining - 1;
-
-    /*
-     * Training completed.
-     */
-    if (secondsRemaining <= 0) {
-      const resource = base.training.resource;
-
-      updatedArmies = {
-        ...base.armies,
-        [resource]: base.armies[resource] + 1,
-      };
-
-      updatedArmiesBuilt += 1;
-      updatedTraining = null;
-    } else {
-      /*
-       * Training is still underway.
-       */
-      updatedTraining = {
-        ...base.training,
-        secondsRemaining,
-      };
-    }
-  }
-
-  return {
-    ...base,
-
-    timeInLocationSeconds:
-      base.timeInLocationSeconds + 1,
-
-    armies: updatedArmies,
-    armiesBuilt: updatedArmiesBuilt,
-    training: updatedTraining,
-  };
-});
-
-/*
-* Copy the current resource banks.
-*
-* We do this BEFORE processing army missions so
-* transferred cargo can be added when a mission arrives.
-*/
-const updatedResources = {
-  ...current.resourcesByBase,
-};
-
-const updatedBattleReports = [
-  ...current.battleReports,
-];
-
-let nextBattleReportId =
-  current.nextBattleReportId;
-
-/*
- * Advance traveling armies.
- */
-const updatedArmyMissions: ArmyMission[] = [];
-
-current.armyMissions.forEach((mission) => {
-  /*
-   * The mission arrives on this tick.
-   */
-  if (mission.secondsRemaining <= 1) {
-    if (
-  mission.type === "attack" &&
-  mission.phase === "outbound"
-) {
-  const defendingBase = updatedBases.find(
-    (base) => base.id === mission.destinationBaseId,
-  );
-
-  const originBase = updatedBases.find(
-    (base) => base.id === mission.originBaseId,
-  );
-
-  if (!defendingBase || !originBase) {
-    return;
-  }
-
-  const combatResult = resolveCombat(
-    mission.armies,
-    defendingBase.armies,
-  );
-
-  updatedBattleReports.push({
-    id: nextBattleReportId,
-    gameSeconds: current.gameSeconds + 1,
-
-    attackerPlayerId: originBase.playerId,
-    defenderPlayerId: defendingBase.playerId,
-
-    row: defendingBase.row,
-    col: defendingBase.col,
-
-    attackerArmies: {
-      ...mission.armies,
-    },
-
-    defenderArmies: {
-      ...defendingBase.armies,
-    },
-
-    attackerSurvivors: {
-      ...combatResult.attackerSurvivors,
-    },
-
-    defenderSurvivors: {
-      ...combatResult.defenderSurvivors,
-    },
-
-    militiaSurvived:
-      combatResult.militiaSurvived,
-
-    baseDestroyed:
-      combatResult.baseDestroyed,
-  });
-
-  nextBattleReportId += 1;
 
   /*
-   * Update the defending base's surviving armies.
-   */
-  updatedBases = updatedBases.map((base) => {
-    if (base.id !== defendingBase.id) {
-      return base;
-    }
-
-    return {
-      ...base,
-      armies: combatResult.defenderSurvivors,
-    };
-  });
-
-  /*
-   * If attacker won, destroy the base.
+   * ==========================================================
+   * ATTACK
+   * ==========================================================
    *
-   * For now, we simply remove it from the game.
-   * Loot and Expansion Tokens come later.
+   * Creates an outbound Attack mission.
+   *
+   * Armies:
+   * - immediately leave the originating base
+   * - travel at 5 seconds per Manhattan tile
+   * - carry no resources outbound
+   *
+   * Combat occurs later when the mission timer reaches zero.
    */
-  if (combatResult.baseDestroyed) {
-    updatedBases = updatedBases.filter(
-      (base) => base.id !== defendingBase.id,
-    );
-  }
+  function handleAttackArmies(
+    destinationBaseId: number,
+    armies: ArmyCounts,
+  ) {
+    setGameState((current) => {
+      const originBase =
+        current.bases.find(
+          (base) =>
+            base.id === selectedBaseId,
+        );
 
-  /*
-   * If attacking armies survived, send them home.
-   */
-  const survivingAttackers =
-    combatResult.attackerSurvivors;
+      const destinationBase =
+        current.bases.find(
+          (base) =>
+            base.id ===
+            destinationBaseId,
+        );
 
-  const totalSurvivors =
-    survivingAttackers.water +
-    survivingAttackers.fire +
-    survivingAttackers.grass;
+      /*
+       * Both bases must still exist.
+       */
+      if (
+        !originBase ||
+        !destinationBase
+      ) {
+        return current;
+      }
 
-  if (totalSurvivors > 0) {
-    const distance =
-      Math.abs(
-        originBase.row - defendingBase.row,
-      ) +
-      Math.abs(
-        originBase.col - defendingBase.col,
-      );
+      /*
+       * We may only attack:
+       *
+       * - FROM one of our bases
+       * - TO an enemy base
+       */
+      if (
+        originBase.playerId !==
+          yourPlayerId ||
+        destinationBase.playerId ===
+          yourPlayerId
+      ) {
+        return current;
+      }
 
-    const returnTravelTime = distance * 5;
+      /*
+       * Verify the requested armies
+       * actually exist at the base.
+       */
+      if (
+        armies.water >
+          originBase.armies.water ||
+        armies.fire >
+          originBase.armies.fire ||
+        armies.grass >
+          originBase.armies.grass
+      ) {
+        return current;
+      }
 
-    updatedArmyMissions.push({
-      ...mission,
+      const totalArmies =
+        armies.water +
+        armies.fire +
+        armies.grass;
 
-      phase: "returning",
+      /*
+       * Cannot send an empty mission.
+       */
+      if (totalArmies === 0) {
+        return current;
+      }
 
-      armies: {
-        ...survivingAttackers,
-      },
+      /*
+       * Manhattan distance:
+       *
+       * horizontal tiles
+       * +
+       * vertical tiles
+       */
+      const distance =
+        Math.abs(
+          originBase.row -
+            destinationBase.row,
+        ) +
+        Math.abs(
+          originBase.col -
+            destinationBase.col,
+        );
 
-      secondsRemaining: returnTravelTime,
+      const travelTime =
+        distance * 5;
+
+      /*
+       * Remove armies from the origin
+       * immediately when they depart.
+       */
+      const updatedBases =
+        current.bases.map((base) => {
+          if (
+            base.id !== originBase.id
+          ) {
+            return base;
+          }
+
+          return {
+            ...base,
+
+            armies: {
+              water:
+                base.armies.water -
+                armies.water,
+
+              fire:
+                base.armies.fire -
+                armies.fire,
+
+              grass:
+                base.armies.grass -
+                armies.grass,
+            },
+          };
+        });
+
+      /*
+       * Create the outbound Attack mission.
+       */
+      const newMission: ArmyMission = {
+        id: current.nextMissionId,
+
+        type: "attack",
+        phase: "outbound",
+
+        originBaseId:
+          originBase.id,
+
+        destinationBaseId:
+          destinationBase.id,
+
+        armies: {
+          ...armies,
+        },
+
+        /*
+         * Attacking armies carry nothing
+         * on the outbound trip.
+         *
+         * Loot may be added after victory.
+         */
+        resources: {
+          water: 0,
+          fire: 0,
+          grass: 0,
+        },
+
+        secondsRemaining:
+          travelTime,
+      };
+
+      return {
+        ...current,
+
+        bases: updatedBases,
+
+        armyMissions: [
+          ...current.armyMissions,
+          newMission,
+        ],
+
+        nextMissionId:
+          current.nextMissionId + 1,
+      };
     });
   }
 
-  return;
-}
-if (
-  mission.type === "attack" &&
-  mission.phase === "returning"
-) {
-  updatedBases = updatedBases.map((base) => {
-    if (base.id !== mission.originBaseId) {
-      return base;
-    }
 
-    return {
-      ...base,
+  /*
+   * ==========================================================
+   * TRANSFER
+   * ==========================================================
+   *
+   * Sends armies and optional cargo between two of our bases.
+   *
+   * Each selected army provides 200 resource capacity.
+   */
+  function handleTransferArmies(
+    destinationBaseId: number,
+    armies: ArmyCounts,
+    transferredResources: BaseResources,
+  ) {
+    setGameState((current) => {
+      const originBase =
+        current.bases.find(
+          (base) =>
+            base.id === selectedBaseId,
+        );
 
-      armies: {
-        water:
-          base.armies.water +
-          mission.armies.water,
+      const destinationBase =
+        current.bases.find(
+          (base) =>
+            base.id ===
+            destinationBaseId,
+        );
 
-        fire:
-          base.armies.fire +
-          mission.armies.fire,
+      if (
+        !originBase ||
+        !destinationBase
+      ) {
+        return current;
+      }
 
-        grass:
-          base.armies.grass +
-          mission.armies.grass,
-      },
-    };
-  });
+      /*
+       * Transfers may only occur between
+       * bases belonging to us.
+       */
+      if (
+        originBase.playerId !==
+          yourPlayerId ||
+        destinationBase.playerId !==
+          yourPlayerId
+      ) {
+        return current;
+      }
 
-  return;
-}
-  if (
-  mission.type === "transfer" &&
-  mission.phase === "outbound"
-) {
-  updatedBases = updatedBases.map((base) => {
-    if (base.id !== mission.destinationBaseId) {
-      return base;
-    }
+      /*
+       * Verify the armies exist.
+       */
+      if (
+        armies.water >
+          originBase.armies.water ||
+        armies.fire >
+          originBase.armies.fire ||
+        armies.grass >
+          originBase.armies.grass
+      ) {
+        return current;
+      }
 
-    return {
-      ...base,
+      const totalArmies =
+        armies.water +
+        armies.fire +
+        armies.grass;
 
-      armies: {
-        water:
-          base.armies.water +
-          mission.armies.water,
+      if (totalArmies === 0) {
+        return current;
+      }
 
-        fire:
-          base.armies.fire +
-          mission.armies.fire,
+      /*
+       * Get the resource bank
+       * at the originating base.
+       */
+      const resources =
+        current.resourcesByBase[
+          originBase.id
+        ];
 
-        grass:
-          base.armies.grass +
-          mission.armies.grass,
-      },
-    };
-  });
+      if (!resources) {
+        return current;
+      }
 
-  const destinationResources =
-    updatedResources[mission.destinationBaseId];
+      /*
+       * Every army can carry
+       * up to 200 resources.
+       */
+      const cargoCapacity =
+        totalArmies * 200;
 
-  if (destinationResources) {
-    updatedResources[mission.destinationBaseId] = {
-      water:
-        destinationResources.water +
-        mission.resources.water,
+      const totalCargo =
+        transferredResources.water +
+        transferredResources.fire +
+        transferredResources.grass;
 
-      fire:
-        destinationResources.fire +
-        mission.resources.fire,
+      /*
+       * Cannot exceed carrying capacity.
+       */
+      if (
+        totalCargo > cargoCapacity
+      ) {
+        return current;
+      }
 
-      grass:
-        destinationResources.grass +
-        mission.resources.grass,
-    };
+      /*
+       * Cannot transfer resources
+       * the originating base does not own.
+       */
+      if (
+        transferredResources.water >
+          resources.water ||
+        transferredResources.fire >
+          resources.fire ||
+        transferredResources.grass >
+          resources.grass
+      ) {
+        return current;
+      }
+
+      const distance =
+        Math.abs(
+          originBase.row -
+            destinationBase.row,
+        ) +
+        Math.abs(
+          originBase.col -
+            destinationBase.col,
+        );
+
+      const travelTime =
+        distance * 5;
+
+      /*
+       * Remove armies immediately.
+       */
+      const updatedBases =
+        current.bases.map((base) => {
+          if (
+            base.id !== originBase.id
+          ) {
+            return base;
+          }
+
+          return {
+            ...base,
+
+            armies: {
+              water:
+                base.armies.water -
+                armies.water,
+
+              fire:
+                base.armies.fire -
+                armies.fire,
+
+              grass:
+                base.armies.grass -
+                armies.grass,
+            },
+          };
+        });
+
+      /*
+       * Remove cargo immediately.
+       */
+      const updatedResources = {
+        ...current.resourcesByBase,
+
+        [originBase.id]: {
+          water:
+            resources.water -
+            transferredResources.water,
+
+          fire:
+            resources.fire -
+            transferredResources.fire,
+
+          grass:
+            resources.grass -
+            transferredResources.grass,
+        },
+      };
+
+      /*
+       * Create outbound Transfer mission.
+       */
+      const newMission: ArmyMission = {
+        id: current.nextMissionId,
+
+        type: "transfer",
+        phase: "outbound",
+
+        originBaseId:
+          originBase.id,
+
+        destinationBaseId:
+          destinationBase.id,
+
+        armies: {
+          ...armies,
+        },
+
+        resources: {
+          ...transferredResources,
+        },
+
+        secondsRemaining:
+          travelTime,
+      };
+
+      return {
+        ...current,
+
+        bases: updatedBases,
+
+        resourcesByBase:
+          updatedResources,
+
+        armyMissions: [
+          ...current.armyMissions,
+          newMission,
+        ],
+
+        nextMissionId:
+          current.nextMissionId + 1,
+      };
+    });
   }
 
-  return;
-}
 
   /*
-   * Add carried resources to the destination base.
+   * ==========================================================
+   * TRAIN ARMY
+   * ==========================================================
+   *
+   * Starts a 10-second training order
+   * at the selected base.
    */
-  const destinationResources =
-    updatedResources[mission.destinationBaseId];
+  function handleTrainArmy(
+    resource: ResourceType,
+  ) {
+    setGameState((current) => {
+      const base =
+        current.bases.find(
+          (base) =>
+            base.id === selectedBaseId,
+        );
 
-  if (destinationResources) {
-    updatedResources[mission.destinationBaseId] = {
-      water:
-        destinationResources.water +
-        mission.resources.water,
+      if (!base) {
+        return current;
+      }
 
-      fire:
-        destinationResources.fire +
-        mission.resources.fire,
+      /*
+       * A base can only train one
+       * army at a time.
+       */
+      if (base.training) {
+        return current;
+      }
 
-      grass:
-        destinationResources.grass +
-        mission.resources.grass,
-    };
+      const resources =
+        current.resourcesByBase[
+          selectedBaseId
+        ];
+
+      if (!resources) {
+        return current;
+      }
+
+      /*
+       * Army price increases by 50
+       * after every army ever built here.
+       */
+      const cost =
+        getArmyCost(
+          base.armiesBuilt,
+        );
+
+      /*
+       * Army cost must be paid using
+       * the matching resource.
+       */
+      if (
+        resources[resource] < cost
+      ) {
+        return current;
+      }
+
+      /*
+       * Start the training timer.
+       */
+      const updatedBases =
+        current.bases.map(
+          (currentBase) => {
+            if (
+              currentBase.id !==
+              selectedBaseId
+            ) {
+              return currentBase;
+            }
+
+            return {
+              ...currentBase,
+
+              training: {
+                resource,
+                secondsRemaining: 10,
+              },
+            };
+          },
+        );
+
+      /*
+       * Deduct the cost immediately.
+       */
+      const updatedResources = {
+        ...current.resourcesByBase,
+
+        [selectedBaseId]: {
+          ...resources,
+
+          [resource]:
+            resources[resource] -
+            cost,
+        },
+      };
+
+      return {
+        ...current,
+
+        bases: updatedBases,
+
+        resourcesByBase:
+          updatedResources,
+      };
+    });
   }
 
-  /*
-   * Don't add this mission back to updatedArmyMissions.
-   * It has completed.
-   */
-  return;
-}
 
   /*
-   * Still traveling.
+   * ==========================================================
+   * MASTER GAME TIMER
+   * ==========================================================
+   *
+   * This currently runs the whole MVP simulation.
+   *
+   * Every second it:
+   *
+   * 1. Advances base age
+   * 2. Advances army training
+   * 3. Advances traveling missions
+   * 4. Resolves arriving attacks
+   * 5. Resolves arriving transfers
+   * 6. Deposits returning attackers and raid loot
+   * 7. Produces resources at every remaining base
+   * 8. Advances the game clock
+   *
+   * Later, this logic will move server-side.
    */
-  updatedArmyMissions.push({
-    ...mission,
+  useEffect(() => {
+    const timer =
+      window.setInterval(() => {
+        setGameState((current) => {
 
-    secondsRemaining:
-      mission.secondsRemaining - 1,
-  });
-});
+          /*
+           * ==================================================
+           * STEP 1:
+           * AGE BASES AND PROCESS TRAINING
+           * ==================================================
+           */
+          let updatedBases =
+            current.bases.map((base) => {
+              let updatedArmies =
+                base.armies;
 
-         /*
-         * Every base owned by the local player produces
-         * resources simultaneously.
-         */
-        updatedBases
-          .filter(
-            (base) => base.playerId === yourPlayerId,
-          )
-          .forEach((base) => {
-            const tile = mapOne.find(
-              (tile) =>
-                tile.row === base.row &&
-                tile.col === base.col,
-            );
+              let updatedTraining =
+                base.training;
+
+              let updatedArmiesBuilt =
+                base.armiesBuilt;
+
+              /*
+               * If this base is training,
+               * reduce its timer by one second.
+               */
+              if (base.training) {
+                const secondsRemaining =
+                  base.training
+                    .secondsRemaining - 1;
+
+                /*
+                 * Training completed.
+                 */
+                if (
+                  secondsRemaining <= 0
+                ) {
+                  const resource =
+                    base.training.resource;
+
+                  updatedArmies = {
+                    ...base.armies,
+
+                    [resource]:
+                      base.armies[
+                        resource
+                      ] + 1,
+                  };
+
+                  updatedArmiesBuilt += 1;
+
+                  updatedTraining = null;
+                } else {
+                  /*
+                   * Still training.
+                   */
+                  updatedTraining = {
+                    ...base.training,
+
+                    secondsRemaining,
+                  };
+                }
+              }
+
+              return {
+                ...base,
+
+                /*
+                 * Base ages by one second.
+                 */
+                timeInLocationSeconds:
+                  base.timeInLocationSeconds +
+                  1,
+
+                armies:
+                  updatedArmies,
+
+                armiesBuilt:
+                  updatedArmiesBuilt,
+
+                training:
+                  updatedTraining,
+              };
+            });
+
+
+          /*
+           * ==================================================
+           * STEP 2:
+           * CREATE WORKING COPIES OF OTHER GAME STATE
+           * ==================================================
+           *
+           * We modify these during this tick,
+           * then return them at the end.
+           */
+
+          const updatedResources = {
+            ...current.resourcesByBase,
+          };
+
+          const updatedBattleReports = [
+            ...current.battleReports,
+          ];
+
+          let nextBattleReportId =
+            current.nextBattleReportId;
+
+          const updatedTreasures = [
+            ...current.treasures,
+          ];
+
+          let nextTreasureId =
+            current.nextTreasureId;
+
+          const updatedArmyMissions:
+            ArmyMission[] = [];
+
+
+          /*
+           * ==================================================
+           * STEP 3:
+           * ADVANCE EVERY ARMY MISSION
+           * ==================================================
+           */
+          current.armyMissions.forEach(
+            (mission) => {
+
+              /*
+               * Mission has NOT arrived yet.
+               *
+               * Reduce timer by one second
+               * and keep it active.
+               */
+              if (
+                mission.secondsRemaining > 1
+              ) {
+                updatedArmyMissions.push({
+                  ...mission,
+
+                  secondsRemaining:
+                    mission.secondsRemaining -
+                    1,
+                });
+
+                return;
+              }
+
+
+              /*
+               * =================================================
+               * MISSION ARRIVAL:
+               * OUTBOUND ATTACK
+               * =================================================
+               */
+              if (
+                mission.type === "attack" &&
+                mission.phase === "outbound"
+              ) {
+                const defendingBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id ===
+                      mission.destinationBaseId,
+                  );
+
+                const originBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id ===
+                      mission.originBaseId,
+                  );
+
+                /*
+                 * If either relevant base no longer
+                 * exists, terminate the mission.
+                 *
+                 * We can refine this edge case later.
+                 */
+                if (
+                  !defendingBase ||
+                  !originBase
+                ) {
+                  return;
+                }
+
+
+                /*
+                 * -----------------------------------------------
+                 * COMBAT
+                 * -----------------------------------------------
+                 */
+                const combatResult =
+                  resolveCombat(
+                    mission.armies,
+                    defendingBase.armies,
+                  );
+
+
+                /*
+                 * -----------------------------------------------
+                 * RESOURCE RESULT DEFAULTS
+                 * -----------------------------------------------
+                 *
+                 * If the defense succeeds:
+                 *
+                 * - nothing is looted
+                 * - all resources remain at the base
+                 */
+                let resourcesLooted = {
+                  water: 0,
+                  fire: 0,
+                  grass: 0,
+                };
+
+                let resourcesRemaining = {
+                  ...(
+                    updatedResources[
+                      defendingBase.id
+                    ] ?? {
+                      water: 0,
+                      fire: 0,
+                      grass: 0,
+                    }
+                  ),
+                };
+
+
+                /*
+                 * -----------------------------------------------
+                 * UPDATE DEFENDER SURVIVORS
+                 * -----------------------------------------------
+                 */
+                updatedBases =
+                  updatedBases.map((base) => {
+                    if (
+                      base.id !==
+                      defendingBase.id
+                    ) {
+                      return base;
+                    }
+
+                    return {
+                      ...base,
+
+                      armies:
+                        combatResult
+                          .defenderSurvivors,
+                    };
+                  });
+
+
+                /*
+                 * -----------------------------------------------
+                 * DESTROY THE BASE IF ATTACKER WON
+                 * -----------------------------------------------
+                 */
+                if (
+                  combatResult.baseDestroyed
+                ) {
+                  updatedBases =
+                    updatedBases.filter(
+                      (base) =>
+                        base.id !==
+                        defendingBase.id,
+                    );
+                }
+
+
+                /*
+                 * -----------------------------------------------
+                 * COUNT SURVIVING ATTACKERS
+                 * -----------------------------------------------
+                 */
+                const survivingAttackers =
+                  combatResult
+                    .attackerSurvivors;
+
+                const totalSurvivors =
+                  survivingAttackers.water +
+                  survivingAttackers.fire +
+                  survivingAttackers.grass;
+
+
+                /*
+                 * Returning attackers normally
+                 * carry nothing.
+                 *
+                 * A successful raid can fill this
+                 * with captured resources.
+                 */
+                let returningResources = {
+                  water: 0,
+                  fire: 0,
+                  grass: 0,
+                };
+
+
+                /*
+                 * -----------------------------------------------
+                 * RAID LOOT
+                 * -----------------------------------------------
+                 *
+                 * Only occurs if:
+                 *
+                 * - the base was destroyed
+                 * - at least one attacker survived
+                 */
+                if (
+                  combatResult.baseDestroyed &&
+                  totalSurvivors > 0
+                ) {
+                  const defeatedResources =
+                    updatedResources[
+                      defendingBase.id
+                    ] ?? {
+                      water: 0,
+                      fire: 0,
+                      grass: 0,
+                    };
+
+                  /*
+                   * Each survivor carries
+                   * up to 200 resources.
+                   */
+                  const lootCapacity =
+                    totalSurvivors * 200;
+
+                  const lootResult =
+                    calculateLoot(
+                      defeatedResources,
+                      lootCapacity,
+                    );
+
+
+                  /*
+                   * Save final resource results
+                   * for the Battle Report.
+                   */
+                  resourcesLooted = {
+                    ...lootResult.loot,
+                  };
+
+                  resourcesRemaining = {
+                    ...lootResult.remaining,
+                  };
+
+
+                  /*
+                   * The attackers carry the loot
+                   * home on their return mission.
+                   */
+                  returningResources = {
+                    ...lootResult.loot,
+                  };
+
+
+                  /*
+                   * The destroyed base no longer
+                   * owns a resource bank.
+                   */
+                  delete updatedResources[
+                    defendingBase.id
+                  ];
+
+
+                  /*
+                   * ---------------------------------------------
+                   * TREASURE CHEST
+                   * ---------------------------------------------
+                   *
+                   * Anything that surviving attackers
+                   * cannot carry stays on the tile.
+                   */
+                  const treasureRemaining =
+                    lootResult.remaining.water +
+                    lootResult.remaining.fire +
+                    lootResult.remaining.grass;
+
+                  if (
+                    treasureRemaining > 0
+                  ) {
+                    updatedTreasures.push({
+                      id: nextTreasureId,
+
+                      row:
+                        defendingBase.row,
+
+                      col:
+                        defendingBase.col,
+
+                      resources: {
+                        ...lootResult.remaining,
+                      },
+                    });
+
+                    nextTreasureId += 1;
+                  }
+                }
+
+
+                /*
+                 * -----------------------------------------------
+                 * BATTLE REPORT
+                 * -----------------------------------------------
+                 *
+                 * IMPORTANT:
+                 *
+                 * The report is created AFTER both combat
+                 * and loot have been resolved.
+                 *
+                 * That lets the public report show:
+                 *
+                 * - armies involved
+                 * - survivors
+                 * - resources looted
+                 * - resources remaining
+                 * - final battle result
+                 */
+                updatedBattleReports.push({
+                  id:
+                    nextBattleReportId,
+
+                  gameSeconds:
+                    current.gameSeconds + 1,
+
+                  attackerPlayerId:
+                    originBase.playerId,
+
+                  defenderPlayerId:
+                    defendingBase.playerId,
+
+                  row:
+                    defendingBase.row,
+
+                  col:
+                    defendingBase.col,
+
+                  attackerArmies: {
+                    ...mission.armies,
+                  },
+
+                  defenderArmies: {
+                    ...defendingBase.armies,
+                  },
+
+                  attackerSurvivors: {
+                    ...combatResult
+                      .attackerSurvivors,
+                  },
+
+                  defenderSurvivors: {
+                    ...combatResult
+                      .defenderSurvivors,
+                  },
+
+                  resourcesLooted: {
+                    ...resourcesLooted,
+                  },
+
+                  resourcesRemaining: {
+                    ...resourcesRemaining,
+                  },
+
+                  militiaSurvived:
+                    combatResult
+                      .militiaSurvived,
+
+                  baseDestroyed:
+                    combatResult
+                      .baseDestroyed,
+                });
+
+                nextBattleReportId += 1;
+
+
+                /*
+                 * -----------------------------------------------
+                 * START RETURN TRIP
+                 * -----------------------------------------------
+                 *
+                 * Only surviving attackers return.
+                 */
+                if (
+                  totalSurvivors > 0
+                ) {
+                  const distance =
+                    Math.abs(
+                      originBase.row -
+                        defendingBase.row,
+                    ) +
+                    Math.abs(
+                      originBase.col -
+                        defendingBase.col,
+                    );
+
+                  const returnTravelTime =
+                    distance * 5;
+
+                  updatedArmyMissions.push({
+                    ...mission,
+
+                    phase: "returning",
+
+                    armies: {
+                      ...survivingAttackers,
+                    },
+
+                    resources: {
+                      ...returningResources,
+                    },
+
+                    secondsRemaining:
+                      returnTravelTime,
+                  });
+                }
+
+                /*
+                 * Attack arrival is fully resolved.
+                 */
+                return;
+              }
+
+
+              /*
+               * =================================================
+               * MISSION ARRIVAL:
+               * RETURNING ATTACK
+               * =================================================
+               *
+               * Surviving attackers return to their
+               * original base with any raid loot.
+               */
+              if (
+                mission.type === "attack" &&
+                mission.phase === "returning"
+              ) {
+
+                /*
+                 * Return armies to origin.
+                 */
+                updatedBases =
+                  updatedBases.map((base) => {
+                    if (
+                      base.id !==
+                      mission.originBaseId
+                    ) {
+                      return base;
+                    }
+
+                    return {
+                      ...base,
+
+                      armies: {
+                        water:
+                          base.armies.water +
+                          mission.armies.water,
+
+                        fire:
+                          base.armies.fire +
+                          mission.armies.fire,
+
+                        grass:
+                          base.armies.grass +
+                          mission.armies.grass,
+                      },
+                    };
+                  });
+
+
+                /*
+                 * Deposit raid loot at origin.
+                 */
+                const originResources =
+                  updatedResources[
+                    mission.originBaseId
+                  ];
+
+                if (originResources) {
+                  updatedResources[
+                    mission.originBaseId
+                  ] = {
+                    water:
+                      originResources.water +
+                      mission.resources.water,
+
+                    fire:
+                      originResources.fire +
+                      mission.resources.fire,
+
+                    grass:
+                      originResources.grass +
+                      mission.resources.grass,
+                  };
+                }
+
+                return;
+              }
+
+
+              /*
+               * =================================================
+               * MISSION ARRIVAL:
+               * TRANSFER
+               * =================================================
+               *
+               * Transfer armies and cargo arrive
+               * at another friendly base.
+               */
+              if (
+                mission.type === "transfer" &&
+                mission.phase === "outbound"
+              ) {
+
+                /*
+                 * Add armies.
+                 */
+                updatedBases =
+                  updatedBases.map((base) => {
+                    if (
+                      base.id !==
+                      mission.destinationBaseId
+                    ) {
+                      return base;
+                    }
+
+                    return {
+                      ...base,
+
+                      armies: {
+                        water:
+                          base.armies.water +
+                          mission.armies.water,
+
+                        fire:
+                          base.armies.fire +
+                          mission.armies.fire,
+
+                        grass:
+                          base.armies.grass +
+                          mission.armies.grass,
+                      },
+                    };
+                  });
+
+
+                /*
+                 * Add cargo.
+                 */
+                const destinationResources =
+                  updatedResources[
+                    mission.destinationBaseId
+                  ];
+
+                if (
+                  destinationResources
+                ) {
+                  updatedResources[
+                    mission.destinationBaseId
+                  ] = {
+                    water:
+                      destinationResources.water +
+                      mission.resources.water,
+
+                    fire:
+                      destinationResources.fire +
+                      mission.resources.fire,
+
+                    grass:
+                      destinationResources.grass +
+                      mission.resources.grass,
+                  };
+                }
+
+                return;
+              }
+            },
+          );
+
+
+          /*
+           * ==================================================
+           * STEP 4:
+           * RESOURCE PRODUCTION
+           * ==================================================
+           *
+           * Every surviving base produces independently.
+           *
+           * Production =
+           *
+           * location multiplier
+           * ×
+           * tile multiplier
+           */
+          updatedBases.forEach((base) => {
+            const tile =
+              mapOne.find(
+                (tile) =>
+                  tile.row === base.row &&
+                  tile.col === base.col,
+              );
 
             if (!tile) {
               return;
             }
 
             const currentResources =
-              updatedResources[base.id];
+              updatedResources[
+                base.id
+              ];
 
+            /*
+             * Every legitimate base should
+             * have a resource bank.
+             */
             if (!currentResources) {
               return;
             }
@@ -789,48 +1442,94 @@ if (
               );
 
             const productionAmount =
-              locationMultiplier * tile.multiplier;
+              locationMultiplier *
+              tile.multiplier;
 
-            const resource = tile.resource;
+            const resource =
+              tile.resource;
 
             updatedResources[base.id] = {
               ...currentResources,
+
               [resource]:
-                currentResources[resource] +
+                currentResources[
+                  resource
+                ] +
                 productionAmount,
             };
           });
 
-        return {
-          ...current,
-          gameSeconds: current.gameSeconds + 1,
-          bases: updatedBases,
-          resourcesByBase: updatedResources,
-          armyMissions: updatedArmyMissions,
-          battleReports: updatedBattleReports,
-          nextBattleReportId,
-        };
-      });
-    }, 1000);
 
-    return () => window.clearInterval(timer);
+          /*
+           * ==================================================
+           * STEP 5:
+           * SAVE THE COMPLETED GAME TICK
+           * ==================================================
+           */
+          return {
+            ...current,
+
+            gameSeconds:
+              current.gameSeconds + 1,
+
+            bases:
+              updatedBases,
+
+            resourcesByBase:
+              updatedResources,
+
+            armyMissions:
+              updatedArmyMissions,
+
+            battleReports:
+              updatedBattleReports,
+
+            nextBattleReportId,
+
+            treasures:
+              updatedTreasures,
+
+            nextTreasureId,
+          };
+        });
+      }, 1000);
+
+
+    /*
+     * Stop the timer if App is ever removed.
+     */
+    return () =>
+      window.clearInterval(timer);
   }, []);
 
+
+  /*
+   * ==========================================================
+   * MAIN GAME UI
+   * ==========================================================
+   */
   return (
     <main className="app">
+
+      {/* Top-left */}
       <BattleReports
         reports={gameState.battleReports}
         players={players}
       />
 
+      {/* Top-center */}
       <ResourceBar
         water={selectedResources.water}
         fire={selectedResources.fire}
         grass={selectedResources.grass}
       />
 
-      <GameClock seconds={gameState.gameSeconds} />
+      {/* Top-right */}
+      <GameClock
+        seconds={gameState.gameSeconds}
+      />
 
+      {/* Bottom-right */}
       <BaseActions
         key={selectedBaseId}
         base={selectedBase}
@@ -838,59 +1537,108 @@ if (
         ownedBases={yourBases}
         enemyBases={enemyBases}
         onTrainArmy={handleTrainArmy}
-        onTransferArmies={handleTransferArmies}
-        onAttackArmies={handleAttackArmies}
+        onTransferArmies={
+          handleTransferArmies
+        }
+        onAttackArmies={
+          handleAttackArmies
+        }
       />
 
+      {/* Traveling armies */}
       <ArmyMovements
         missions={gameState.armyMissions}
         bases={yourBases}
       />
 
+      {/* Main battlefield */}
       <GameMap
         selectedBaseId={selectedBaseId}
         bases={gameState.bases}
+        treasures={gameState.treasures}
       />
 
+
+      {/*
+       * ======================================================
+       * BOTTOM-LEFT BASE SELECTOR
+       * ======================================================
+       *
+       * Quick empire overview:
+       *
+       * - select a base
+       * - see armies
+       * - see stored resources
+       */}
       <div className="base-selector">
         <div className="base-selector-title">
-          {yourPlayer?.name ?? "Your Bases"}
+          {yourPlayer?.name ??
+            "Your Bases"}
         </div>
 
-        {yourBases.map((base, index) => (
-          <button
-  key={base.id}
-  className={[
-    "base-selector-button",
-    base.id === selectedBaseId
-      ? "base-selector-button--selected"
-      : "",
-  ]
-    .filter(Boolean)
-    .join(" ")}
-  onClick={() =>
-    setSelectedBaseId(base.id)
-  }
->
-  <span>Base {index + 1}</span>
+        {yourBases.map(
+          (base, index) => (
+            <button
+              key={base.id}
+              className={[
+                "base-selector-button",
 
-<span className="base-army-summary">
-  ⚔️💧{base.armies.water}
-  {" "}
-  ⚔️🔥{base.armies.fire}
-  {" "}
-  ⚔️🌱{base.armies.grass}
-</span>
+                base.id ===
+                selectedBaseId
+                  ? "base-selector-button--selected"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+              onClick={() =>
+                setSelectedBaseId(
+                  base.id,
+                )
+              }
+            >
+              <span>
+                Base {index + 1}
+              </span>
 
-<span className="base-resource-summary">
-  💧{Math.floor(gameState.resourcesByBase[base.id]?.water ?? 0)}
-  {" "}
-  🔥{Math.floor(gameState.resourcesByBase[base.id]?.fire ?? 0)}
-  {" "}
-  🌱{Math.floor(gameState.resourcesByBase[base.id]?.grass ?? 0)}
-</span>
-</button>
-        ))}
+              {/* Armies stationed here */}
+              <span className="base-army-summary">
+                ⚔️💧
+                {base.armies.water}{" "}
+                ⚔️🔥
+                {base.armies.fire}{" "}
+                ⚔️🌱
+                {base.armies.grass}
+              </span>
+
+              {/* Resources stored here */}
+              <span className="base-resource-summary">
+                💧
+                {Math.floor(
+                  gameState
+                    .resourcesByBase[
+                    base.id
+                  ]?.water ?? 0,
+                )}{" "}
+
+                🔥
+                {Math.floor(
+                  gameState
+                    .resourcesByBase[
+                    base.id
+                  ]?.fire ?? 0,
+                )}{" "}
+
+                🌱
+                {Math.floor(
+                  gameState
+                    .resourcesByBase[
+                    base.id
+                  ]?.grass ?? 0,
+                )}
+              </span>
+            </button>
+          ),
+        )}
       </div>
     </main>
   );

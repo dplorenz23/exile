@@ -87,6 +87,12 @@ export interface Tile {
   flowDirection?: FlowDirection;
 }
 
+export interface ResourceCounts {
+  water: number;
+  fire: number;
+  grass: number;
+}
+
 export interface ArmyCounts {
   water: number;
   fire: number;
@@ -134,11 +140,7 @@ export interface ArmyMission {
 
   armies: ArmyCounts;
 
-  resources: {
-    water: number;
-    fire: number;
-    grass: number;
-  };
+  resources: ResourceCounts;
 
   secondsRemaining: number;
 }
@@ -166,9 +168,21 @@ export interface BattleReport {
   attackerArmies: ArmyCounts;
   defenderArmies: ArmyCounts;
 
+  resourcesLooted: ResourceCounts;
+  resourcesRemaining: ResourceCounts;
+
   attackerSurvivors: ArmyCounts;
   defenderSurvivors: ArmyCounts;
 
   militiaSurvived: boolean;
   baseDestroyed: boolean;
+}
+
+export interface Treasure {
+  id: number;
+
+  row: number;
+  col: number;
+
+  resources: ResourceCounts;
 }

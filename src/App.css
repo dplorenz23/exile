@@ -965,3 +965,28 @@ body {
   font-size: 13px;
   text-align: center;
 }
+
+.treasure {
+  position: absolute;
+
+  left: 50%;
+  top: 50%;
+
+  transform: translate(-50%, -50%);
+
+  z-index: 6;
+
+  font-size: clamp(24px, 3.5vw, 44px);
+
+  cursor: help;
+
+  filter:
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.65));
+
+  user-select: none;
+}
+
+.army-movement-status {
+  font-weight: bold;
+  font-size: 12px;
+}
