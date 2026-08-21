@@ -185,10 +185,20 @@ function App() {
   * - relocate
   */
   const [targetingMode, setTargetingMode] =
-    useState<"attack" | null>(null);
+    useState<"attack" | "loot" | null>(null);
 
   const [pendingAttackArmies, setPendingAttackArmies] =
     useState<ArmyCounts | null>(null);
+
+  const [pendingLootArmies, setPendingLootArmies] =
+    useState<ArmyCounts | null>(null);
+
+  function cancelTargeting() {
+    setTargetingMode(null);
+
+    setPendingAttackArmies(null);
+    setPendingLootArmies(null);
+  }
 
   /*
   * ==========================================================
@@ -412,6 +422,165 @@ function App() {
     });
   }
 
+  /*
+  * ==========================================================
+  * START LOOT TARGETING
+  * ==========================================================
+  *
+  * Remember which armies were selected, then allow
+  * the player to choose a treasure chest on the map.
+  */
+  function handleStartLootTargeting(
+    armies: ArmyCounts,
+  ) {
+    setPendingLootArmies({
+      ...armies,
+    });
+
+    setTargetingMode("loot");
+  }
+
+  /*
+  * ==========================================================
+  * LOOT TARGET SELECTED
+  * ==========================================================
+  *
+  * Called when the player clicks a treasure chest while
+  * the map is in Loot Targeting Mode.
+  *
+  * For now this creates the outbound mission only.
+  * The actual looting will happen when the army arrives.
+  */
+  function handleLootTargetSelected(
+    treasureId: number,
+  ) {
+    if (!pendingLootArmies) {
+      return;
+    }
+
+    const armiesToSend = {
+      ...pendingLootArmies,
+    };
+
+      setGameState((current) => {
+        const originBase = current.bases.find(
+          (base) => base.id === selectedBaseId,
+        );
+
+        const treasure = current.treasures.find(
+          (treasure) => treasure.id === treasureId,
+        );
+
+        if (!originBase || !treasure) {
+          return current;
+        }
+
+        /*
+         * Make sure the armies are still available.
+         */
+        if (
+          armiesToSend.water > originBase.armies.water ||
+          armiesToSend.fire > originBase.armies.fire ||
+          armiesToSend.grass > originBase.armies.grass
+        ) {
+          return current;
+        }
+
+        const totalArmies =
+          armiesToSend.water +
+          armiesToSend.fire +
+          armiesToSend.grass;
+
+        if (totalArmies === 0) {
+          return current;
+        }
+
+        /*
+         * Travel time is 5 seconds per tile.
+         */
+        const distance =
+          Math.abs(originBase.row - treasure.row) +
+          Math.abs(originBase.col - treasure.col);
+
+        const travelTime = distance * 5;
+
+        /*
+         * Armies leave the origin immediately.
+         */
+        const updatedBases = current.bases.map((base) => {
+          if (base.id !== originBase.id) {
+            return base;
+          }
+
+          return {
+            ...base,
+
+            armies: {
+              water:
+                base.armies.water -
+                armiesToSend.water,
+
+              fire:
+                base.armies.fire -
+                armiesToSend.fire,
+
+              grass:
+                base.armies.grass -
+                armiesToSend.grass,
+            },
+          };
+        });
+
+        /*
+         * Create the outbound Loot mission.
+         *
+         * destinationBaseId is not meaningful for treasure,
+         * so we use the treasure ID here temporarily.
+         * We'll clean this model up later if needed.
+         */
+        const newMission: ArmyMission = {
+          id: current.nextMissionId,
+
+          type: "loot",
+          phase: "outbound",
+
+          originBaseId: originBase.id,
+          destinationBaseId: treasure.id,
+
+          armies: {
+            ...armiesToSend,
+          },
+
+          resources: {
+            water: 0,
+            fire: 0,
+            grass: 0,
+          },
+
+          secondsRemaining: travelTime,
+        };
+
+        return {
+          ...current,
+
+          bases: updatedBases,
+
+          armyMissions: [
+            ...current.armyMissions,
+            newMission,
+          ],
+
+          nextMissionId:
+            current.nextMissionId + 1,
+        };
+      });
+
+      /*
+       * Leave targeting mode once the mission launches.
+       */
+      setPendingLootArmies(null);
+      setTargetingMode(null);
+    }
 
   /*
    * ==========================================================
@@ -1595,6 +1764,7 @@ function App() {
         onTransferArmies={handleTransferArmies}
         onAttackArmies={handleAttackArmies}
         onStartAttackTargeting={handleStartAttackTargeting}
+        onStartLootTargeting={handleStartLootTargeting}
       />
 
       {/* Traveling armies */}
@@ -1602,6 +1772,17 @@ function App() {
         missions={gameState.armyMissions}
         bases={yourBases}
       />
+
+      {/* Attack targeting instructions */}
+      {targetingMode === "attack" && (
+        <div className="targeting-banner">
+          <span>Choose an enemy base to attack</span>
+
+          <button onClick={cancelTargeting}>
+            Cancel
+          </button>
+        </div>
+      )}
 
       {/* Main battlefield */}
       <GameMap
@@ -1612,6 +1793,7 @@ function App() {
         yourPlayerId={yourPlayerId}
         originBase={selectedBase}
         onAttackTargetSelected={handleAttackTargetSelected}
+        onLootTargetSelected={handleLootTargetSelected}
       />
 
 

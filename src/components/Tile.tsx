@@ -17,6 +17,9 @@ interface TileProps {
   isAttackTarget?: boolean;
   travelTimeSeconds?: number;
   onAttackTargetClick?: () => void;
+  isLootTarget?: boolean;
+  lootTravelTimeSeconds?: number;
+  onLootTargetClick?: () => void;
 }
 
 function getTerrainIcon(tile: TileType) {
@@ -46,6 +49,9 @@ export default function Tile({
   isAttackTarget = false,
   travelTimeSeconds,
   onAttackTargetClick,
+  isLootTarget = false,
+  lootTravelTimeSeconds,
+  onLootTargetClick,
 }: TileProps) {
   const isTop = tile.row === 0;
   const isBottom = tile.row === gridSize - 1;
@@ -92,15 +98,28 @@ export default function Tile({
 
       {treasure && (
         <div
-          className="treasure"
+          className={[
+            "treasure",
+            isLootTarget ? "treasure--loot-target" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          onClick={onLootTargetClick}
           title={
-            `Treasure — ` +
-            `Water: ${treasure.resources.water}, ` +
-            `Fire: ${treasure.resources.fire}, ` +
-            `Grass: ${treasure.resources.grass}`
+            isLootTarget &&
+            lootTravelTimeSeconds !== undefined
+              ? `Loot treasure — ${lootTravelTimeSeconds}s travel`
+              : `Treasure — Water: ${treasure.resources.water}, Fire: ${treasure.resources.fire}, Grass: ${treasure.resources.grass}`
           }
         >
-          🧰
+          💰
+
+          {isLootTarget &&
+            lootTravelTimeSeconds !== undefined && (
+              <div className="loot-travel-time">
+                {lootTravelTimeSeconds}s
+              </div>
+            )}
         </div>
       )}
 

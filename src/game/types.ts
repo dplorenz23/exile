@@ -131,7 +131,7 @@ export interface Player {
 export interface ArmyMission {
   id: number;
 
-  type: "transfer" | "attack";
+  type: "transfer" | "attack" | "loot";
 
   phase: "outbound" | "returning";
 

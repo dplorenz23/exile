@@ -32,6 +32,10 @@ interface BaseActionsProps {
     armies: ArmyCounts,
   ) => void;
 
+  onStartLootTargeting: (
+    armies: ArmyCounts,
+  ) => void;
+
 }
 
 export default function BaseActions({
@@ -42,7 +46,8 @@ export default function BaseActions({
   onTrainArmy,
   onTransferArmies,
   onAttackArmies,
-  onStartAttackTargeting
+  onStartAttackTargeting,
+  onStartLootTargeting,
 }: BaseActionsProps) {
   const [mode, setMode] = useState<
     | "main"
@@ -52,6 +57,7 @@ export default function BaseActions({
     | "transfer-armies"
     | "cargo"
     | "transfer-destination"
+    | "loot-armies"
   >("main");
 
   const [selectedArmies, setSelectedArmies] =
@@ -274,9 +280,93 @@ export default function BaseActions({
 
         <button
           className="base-action-button"
-          disabled
+          onClick={() => setMode("loot-armies")}
         >
           💰 Loot
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={resetSend}
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
+  /*
+  * Select armies for a Loot mission.
+  */
+  if (mode === "loot-armies") {
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">
+          Select Looting Armies
+        </div>
+
+        <ArmySelector
+          icon="⚔️💧"
+          label="Water"
+          available={base.armies.water}
+          selected={selectedArmies.water}
+          onDecrease={() =>
+            changeArmyCount("water", -1)
+          }
+          onIncrease={() =>
+            changeArmyCount("water", 1)
+          }
+        />
+
+        <ArmySelector
+          icon="⚔️🔥"
+          label="Fire"
+          available={base.armies.fire}
+          selected={selectedArmies.fire}
+          onDecrease={() =>
+            changeArmyCount("fire", -1)
+          }
+          onIncrease={() =>
+            changeArmyCount("fire", 1)
+          }
+        />
+
+        <ArmySelector
+          icon="⚔️🌱"
+          label="Grass"
+          available={base.armies.grass}
+          selected={selectedArmies.grass}
+          onDecrease={() =>
+            changeArmyCount("grass", -1)
+          }
+          onIncrease={() =>
+            changeArmyCount("grass", 1)
+          }
+        />
+
+        <button
+          className="base-action-button"
+          disabled={totalSelected === 0}
+          onClick={() => {
+              onStartLootTargeting(selectedArmies);
+
+              setSelectedArmies({
+                water: 0,
+                fire: 0,
+                grass: 0,
+              });
+
+              setMode("main");
+            }}
+        >
+          Choose Treasure
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={() => setMode("mission")}
+        >
+          Back
         </button>
 
         <button
@@ -475,6 +565,13 @@ if (mode === "attack-armies") {
         disabled={totalSelected === 0}
         onClick={() => {
           onStartAttackTargeting(selectedArmies);
+
+          setSelectedArmies({
+            water: 0,
+            fire: 0,
+            grass: 0,
+          });
+
           setMode("main");
         }}
       >

@@ -13,13 +13,17 @@ interface GameMapProps {
   bases: Base[];
   treasures: Treasure[];
 
-  targetingMode: "attack" | null;
+  targetingMode: "attack" | "loot" | null;
   yourPlayerId: number;
 
   originBase?: Base;
 
   onAttackTargetSelected: (
     destinationBaseId: number,
+  ) => void;
+
+  onLootTargetSelected: (
+    treasureId: number,
   ) => void;
 }
 
@@ -31,6 +35,7 @@ export default function GameMap({
   yourPlayerId,
   originBase,
   onAttackTargetSelected,
+  onLootTargetSelected,
 }: GameMapProps) {
   return (
     <div className="game-map">
@@ -46,6 +51,22 @@ export default function GameMap({
             treasure.row === tile.row &&
             treasure.col === tile.col,
         );
+
+        const isLootTarget =
+          targetingMode === "loot" &&
+          treasure !== undefined;
+
+        const lootTravelTimeSeconds =
+          isLootTarget && originBase && treasure
+            ? (
+                Math.abs(
+                  originBase.row - treasure.row,
+                ) +
+                Math.abs(
+                  originBase.col - treasure.col,
+                )
+              ) * 5
+            : undefined;
 
         const player = base
           ? players.find(
@@ -89,6 +110,13 @@ export default function GameMap({
               isAttackTarget && base
                 ? () =>
                     onAttackTargetSelected(base.id)
+                : undefined
+            }
+            isLootTarget={isLootTarget}
+            lootTravelTimeSeconds={lootTravelTimeSeconds}
+            onLootTargetClick={
+              isLootTarget && treasure
+                ? () => onLootTargetSelected(treasure.id)
                 : undefined
             }
         />

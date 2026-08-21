@@ -31,6 +31,20 @@ function getMissionLabel(mission: ArmyMission) {
   }
 
   if (
+      mission.type === "loot" &&
+      mission.phase === "outbound"
+    ) {
+      return "Army Looting";
+    }
+
+    if (
+      mission.type === "loot" &&
+      mission.phase === "returning"
+    ) {
+      return "Army Returning";
+    }
+
+  if (
     mission.type === "transfer"
   ) {
     return "Army Transferring";
