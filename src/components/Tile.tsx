@@ -14,6 +14,9 @@ interface TileProps {
   player?: Player;
   treasure?: Treasure;
   isSelectedBase?: boolean;
+  isAttackTarget?: boolean;
+  travelTimeSeconds?: number;
+  onAttackTargetClick?: () => void;
 }
 
 function getTerrainIcon(tile: TileType) {
@@ -40,6 +43,9 @@ export default function Tile({
   player,
   treasure,
   isSelectedBase = false,
+  isAttackTarget = false,
+  travelTimeSeconds,
+  onAttackTargetClick,
 }: TileProps) {
   const isTop = tile.row === 0;
   const isBottom = tile.row === gridSize - 1;
@@ -68,7 +74,11 @@ export default function Tile({
       ]
         .filter(Boolean)
         .join(" ")}
-      title={`${tile.terrain} | ${tile.resource} | ${tile.multiplier}x`}
+      title={
+        isAttackTarget
+          ? undefined
+          : `${tile.terrain} | ${tile.resource} | ${tile.multiplier}x`
+      }
     >
       <span className="tile-icon">
         {getTerrainIcon(tile)}
@@ -99,6 +109,9 @@ export default function Tile({
           base={base}
           player={player}
           isSelected={isSelectedBase}
+          isAttackTarget={isAttackTarget}
+          travelTimeSeconds={travelTimeSeconds}
+          onClick={onAttackTargetClick}
         />
       )}
     </div>

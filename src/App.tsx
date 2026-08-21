@@ -170,6 +170,61 @@ function App() {
       grass: 0,
     };
 
+  /*
+  * ==========================================================
+  * MAP TARGETING
+  * ==========================================================
+  *
+  * When null, the map behaves normally.
+  *
+  * Later this can support:
+  * - attack
+  * - transfer
+  * - loot
+  * - expand
+  * - relocate
+  */
+  const [targetingMode, setTargetingMode] =
+    useState<"attack" | null>(null);
+
+  const [pendingAttackArmies, setPendingAttackArmies] =
+    useState<ArmyCounts | null>(null);
+
+  /*
+  * ==========================================================
+  * START ATTACK TARGETING
+  * ==========================================================
+  *
+  * BaseActions tells App which armies the player selected.
+  *
+  * We remember those armies, then let the player choose
+  * the destination directly from the map.
+  */
+  function handleStartAttackTargeting(
+    armies: ArmyCounts,
+  ) {
+    setPendingAttackArmies({
+      ...armies,
+    });
+
+    setTargetingMode("attack");
+  }
+
+  function handleAttackTargetSelected(
+    destinationBaseId: number,
+  ) {
+    if (!pendingAttackArmies) {
+      return;
+    }
+
+    handleAttackArmies(
+      destinationBaseId,
+      pendingAttackArmies,
+    );
+
+    setPendingAttackArmies(null);
+    setTargetingMode(null);
+  }
 
   /*
    * ==========================================================
@@ -1537,12 +1592,9 @@ function App() {
         ownedBases={yourBases}
         enemyBases={enemyBases}
         onTrainArmy={handleTrainArmy}
-        onTransferArmies={
-          handleTransferArmies
-        }
-        onAttackArmies={
-          handleAttackArmies
-        }
+        onTransferArmies={handleTransferArmies}
+        onAttackArmies={handleAttackArmies}
+        onStartAttackTargeting={handleStartAttackTargeting}
       />
 
       {/* Traveling armies */}
@@ -1556,6 +1608,10 @@ function App() {
         selectedBaseId={selectedBaseId}
         bases={gameState.bases}
         treasures={gameState.treasures}
+        targetingMode={targetingMode}
+        yourPlayerId={yourPlayerId}
+        originBase={selectedBase}
+        onAttackTargetSelected={handleAttackTargetSelected}
       />
 
 

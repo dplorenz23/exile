@@ -27,6 +27,11 @@ interface BaseActionsProps {
     destinationBaseId: number,
     armies: ArmyCounts,
   ) => void;
+
+  onStartAttackTargeting: (
+    armies: ArmyCounts,
+  ) => void;
+
 }
 
 export default function BaseActions({
@@ -37,13 +42,13 @@ export default function BaseActions({
   onTrainArmy,
   onTransferArmies,
   onAttackArmies,
+  onStartAttackTargeting
 }: BaseActionsProps) {
   const [mode, setMode] = useState<
     | "main"
     | "train"
     | "mission"
     | "attack-armies"
-    | "attack-destination"
     | "transfer-armies"
     | "cargo"
     | "transfer-destination"
@@ -468,7 +473,10 @@ if (mode === "attack-armies") {
       <button
         className="base-action-button"
         disabled={totalSelected === 0}
-        onClick={() => setMode("attack-destination")}
+        onClick={() => {
+          onStartAttackTargeting(selectedArmies);
+          setMode("main");
+        }}
       >
         Choose Target
       </button>
@@ -476,59 +484,6 @@ if (mode === "attack-armies") {
       <button
         className="base-action-button"
         onClick={() => setMode("mission")}
-      >
-        Back
-      </button>
-
-      <button
-        className="base-action-button"
-        onClick={resetSend}
-      >
-        Cancel
-      </button>
-    </div>
-  );
-}
-/*
- * Choose an enemy base to attack.
- */
-if (mode === "attack-destination") {
-  return (
-    <div className="base-actions destination-menu">
-      <div className="send-menu-title">
-        Choose Enemy Base
-      </div>
-
-      {enemyBases.map((destination) => {
-        const distance =
-          Math.abs(base.row - destination.row) +
-          Math.abs(base.col - destination.col);
-
-        const travelTime = distance * 5;
-
-        return (
-          <button
-            key={destination.id}
-            className="base-action-button"
-            onClick={() => {
-              onAttackArmies(
-                destination.id,
-                selectedArmies,
-              );
-
-              resetSend();
-            }}
-          >
-            Player {destination.playerId}
-            <br />
-            {travelTime}s travel
-          </button>
-        );
-      })}
-
-      <button
-        className="base-action-button"
-        onClick={() => setMode("attack-armies")}
       >
         Back
       </button>

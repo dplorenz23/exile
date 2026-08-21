@@ -4,6 +4,9 @@ interface BasePieceProps {
   base: Base;
   player: Player;
   isSelected?: boolean;
+  isAttackTarget?: boolean;
+  travelTimeSeconds?: number;
+  onClick?: () => void;
 }
 
 function formatTime(seconds: number) {
@@ -48,6 +51,9 @@ export default function BasePiece({
   base,
   player,
   isSelected = false,
+  isAttackTarget = false,
+  travelTimeSeconds,
+  onClick,
 }: BasePieceProps) {
   const tier = getBaseTier(base.timeInLocationSeconds);
 
@@ -57,10 +63,12 @@ export default function BasePiece({
         "base-piece",
         `base-piece--tier-${tier}`,
         isSelected ? "base-piece--selected" : "",
+        isAttackTarget ? "base-piece--attack-target" : "",
       ]
         .filter(Boolean)
         .join(" ")}
       style={{ "--player-color": player.color } as React.CSSProperties}
+      onClick={onClick}
     >
       <div className="base-structure">
         {getBaseIcon(tier)}
@@ -70,10 +78,25 @@ export default function BasePiece({
         {player.avatar}
       </div>
 
+      {isAttackTarget && travelTimeSeconds !== undefined && (
+        <div className="attack-travel-time">
+          {travelTimeSeconds}s
+        </div>
+      )}
+
       <div className="base-tooltip">
         <strong>{player.name}</strong>
-        <span>Time here: {formatTime(base.timeInLocationSeconds)}</span>
-      </div>
+
+        <span>
+          Time here: {formatTime(base.timeInLocationSeconds)}
+        </span>
+
+        {travelTimeSeconds !== undefined && (
+          <span>
+            Travel time: {travelTimeSeconds}s
+          </span>
+        )}
+    </div>
     </div>
   );
 }

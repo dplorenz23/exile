@@ -12,12 +12,25 @@ interface GameMapProps {
   selectedBaseId: number;
   bases: Base[];
   treasures: Treasure[];
+
+  targetingMode: "attack" | null;
+  yourPlayerId: number;
+
+  originBase?: Base;
+
+  onAttackTargetSelected: (
+    destinationBaseId: number,
+  ) => void;
 }
 
 export default function GameMap({
   selectedBaseId,
   bases,
   treasures,
+  targetingMode,
+  yourPlayerId,
+  originBase,
+  onAttackTargetSelected,
 }: GameMapProps) {
   return (
     <div className="game-map">
@@ -40,6 +53,27 @@ export default function GameMap({
             )
           : undefined;
 
+        /*
+        * During Attack Targeting Mode, any enemy base
+        * is a valid map target.
+        */
+        const isAttackTarget =
+          targetingMode === "attack" &&
+          base !== undefined &&
+          base.playerId !== yourPlayerId;
+
+        const travelTimeSeconds =
+          isAttackTarget && originBase && base
+            ? (
+                Math.abs(
+                  originBase.row - base.row,
+                ) +
+                Math.abs(
+                  originBase.col - base.col,
+                )
+              ) * 5
+            : undefined;
+
         return (
           <Tile
             key={`${tile.row}-${tile.col}`}
@@ -49,7 +83,15 @@ export default function GameMap({
             player={player}
             treasure={treasure}
             isSelectedBase={base?.id === selectedBaseId}
-          />
+            isAttackTarget={isAttackTarget}
+            travelTimeSeconds={travelTimeSeconds}
+            onAttackTargetClick={
+              isAttackTarget && base
+                ? () =>
+                    onAttackTargetSelected(base.id)
+                : undefined
+            }
+        />
         );
       })}
     </div>
