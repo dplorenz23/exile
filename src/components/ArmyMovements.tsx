@@ -1,11 +1,13 @@
 import type {
   ArmyMission,
   Base,
+  Treasure,
 } from "../game/types";
 
 interface ArmyMovementsProps {
   missions: ArmyMission[];
   bases: Base[];
+  treasures: Treasure[];
 }
 
 /*
@@ -56,6 +58,7 @@ function getMissionLabel(mission: ArmyMission) {
 export default function ArmyMovements({
   missions,
   bases,
+  treasures,
 }: ArmyMovementsProps) {
   /*
    * Hide the entire panel when nothing is moving.
@@ -82,6 +85,21 @@ export default function ArmyMovements({
       : "Unknown Base";
   }
 
+  function getTreasureName(treasureId: number) {
+    const treasure = treasures.find(
+      (treasure) => treasure.id === treasureId,
+    );
+
+    if (!treasure) {
+      return "Treasure";
+    }
+
+    const column =
+      String.fromCharCode(65 + treasure.col);
+
+    return `Treasure at ${column}${treasure.row + 1}`;
+  }
+
   return (
     <div className="army-movements">
       <strong>Armies Moving</strong>
@@ -100,14 +118,18 @@ export default function ArmyMovements({
           <div className="army-movement-header">
             <span>
               {mission.phase === "returning"
-                ? getBaseName(mission.destinationBaseId)
+                ? mission.type === "loot"
+                  ? getTreasureName(mission.destinationBaseId)
+                  : getBaseName(mission.destinationBaseId)
                 : getBaseName(mission.originBaseId)}
 
               {" → "}
 
               {mission.phase === "returning"
                 ? getBaseName(mission.originBaseId)
-                : getBaseName(mission.destinationBaseId)}
+                : mission.type === "loot"
+                  ? getTreasureName(mission.destinationBaseId)
+                  : getBaseName(mission.destinationBaseId)}
             </span>
 
             <strong>
@@ -146,3 +168,4 @@ export default function ArmyMovements({
     </div>
   );
 }
+

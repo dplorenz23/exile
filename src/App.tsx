@@ -1540,6 +1540,188 @@ function App() {
                 return;
               }
 
+              /*
+              * =================================================
+              * MISSION ARRIVAL:
+              * OUTBOUND LOOT
+              * =================================================
+              *
+              * Looting armies arrive at a treasure chest,
+              * take as much as they can carry, then return home.
+              */
+              if (
+                mission.type === "loot" &&
+                mission.phase === "outbound"
+              ) {
+                const originBase = updatedBases.find(
+                  (base) =>
+                    base.id === mission.originBaseId,
+                );
+
+                const treasure = updatedTreasures.find(
+                  (treasure) =>
+                    treasure.id === mission.destinationBaseId,
+                );
+
+                /*
+                 * If the origin base or treasure no longer exists,
+                 * terminate the mission for now.
+                 */
+                if (!originBase || !treasure) {
+                  return;
+                }
+
+                const totalArmies =
+                  mission.armies.water +
+                  mission.armies.fire +
+                  mission.armies.grass;
+
+                const lootCapacity =
+                  totalArmies * 200;
+
+                const lootResult = calculateLoot(
+                  treasure.resources,
+                  lootCapacity,
+                );
+
+                /*
+                 * Update or remove the treasure chest.
+                 */
+                const remainingTotal =
+                  lootResult.remaining.water +
+                  lootResult.remaining.fire +
+                  lootResult.remaining.grass;
+
+                if (remainingTotal > 0) {
+                  const treasureIndex =
+                    updatedTreasures.findIndex(
+                      (currentTreasure) =>
+                        currentTreasure.id === treasure.id,
+                    );
+
+                  if (treasureIndex >= 0) {
+                    updatedTreasures[treasureIndex] = {
+                      ...treasure,
+
+                      resources: {
+                        ...lootResult.remaining,
+                      },
+                    };
+                  }
+                } else {
+                  const treasureIndex =
+                    updatedTreasures.findIndex(
+                      (currentTreasure) =>
+                        currentTreasure.id === treasure.id,
+                    );
+
+                  if (treasureIndex >= 0) {
+                    updatedTreasures.splice(
+                      treasureIndex,
+                      1,
+                    );
+                  }
+                }
+
+                /*
+                 * Return travel time uses the same Manhattan distance.
+                 */
+                const distance =
+                  Math.abs(
+                    originBase.row - treasure.row,
+                  ) +
+                  Math.abs(
+                    originBase.col - treasure.col,
+                  );
+
+                const returnTravelTime =
+                  distance * 5;
+
+                /*
+                 * Turn the outbound Loot mission into a returning mission.
+                 *
+                 * The mission now carries the captured resources.
+                 */
+                updatedArmyMissions.push({
+                  ...mission,
+
+                  phase: "returning",
+
+                  resources: {
+                    ...lootResult.loot,
+                  },
+
+                  secondsRemaining:
+                    returnTravelTime,
+                });
+
+                return;
+              }
+
+              /*
+               * =================================================
+               * MISSION ARRIVAL:
+               * RETURNING LOOT
+               * =================================================
+               *
+               * Looting armies return home and deposit both
+               * themselves and their captured resources.
+               */
+              if (
+                mission.type === "loot" &&
+                mission.phase === "returning"
+              ) {
+                updatedBases = updatedBases.map((base) => {
+                  if (
+                    base.id !== mission.originBaseId
+                  ) {
+                    return base;
+                  }
+
+                  return {
+                    ...base,
+
+                    armies: {
+                      water:
+                        base.armies.water +
+                        mission.armies.water,
+
+                      fire:
+                        base.armies.fire +
+                        mission.armies.fire,
+
+                      grass:
+                        base.armies.grass +
+                        mission.armies.grass,
+                    },
+                  };
+                });
+
+                const originResources =
+                  updatedResources[
+                    mission.originBaseId
+                  ];
+
+                if (originResources) {
+                  updatedResources[
+                    mission.originBaseId
+                  ] = {
+                    water:
+                      originResources.water +
+                      mission.resources.water,
+
+                    fire:
+                      originResources.fire +
+                      mission.resources.fire,
+
+                    grass:
+                      originResources.grass +
+                      mission.resources.grass,
+                  };
+                }
+
+                return;
+              }
 
               /*
                * =================================================
@@ -1771,6 +1953,7 @@ function App() {
       <ArmyMovements
         missions={gameState.armyMissions}
         bases={yourBases}
+        treasures={gameState.treasures}
       />
 
       {/* Attack targeting instructions */}
