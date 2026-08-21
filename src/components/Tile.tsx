@@ -20,6 +20,9 @@ interface TileProps {
   isLootTarget?: boolean;
   lootTravelTimeSeconds?: number;
   onLootTargetClick?: () => void;
+  isExpandTarget?: boolean;
+  onExpandTargetClick?: () => void;
+  expandTravelTimeSeconds?: number;
 }
 
 function getTerrainIcon(tile: TileType) {
@@ -52,6 +55,9 @@ export default function Tile({
   isLootTarget = false,
   lootTravelTimeSeconds,
   onLootTargetClick,
+  isExpandTarget = false,
+  onExpandTargetClick,
+  expandTravelTimeSeconds,
 }: TileProps) {
   const isTop = tile.row === 0;
   const isBottom = tile.row === gridSize - 1;
@@ -76,16 +82,27 @@ export default function Tile({
         tile.flowDirection
           ? `flow--${tile.flowDirection}`
           : "",
+        isExpandTarget
+          ? "map-tile--expand-target"
+          : "",
         edgeClasses,
       ]
         .filter(Boolean)
         .join(" ")}
+      onClick={onExpandTargetClick}
       title={
         isAttackTarget
           ? undefined
           : `${tile.terrain} | ${tile.resource} | ${tile.multiplier}x`
       }
     >
+    {isExpandTarget &&
+      expandTravelTimeSeconds !== undefined && (
+        <div className="expand-travel-time">
+          {expandTravelTimeSeconds}s
+        </div>
+      )}
+
       <span className="tile-icon">
         {getTerrainIcon(tile)}
       </span>

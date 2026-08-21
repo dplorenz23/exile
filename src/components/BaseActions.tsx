@@ -14,6 +14,7 @@ interface BaseActionsProps {
   resources: BaseResources;
   ownedBases: Base[];
   enemyBases: Base[];
+  expansionKeys: number;
 
   onTrainArmy: (resource: ResourceType) => void;
 
@@ -36,6 +37,10 @@ interface BaseActionsProps {
     armies: ArmyCounts,
   ) => void;
 
+  onStartExpandTargeting: (
+    payment: BaseResources,
+  ) => void;
+
 }
 
 export default function BaseActions({
@@ -43,11 +48,13 @@ export default function BaseActions({
   resources,
   ownedBases,
   enemyBases,
+  expansionKeys,
   onTrainArmy,
   onTransferArmies,
   onAttackArmies,
   onStartAttackTargeting,
   onStartLootTargeting,
+  onStartExpandTargeting,
 }: BaseActionsProps) {
   const [mode, setMode] = useState<
     | "main"
@@ -58,6 +65,7 @@ export default function BaseActions({
     | "cargo"
     | "transfer-destination"
     | "loot-armies"
+    | "expand-payment"
   >("main");
 
   const [selectedArmies, setSelectedArmies] =
@@ -68,11 +76,18 @@ export default function BaseActions({
     });
 
   const [selectedResources, setSelectedResources] =
-  useState<BaseResources>({
-    water: 0,
-    fire: 0,
-    grass: 0,
-  });
+    useState<BaseResources>({
+      water: 0,
+      fire: 0,
+      grass: 0,
+    });
+
+  const [expansionPayment, setExpansionPayment] =
+    useState<BaseResources>({
+      water: 0,
+      fire: 0,
+      grass: 0,
+    });
 
   if (!base) {
     return null;
@@ -93,6 +108,21 @@ export default function BaseActions({
     selectedResources.water +
     selectedResources.fire +
     selectedResources.grass;
+
+  const totalResources =
+    resources.water +
+    resources.fire +
+    resources.grass;
+
+  const canExpand =
+    ownedBases.length < 3 &&
+    expansionKeys > 0 &&
+    totalResources >= 500;
+
+  const totalExpansionPayment =
+    expansionPayment.water +
+    expansionPayment.fire +
+    expansionPayment.grass;
 
   function canAfford(resource: ResourceType) {
     return resources[resource] >= armyCost;
@@ -150,6 +180,43 @@ export default function BaseActions({
         currentTotal - currentValue + newValue;
 
       if (newTotal > cargoCapacity) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [resource]: newValue,
+      };
+    });
+  }
+
+  function changeExpansionPayment(
+    resource: ResourceType,
+    change: number,
+  ) {
+    setExpansionPayment((current) => {
+      const newValue =
+        current[resource] + change;
+
+      if (newValue < 0) {
+        return current;
+      }
+
+      if (newValue > resources[resource]) {
+        return current;
+      }
+
+      const currentTotal =
+        current.water +
+        current.fire +
+        current.grass;
+
+      const newTotal =
+       currentTotal -
+        current[resource] +
+        newValue;
+
+      if (newTotal > 500) {
         return current;
       }
 
@@ -659,6 +726,96 @@ if (mode === "attack-armies") {
     );
   }
 
+  if (mode === "expand-payment") {
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">
+          Expand Empire
+        </div>
+
+        <div className="send-menu-message">
+          Cost: 🔑1 + 500 resources
+        </div>
+
+        <div className="send-menu-message">
+          Available:{" "}
+          💧{resources.water}{" "}
+          🔥{resources.fire}{" "}
+          🌱{resources.grass}
+        </div>
+
+        <ResourceSelector
+          icon="💧"
+          label="Water"
+          available={resources.water}
+          selected={expansionPayment.water}
+          onDecrease={() =>
+            changeExpansionPayment("water", -50)
+          }
+          onIncrease={() =>
+            changeExpansionPayment("water", 50)
+          }
+        />
+
+        <ResourceSelector
+          icon="🔥"
+          label="Fire"
+          available={resources.fire}
+          selected={expansionPayment.fire}
+          onDecrease={() =>
+            changeExpansionPayment("fire", -50)
+          }
+          onIncrease={() =>
+            changeExpansionPayment("fire", 50)
+          }
+        />
+
+        <ResourceSelector
+          icon="🌱"
+          label="Grass"
+          available={resources.grass}
+          selected={expansionPayment.grass}
+          onDecrease={() =>
+            changeExpansionPayment("grass", -50)
+          }
+          onIncrease={() =>
+            changeExpansionPayment("grass", 50)
+          }
+        />
+
+        <div className="send-menu-message">
+          Payment: {totalExpansionPayment} / 500
+        </div>
+
+        <button
+          className="base-action-button"
+          disabled={totalExpansionPayment !== 500}
+          onClick={() => {
+            onStartExpandTargeting(
+              expansionPayment,
+            );
+
+            setExpansionPayment({
+              water: 0,
+              fire: 0,
+              grass: 0,
+            });
+
+            setMode("main");
+          }}
+        >
+          Choose Location
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={() => setMode("main")}
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
   /*
    * Main actions.
    */
@@ -684,8 +841,12 @@ if (mode === "attack-armies") {
         ➤ Send Army
       </button>
 
-      <button className="base-action-button">
-        🗺 Expand
+      <button
+        className="base-action-button"
+        disabled={!canExpand}
+        onClick={() => setMode("expand-payment")}
+      >
+        🔑 Expand
       </button>
 
       <button className="base-action-button">

@@ -92,6 +92,8 @@ function App() {
     resourcesByBase:
       typeof startingResourcesByBase;
 
+    expansionKeysByPlayer: Record<number, number>;
+
     armyMissions: ArmyMission[];
     nextMissionId: number;
 
@@ -107,6 +109,20 @@ function App() {
 
     resourcesByBase:
       startingResourcesByBase,
+
+    /*
+     * Every player begins the game with one Expansion Key.
+     *
+     * Additional keys must be earned by destroying
+     * enemy bases.
+     */
+    expansionKeysByPlayer:
+      Object.fromEntries(
+        players.map((player) => [
+          player.id,
+          1,
+        ]),
+      ),
 
     armyMissions: [],
     nextMissionId: 1,
@@ -136,6 +152,10 @@ function App() {
       base.playerId !== yourPlayerId,
   );
 
+  const yourExpansionKeys =
+    gameState.expansionKeysByPlayer[
+      yourPlayerId
+    ] ?? 0;
 
   /*
    * ==========================================================
@@ -185,7 +205,7 @@ function App() {
   * - relocate
   */
   const [targetingMode, setTargetingMode] =
-    useState<"attack" | "loot" | null>(null);
+    useState<"attack" | "loot" | "expand" | null>(null);
 
   const [pendingAttackArmies, setPendingAttackArmies] =
     useState<ArmyCounts | null>(null);
@@ -193,11 +213,15 @@ function App() {
   const [pendingLootArmies, setPendingLootArmies] =
     useState<ArmyCounts | null>(null);
 
+  const [pendingExpansionPayment, setPendingExpansionPayment] =
+    useState<BaseResources | null>(null);
+
   function cancelTargeting() {
     setTargetingMode(null);
 
     setPendingAttackArmies(null);
     setPendingLootArmies(null);
+    setPendingExpansionPayment(null);
   }
 
   /*
@@ -401,6 +425,8 @@ function App() {
           fire: 0,
           grass: 0,
         },
+
+        expansionKeys: 0,
 
         secondsRemaining:
           travelTime,
@@ -920,7 +946,239 @@ function App() {
       };
     });
   }
+  /*
+  * ==========================================================
+  * EXPANSION
+  * ==========================================================
+  *
+  * Expand to an open location on the map
+  *
+  */
+  function getNextBaseId(
+    bases: typeof startingBases,
+  ) {
+    return (
+      Math.max(
+        0,
+        ...bases.map((base) => base.id),
+      ) + 1
+    );
+  }
 
+  function handleStartExpandTargeting(
+    payment: BaseResources,
+  ) {
+    setPendingExpansionPayment({
+      ...payment,
+    });
+
+    setTargetingMode("expand");
+  }
+
+  function handleExpandTargetSelected(
+      row: number,
+      col: number,
+    ) {
+      if (!pendingExpansionPayment) {
+        return;
+      }
+
+      setGameState((current) => {
+        const originBase = current.bases.find(
+          (base) => base.id === selectedBaseId,
+        );
+
+        if (!originBase) {
+          return current;
+        }
+
+        /*
+         * Must still have room for another base.
+         */
+        const playerBaseCount =
+          current.bases.filter(
+            (base) =>
+              base.playerId === yourPlayerId,
+          ).length;
+
+        if (playerBaseCount >= 3) {
+          return current;
+        }
+
+        /*
+         * Destination must still be empty.
+         */
+        const destinationOccupied =
+          current.bases.some(
+            (base) =>
+              base.row === row &&
+              base.col === col,
+          );
+
+        const destinationHasTreasure =
+          current.treasures.some(
+            (treasure) =>
+              treasure.row === row &&
+              treasure.col === col,
+          );
+
+        if (
+          destinationOccupied ||
+          destinationHasTreasure
+        ) {
+          return current;
+        }
+
+        /*
+         * Player must still own an Expansion Key.
+         */
+        const currentKeys =
+          current.expansionKeysByPlayer[
+            yourPlayerId
+          ] ?? 0;
+
+        if (currentKeys < 1) {
+          return current;
+        }
+
+        /*
+         * The selected base must still be able
+         * to afford the exact chosen payment.
+         */
+        const baseResources =
+          current.resourcesByBase[
+            originBase.id
+          ];
+
+        if (!baseResources) {
+          return current;
+        }
+
+        const paymentTotal =
+          pendingExpansionPayment.water +
+          pendingExpansionPayment.fire +
+          pendingExpansionPayment.grass;
+
+        if (paymentTotal !== 500) {
+          return current;
+        }
+
+        if (
+          pendingExpansionPayment.water >
+            baseResources.water ||
+          pendingExpansionPayment.fire >
+            baseResources.fire ||
+          pendingExpansionPayment.grass >
+            baseResources.grass
+        ) {
+          return current;
+        }
+
+        /*
+         * Pay the 500 resources immediately.
+         */
+        const updatedResources = {
+          ...current.resourcesByBase,
+
+          [originBase.id]: {
+            water:
+              baseResources.water -
+              pendingExpansionPayment.water,
+
+            fire:
+              baseResources.fire -
+              pendingExpansionPayment.fire,
+
+            grass:
+              baseResources.grass -
+              pendingExpansionPayment.grass,
+          },
+        };
+
+        /*
+         * Spend one global Expansion Key.
+         */
+        const updatedExpansionKeysByPlayer = {
+          ...current.expansionKeysByPlayer,
+
+          [yourPlayerId]:
+            currentKeys - 1,
+        };
+
+        /*
+         * Settler travel uses the normal
+         * 5-seconds-per-tile movement rate for now.
+         */
+        const distance =
+          Math.abs(
+            originBase.row - row,
+          ) +
+          Math.abs(
+            originBase.col - col,
+          );
+
+        const travelTime =
+          distance * 5;
+
+        const newMission: ArmyMission = {
+          id: current.nextMissionId,
+
+          type: "expand",
+          phase: "outbound",
+
+          originBaseId:
+            originBase.id,
+
+          /*
+           * This field is still named destinationBaseId,
+           * but for Expansion we temporarily store 0.
+           * The real destination is held below by row/col.
+           */
+          destinationBaseId: 0,
+
+          armies: {
+            water: 0,
+            fire: 0,
+            grass: 0,
+          },
+
+          resources: {
+            water: 0,
+            fire: 0,
+            grass: 0,
+          },
+
+          expansionKeys: 0,
+
+          destinationRow: row,
+          destinationCol: col,
+
+          secondsRemaining:
+            travelTime,
+        };
+
+        return {
+          ...current,
+
+          resourcesByBase:
+            updatedResources,
+
+          expansionKeysByPlayer:
+            updatedExpansionKeysByPlayer,
+
+          armyMissions: [
+            ...current.armyMissions,
+            newMission,
+          ],
+
+          nextMissionId:
+            current.nextMissionId + 1,
+        };
+      });
+
+      setPendingExpansionPayment(null);
+      setTargetingMode(null);
+    }
 
   /*
    * ==========================================================
@@ -1040,6 +1298,10 @@ function App() {
 
           const updatedResources = {
             ...current.resourcesByBase,
+          };
+
+          const updatedExpansionKeysByPlayer = {
+            ...current.expansionKeysByPlayer,
           };
 
           const updatedBattleReports = [
@@ -1224,6 +1486,11 @@ function App() {
                   survivingAttackers.fire +
                   survivingAttackers.grass;
 
+                const returningExpansionKeys =
+                    combatResult.baseDestroyed &&
+                    totalSurvivors > 0
+                      ? 1
+                      : 0;
 
                 /*
                  * Returning attackers normally
@@ -1274,7 +1541,6 @@ function App() {
                       defeatedResources,
                       lootCapacity,
                     );
-
 
                   /*
                    * Save final resource results
@@ -1453,6 +1719,9 @@ function App() {
                       ...returningResources,
                     },
 
+                    expansionKeys:
+                      returningExpansionKeys,
+
                     secondsRemaining:
                       returnTravelTime,
                   });
@@ -1537,6 +1806,33 @@ function App() {
                   };
                 }
 
+                /*
+                 * Find the base the victorious army returned to.
+                 * We use its playerId to credit the global Expansion Key.
+                 */
+                const returningOriginBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id === mission.originBaseId,
+                  );
+
+                if (
+                  returningOriginBase &&
+                  mission.expansionKeys > 0
+                ) {
+                  const playerId =
+                    returningOriginBase.playerId;
+
+                  updatedExpansionKeysByPlayer[
+                    playerId
+                  ] =
+                    (
+                      updatedExpansionKeysByPlayer[
+                        playerId
+                      ] ?? 0
+                    ) +
+                    mission.expansionKeys;
+                }
                 return;
               }
 
@@ -1722,7 +2018,102 @@ function App() {
 
                 return;
               }
+              /*
+             * =================================================
+             * MISSION ARRIVAL:
+             * EXPANSION
+             * =================================================
+             *
+             * Settlers arrive at the chosen tile and establish
+             * a new base if the location is still available.
+             */
+            if (
+              mission.type === "expand" &&
+              mission.phase === "outbound"
+            ) {
+              const originBase = updatedBases.find(
+                (base) =>
+                  base.id === mission.originBaseId,
+              );
 
+              /*
+               * Expansion missions must have destination
+               * coordinates.
+               */
+              if (
+                !originBase ||
+                mission.destinationRow === undefined ||
+                mission.destinationCol === undefined
+              ) {
+                return;
+              }
+
+              const destinationOccupied =
+                updatedBases.some(
+                  (base) =>
+                    base.row === mission.destinationRow &&
+                    base.col === mission.destinationCol,
+                );
+
+              const destinationHasTreasure =
+                updatedTreasures.some(
+                  (treasure) =>
+                    treasure.row === mission.destinationRow &&
+                    treasure.col === mission.destinationCol,
+                );
+
+              /*
+               * If someone got there first or treasure is still
+               * present, expansion fails for now.
+               *
+               * We will add return/refund behavior later.
+               */
+              if (
+                destinationOccupied ||
+                destinationHasTreasure
+              ) {
+                return;
+              }
+
+              /*
+               * Create the new base.
+               */
+              const newBaseId =
+                getNextBaseId(updatedBases);
+
+              updatedBases.push({
+                id: newBaseId,
+
+                playerId: originBase.playerId,
+
+                row: mission.destinationRow,
+                col: mission.destinationCol,
+
+                timeInLocationSeconds: 0,
+
+                armies: {
+                  water: 0,
+                  fire: 0,
+                  grass: 0,
+                },
+
+                armiesBuilt: 0,
+
+                training: null,
+              });
+
+              /*
+               * New bases begin with the same starting resources
+               * as all other bases.
+               */
+              updatedResources[newBaseId] = {
+                water: 50,
+                fire: 50,
+                grass: 50,
+              };
+
+              return;
+            }
               /*
                * =================================================
                * MISSION ARRIVAL:
@@ -1884,6 +2275,9 @@ function App() {
             resourcesByBase:
               updatedResources,
 
+            expansionKeysByPlayer:
+              updatedExpansionKeysByPlayer,
+
             armyMissions:
               updatedArmyMissions,
 
@@ -1942,11 +2336,13 @@ function App() {
         resources={selectedResources}
         ownedBases={yourBases}
         enemyBases={enemyBases}
+        expansionKeys={yourExpansionKeys}
         onTrainArmy={handleTrainArmy}
         onTransferArmies={handleTransferArmies}
         onAttackArmies={handleAttackArmies}
         onStartAttackTargeting={handleStartAttackTargeting}
         onStartLootTargeting={handleStartLootTargeting}
+        onStartExpandTargeting={handleStartExpandTargeting}
       />
 
       {/* Traveling armies */}
@@ -1956,16 +2352,25 @@ function App() {
         treasures={gameState.treasures}
       />
 
-      {/* Attack targeting instructions */}
-      {targetingMode === "attack" && (
-        <div className="targeting-banner">
-          <span>Choose an enemy base to attack</span>
+      {/* Map Targeting Banner */}
+      {targetingMode !== null && (
+          <div className="targeting-banner">
+            <span>
+              {targetingMode === "attack" &&
+                "Choose an enemy base to attack"}
 
-          <button onClick={cancelTargeting}>
-            Cancel
-          </button>
-        </div>
-      )}
+              {targetingMode === "loot" &&
+                "Choose a treasure chest to loot"}
+
+              {targetingMode === "expand" &&
+                "Choose an empty tile to expand to"}
+            </span>
+
+            <button onClick={cancelTargeting}>
+              Cancel
+            </button>
+          </div>
+        )}
 
       {/* Main battlefield */}
       <GameMap
@@ -1977,6 +2382,7 @@ function App() {
         originBase={selectedBase}
         onAttackTargetSelected={handleAttackTargetSelected}
         onLootTargetSelected={handleLootTargetSelected}
+        onExpandTargetSelected={handleExpandTargetSelected}
       />
 
 
@@ -1993,8 +2399,14 @@ function App() {
        */}
       <div className="base-selector">
         <div className="base-selector-title">
-          {yourPlayer?.name ??
-            "Your Bases"}
+          <span>
+            {yourPlayer?.name ??
+              "Your Bases"}
+          </span>
+
+          <span className="expansion-key-count">
+            🔑 {yourExpansionKeys}
+          </span>
         </div>
 
         {yourBases.map(

@@ -131,7 +131,7 @@ export interface Player {
 export interface ArmyMission {
   id: number;
 
-  type: "transfer" | "attack" | "loot";
+  type: "transfer" | "attack" | "loot" | "expand";
 
   phase: "outbound" | "returning";
 
@@ -143,6 +143,11 @@ export interface ArmyMission {
   resources: ResourceCounts;
 
   secondsRemaining: number;
+
+  expansionKeys: number;
+
+  destinationRow?: number;
+  destinationCol?: number;
 }
 
 export interface CombatResult {

@@ -52,6 +52,13 @@ function getMissionLabel(mission: ArmyMission) {
     return "Army Transferring";
   }
 
+  if (
+    mission.type === "expand" &&
+    mission.phase === "outbound"
+  ) {
+    return "Settlers Expanding";
+  }
+
   return "Army Moving";
 }
 
@@ -137,7 +144,7 @@ export default function ArmyMovements({
             </strong>
           </div>
 
-          {/* Armies and carried resources */}
+          {/* Armies, cargo, and Expansion Keys in transit */}
           <div className="army-movement-details">
             <div>
               <span className="movement-label">
@@ -162,6 +169,18 @@ export default function ArmyMovements({
                 🌱{mission.resources.grass}
               </span>
             </div>
+
+            {mission.expansionKeys > 0 && (
+              <div>
+                <span className="movement-label">
+                  Keys
+                </span>
+
+                <span>
+                  🔑{mission.expansionKeys}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       ))}

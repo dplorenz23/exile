@@ -13,7 +13,7 @@ interface GameMapProps {
   bases: Base[];
   treasures: Treasure[];
 
-  targetingMode: "attack" | "loot" | null;
+  targetingMode: "attack" | "loot" | "expand" | null;
   yourPlayerId: number;
 
   originBase?: Base;
@@ -25,6 +25,12 @@ interface GameMapProps {
   onLootTargetSelected: (
     treasureId: number,
   ) => void;
+
+  onExpandTargetSelected: (
+    row: number,
+    col: number,
+  ) => void;
+
 }
 
 export default function GameMap({
@@ -36,6 +42,7 @@ export default function GameMap({
   originBase,
   onAttackTargetSelected,
   onLootTargetSelected,
+  onExpandTargetSelected,
 }: GameMapProps) {
   return (
     <div className="game-map">
@@ -73,6 +80,23 @@ export default function GameMap({
               (player) => player.id === base.playerId,
             )
           : undefined;
+
+        const isExpandTarget =
+          targetingMode === "expand" &&
+          base === undefined &&
+          treasure === undefined;
+
+        const expandTravelTimeSeconds =
+          isExpandTarget && originBase
+            ? (
+                Math.abs(
+                  originBase.row - tile.row,
+                ) +
+                Math.abs(
+                  originBase.col - tile.col,
+                )
+              ) * 5
+            : undefined;
 
         /*
         * During Attack Targeting Mode, any enemy base
@@ -119,6 +143,17 @@ export default function GameMap({
                 ? () => onLootTargetSelected(treasure.id)
                 : undefined
             }
+            isExpandTarget={isExpandTarget}
+            onExpandTargetClick={
+              isExpandTarget
+                ? () =>
+                    onExpandTargetSelected(
+                      tile.row,
+                      tile.col,
+                    )
+                : undefined
+            }
+            expandTravelTimeSeconds={expandTravelTimeSeconds}
         />
         );
       })}

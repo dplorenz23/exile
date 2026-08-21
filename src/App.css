@@ -1083,3 +1083,40 @@ body {
 
   pointer-events: none;
 }
+
+.expansion-key-count {
+  margin-left: 10px;
+  white-space: nowrap;
+}
+
+.map-tile--expand-target {
+  cursor: pointer;
+
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+}
+
+.map-tile--expand-target:hover {
+  box-shadow:
+    inset 0 0 0 3px rgba(255, 255, 255, 0.85);
+}
+
+.expand-travel-time {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+
+  z-index: 8;
+
+  padding: 3px 6px;
+
+  border-radius: 10px;
+
+  background: rgba(10, 14, 18, 0.95);
+  color: white;
+
+  font-size: 11px;
+  font-weight: bold;
+
+  pointer-events: none;
+}
