@@ -7,6 +7,7 @@ interface BasePieceProps {
   isAttackTarget?: boolean;
   travelTimeSeconds?: number;
   onClick?: () => void;
+  isTransferTarget?: boolean;
 }
 
 function formatTime(seconds: number) {
@@ -54,6 +55,7 @@ export default function BasePiece({
   isAttackTarget = false,
   travelTimeSeconds,
   onClick,
+  isTransferTarget = false,
 }: BasePieceProps) {
   const tier = getBaseTier(base.timeInLocationSeconds);
 
@@ -64,6 +66,7 @@ export default function BasePiece({
         `base-piece--tier-${tier}`,
         isSelected ? "base-piece--selected" : "",
         isAttackTarget ? "base-piece--attack-target" : "",
+        isTransferTarget? "base-piece--transfer-target" : "",
       ]
         .filter(Boolean)
         .join(" ")}

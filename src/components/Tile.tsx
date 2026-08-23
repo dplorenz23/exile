@@ -23,6 +23,9 @@ interface TileProps {
   isExpandTarget?: boolean;
   onExpandTargetClick?: () => void;
   expandTravelTimeSeconds?: number;
+  isTransferTarget?: boolean;
+  transferTravelTimeSeconds?: number;
+  onTransferTargetClick?: () => void;
 }
 
 function getTerrainIcon(tile: TileType) {
@@ -58,6 +61,9 @@ export default function Tile({
   isExpandTarget = false,
   onExpandTargetClick,
   expandTravelTimeSeconds,
+  isTransferTarget,
+  transferTravelTimeSeconds,
+  onTransferTargetClick,
 }: TileProps) {
   const isTop = tile.row === 0;
   const isBottom = tile.row === gridSize - 1;
@@ -146,8 +152,19 @@ export default function Tile({
           player={player}
           isSelected={isSelectedBase}
           isAttackTarget={isAttackTarget}
-          travelTimeSeconds={travelTimeSeconds}
-          onClick={onAttackTargetClick}
+          isTransferTarget={isTransferTarget}
+          travelTimeSeconds={
+            isAttackTarget
+              ? travelTimeSeconds
+              : transferTravelTimeSeconds
+          }
+          onClick={
+            isAttackTarget
+              ? onAttackTargetClick
+              : isTransferTarget
+                ? onTransferTargetClick
+                : undefined
+          }
         />
       )}
     </div>

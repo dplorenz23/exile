@@ -41,6 +41,11 @@ interface BaseActionsProps {
     payment: BaseResources,
   ) => void;
 
+  onStartTransferTargeting: (
+    armies: ArmyCounts,
+    resources: BaseResources,
+  ) => void;
+
 }
 
 export default function BaseActions({
@@ -55,6 +60,7 @@ export default function BaseActions({
   onStartAttackTargeting,
   onStartLootTargeting,
   onStartExpandTargeting,
+  onStartTransferTargeting,
 }: BaseActionsProps) {
   const [mode, setMode] = useState<
     | "main"
@@ -564,7 +570,26 @@ export default function BaseActions({
 
       <button
         className="base-action-button"
-        onClick={() => setMode("transfer-destination")}
+        onClick={() => {
+          onStartTransferTargeting(
+            selectedArmies,
+            selectedResources,
+          );
+
+          setSelectedArmies({
+            water: 0,
+            fire: 0,
+            grass: 0,
+          });
+
+          setSelectedResources({
+            water: 0,
+            fire: 0,
+            grass: 0,
+          });
+
+          setMode("main");
+        }}
       >
         Choose Destination
       </button>
@@ -661,70 +686,6 @@ if (mode === "attack-armies") {
     </div>
   );
 }
-  /*
-   * Choose another owned base.
-   */
-  if (mode === "transfer-destination") {
-    const destinations = ownedBases.filter(
-      (ownedBase) => ownedBase.id !== base.id,
-    );
-
-    return (
-      <div className="base-actions destination-menu">
-        <div className="send-menu-title">
-          Transfer To
-        </div>
-
-        {destinations.map((destination) => {
-          const baseNumber =
-            ownedBases.findIndex(
-              (ownedBase) =>
-                ownedBase.id === destination.id,
-            ) + 1;
-
-          const distance =
-            Math.abs(base.row - destination.row) +
-            Math.abs(base.col - destination.col);
-
-          const travelTime = distance * 5;
-
-          return (
-            <button
-              key={destination.id}
-              className="base-action-button"
-              onClick={() =>
-                handleTransfer(destination.id)
-              }
-            >
-              Base {baseNumber}
-              <br />
-              {travelTime}s travel
-            </button>
-          );
-        })}
-
-        {destinations.length === 0 && (
-          <div className="send-menu-message">
-            You need another base to transfer armies.
-          </div>
-        )}
-
-        <button
-          className="base-action-button"
-          onClick={() => setMode("cargo")}
-        >
-          Back
-        </button>
-
-        <button
-          className="base-action-button"
-          onClick={resetSend}
-        >
-          Cancel
-        </button>
-      </div>
-    );
-  }
 
   if (mode === "expand-payment") {
     return (

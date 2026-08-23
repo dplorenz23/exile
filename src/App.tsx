@@ -205,7 +205,9 @@ function App() {
   * - relocate
   */
   const [targetingMode, setTargetingMode] =
-    useState<"attack" | "loot" | "expand" | null>(null);
+  useState<
+    "attack" | "loot" | "expand" | "transfer" | null
+  >(null);
 
   const [pendingAttackArmies, setPendingAttackArmies] =
     useState<ArmyCounts | null>(null);
@@ -216,12 +218,20 @@ function App() {
   const [pendingExpansionPayment, setPendingExpansionPayment] =
     useState<BaseResources | null>(null);
 
+  const [pendingTransferArmies, setPendingTransferArmies] =
+    useState<ArmyCounts | null>(null);
+
+  const [pendingTransferResources, setPendingTransferResources] =
+    useState<BaseResources | null>(null);
+
   function cancelTargeting() {
     setTargetingMode(null);
 
     setPendingAttackArmies(null);
     setPendingLootArmies(null);
     setPendingExpansionPayment(null);
+    setPendingTransferArmies(null);
+    setPendingTransferResources(null);
   }
 
   /*
@@ -607,6 +617,44 @@ function App() {
       setPendingLootArmies(null);
       setTargetingMode(null);
     }
+
+  /*
+   * ==========================================================
+   * TRANSFER TARGET SELECTED
+   * ==========================================================
+   *
+   * Called when the player clicks one of their other bases
+   * while the map is in Transfer Targeting Mode.
+   */
+  function handleTransferTargetSelected(
+    destinationBaseId: number,
+  ) {
+    if (
+      !pendingTransferArmies ||
+      !pendingTransferResources
+    ) {
+      return;
+    }
+
+    /*
+     * Launch the normal Transfer mission using the
+     * armies and cargo we saved before entering
+     * map targeting.
+     */
+    handleTransferArmies(
+      destinationBaseId,
+      pendingTransferArmies,
+      pendingTransferResources,
+    );
+
+    /*
+     * Clear targeting state now that the mission
+     * has been launched.
+     */
+    setPendingTransferArmies(null);
+    setPendingTransferResources(null);
+    setTargetingMode(null);
+  }
 
   /*
    * ==========================================================
@@ -1178,6 +1226,21 @@ function App() {
 
       setPendingExpansionPayment(null);
       setTargetingMode(null);
+    }
+
+  function handleStartTransferTargeting(
+      armies: ArmyCounts,
+      resources: BaseResources,
+    ) {
+      setPendingTransferArmies({
+        ...armies,
+      });
+
+      setPendingTransferResources({
+        ...resources,
+      });
+
+      setTargetingMode("transfer");
     }
 
   /*
@@ -2343,6 +2406,7 @@ function App() {
         onStartAttackTargeting={handleStartAttackTargeting}
         onStartLootTargeting={handleStartLootTargeting}
         onStartExpandTargeting={handleStartExpandTargeting}
+        onStartTransferTargeting={handleStartTransferTargeting}
       />
 
       {/* Traveling armies */}
@@ -2364,6 +2428,10 @@ function App() {
 
               {targetingMode === "expand" &&
                 "Choose an empty tile to expand to"}
+
+              {targetingMode === "transfer" &&
+                "Choose one of your bases to transfer to"}
+
             </span>
 
             <button onClick={cancelTargeting}>
@@ -2383,6 +2451,7 @@ function App() {
         onAttackTargetSelected={handleAttackTargetSelected}
         onLootTargetSelected={handleLootTargetSelected}
         onExpandTargetSelected={handleExpandTargetSelected}
+        onTransferTargetSelected={handleTransferTargetSelected}
       />
 
 

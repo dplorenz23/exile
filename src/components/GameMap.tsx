@@ -13,7 +13,7 @@ interface GameMapProps {
   bases: Base[];
   treasures: Treasure[];
 
-  targetingMode: "attack" | "loot" | "expand" | null;
+  targetingMode: "attack" | "loot" | "expand" | "transfer" | null;
   yourPlayerId: number;
 
   originBase?: Base;
@@ -31,6 +31,10 @@ interface GameMapProps {
     col: number,
   ) => void;
 
+  onTransferTargetSelected: (
+    destinationBaseId: number,
+  ) => void;
+
 }
 
 export default function GameMap({
@@ -43,6 +47,7 @@ export default function GameMap({
   onAttackTargetSelected,
   onLootTargetSelected,
   onExpandTargetSelected,
+  onTransferTargetSelected,
 }: GameMapProps) {
   return (
     <div className="game-map">
@@ -94,6 +99,24 @@ export default function GameMap({
                 ) +
                 Math.abs(
                   originBase.col - tile.col,
+                )
+              ) * 5
+            : undefined;
+
+        const isTransferTarget =
+          targetingMode === "transfer" &&
+          base !== undefined &&
+          base.playerId === yourPlayerId &&
+          base.id !== selectedBaseId;
+
+        const transferTravelTimeSeconds =
+          isTransferTarget && originBase && base
+            ? (
+                Math.abs(
+                  originBase.row - base.row,
+                ) +
+                Math.abs(
+                  originBase.col - base.col,
                 )
               ) * 5
             : undefined;
@@ -154,6 +177,16 @@ export default function GameMap({
                 : undefined
             }
             expandTravelTimeSeconds={expandTravelTimeSeconds}
+            isTransferTarget={isTransferTarget}
+            transferTravelTimeSeconds={
+              transferTravelTimeSeconds
+            }
+            onTransferTargetClick={
+              isTransferTarget && base
+                ? () =>
+                    onTransferTargetSelected(base.id)
+                : undefined
+            }
         />
         );
       })}
