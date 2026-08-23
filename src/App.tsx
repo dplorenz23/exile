@@ -102,6 +102,10 @@ function App() {
 
     treasures: Treasure[];
     nextTreasureId: number;
+
+    eliminatedPlayerIds: number[];
+
+    winnerPlayerId: number | null;
   }>({
     gameSeconds: 0,
 
@@ -132,8 +136,11 @@ function App() {
 
     treasures: [],
     nextTreasureId: 1,
-  });
 
+    eliminatedPlayerIds: [],
+
+    winnerPlayerId: null,
+  });
 
   /*
    * ==========================================================
@@ -156,6 +163,20 @@ function App() {
     gameState.expansionKeysByPlayer[
       yourPlayerId
     ] ?? 0;
+
+  const youAreEliminated =
+    gameState.eliminatedPlayerIds.includes(
+      yourPlayerId,
+    );
+
+  const winner =
+    gameState.winnerPlayerId !== null
+      ? players.find(
+          (player) =>
+            player.id ===
+            gameState.winnerPlayerId,
+        )
+      : undefined;
 
   /*
    * ==========================================================
@@ -1267,6 +1288,14 @@ function App() {
         setGameState((current) => {
 
           /*
+           * Once a winner has been declared,
+           * the game state is completely frozen.
+           */
+          if (current.winnerPlayerId !== null) {
+            return current;
+}
+
+          /*
            * ==================================================
            * STEP 1:
            * AGE BASES AND PROCESS TRAINING
@@ -1346,7 +1375,6 @@ function App() {
               };
             });
 
-
           /*
            * ==================================================
            * STEP 2:
@@ -1382,6 +1410,12 @@ function App() {
           const updatedArmyMissions:
             ArmyMission[] = [];
 
+          const updatedEliminatedPlayerIds = [
+            ...current.eliminatedPlayerIds,
+          ];
+
+          let updatedWinnerPlayerId =
+            current.winnerPlayerId;
 
           /*
            * ==================================================
@@ -1391,7 +1425,6 @@ function App() {
            */
           current.armyMissions.forEach(
             (mission) => {
-
               /*
                * Mission has NOT arrived yet.
                *
@@ -1515,23 +1548,76 @@ function App() {
                     };
                   });
 
-
                 /*
                  * -----------------------------------------------
                  * DESTROY THE BASE IF ATTACKER WON
                  * -----------------------------------------------
                  */
+
+                let eliminatedPlayerId:
+                  number | undefined;
+
                 if (
                   combatResult.baseDestroyed
                 ) {
+                  /*
+                   * Remove the destroyed base.
+                   */
                   updatedBases =
                     updatedBases.filter(
                       (base) =>
                         base.id !==
                         defendingBase.id,
                     );
-                }
 
+                  /*
+                   * Check whether the defender still owns
+                   * any other bases anywhere on the map.
+                   */
+                  const defenderStillHasBase =
+                    updatedBases.some(
+                      (base) =>
+                        base.playerId ===
+                        defendingBase.playerId,
+                    );
+
+                  /*
+                   * Zero bases = immediate elimination.
+                   *
+                   * Armies, settlers, loot, keys, etc. that are
+                   * still traveling do NOT keep the player alive.
+                   */
+                  if (
+                    !defenderStillHasBase &&
+                    !updatedEliminatedPlayerIds.includes(
+                      defendingBase.playerId,
+                    )
+                  ) {
+                    updatedEliminatedPlayerIds.push(
+                      defendingBase.playerId,
+                    );
+
+                    /*
+                     * Save this so the Battle Report can announce
+                     * who was eliminated.
+                     */
+                    eliminatedPlayerId =
+                      defendingBase.playerId;
+
+                    const remainingPlayers =
+                      players.filter(
+                        (player) =>
+                          !updatedEliminatedPlayerIds.includes(
+                            player.id,
+                          ),
+                      );
+
+                    if (remainingPlayers.length === 1) {
+                      updatedWinnerPlayerId =
+                        remainingPlayers[0].id;
+                    }
+                  }
+                }
 
                 /*
                  * -----------------------------------------------
@@ -1739,6 +1825,8 @@ function App() {
                   baseDestroyed:
                     combatResult
                       .baseDestroyed,
+
+                  eliminatedPlayerId,
                 });
 
                 nextBattleReportId += 1;
@@ -2440,6 +2528,9 @@ function App() {
             expansionKeysByPlayer:
               updatedExpansionKeysByPlayer,
 
+            eliminatedPlayerIds:
+              updatedEliminatedPlayerIds,
+
             armyMissions:
               updatedArmyMissions,
 
@@ -2452,6 +2543,9 @@ function App() {
               updatedTreasures,
 
             nextTreasureId,
+
+            winnerPlayerId:
+              updatedWinnerPlayerId,
           };
         });
       }, 1000);
@@ -2472,6 +2566,34 @@ function App() {
    */
   return (
     <main className="app">
+
+      {winner && (
+        <div className="game-over-overlay">
+          <div className="game-over-panel">
+            <strong>
+              {winner.id === yourPlayerId
+                ? "Victory!"
+                : `${winner.name} Wins!`}
+            </strong>
+
+            <span>
+              {winner.name} is the last player standing.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {youAreEliminated && !winner && (
+        <div className="game-over-overlay">
+          <div className="game-over-panel">
+            <strong>Game Over</strong>
+
+            <span>
+              Your final base has been destroyed.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Top-left */}
       <BattleReports

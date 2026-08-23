@@ -181,6 +181,8 @@ export interface BattleReport {
 
   militiaSurvived: boolean;
   baseDestroyed: boolean;
+
+  eliminatedPlayerId?: number;
 }
 
 export interface Treasure {

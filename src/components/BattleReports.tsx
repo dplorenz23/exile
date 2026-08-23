@@ -184,6 +184,14 @@ export default function BattleReports({
                         ? `${attacker} destroyed the base.`
                         : `${defender} defended the base.`}
                     </strong>
+
+                    {report.eliminatedPlayerId !== undefined && (
+                      <strong className="battle-report-elimination">
+                        {getPlayerName(report.eliminatedPlayerId)}{" "}
+                        has been eliminated by{" "}
+                        {getPlayerName(report.attackerPlayerId)}.
+                      </strong>
+                    )}
                   </div>
                 );
               })

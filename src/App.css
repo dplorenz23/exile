@@ -1130,3 +1130,37 @@ body {
     0 0 0 3px rgba(255, 255, 255, 0.65),
     0 0 16px rgba(100, 180, 255, 0.85);
 }
+
+.game-over-overlay {
+  position: absolute;
+  inset: 0;
+
+  z-index: 100;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.game-over-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+
+  padding: 24px 32px;
+
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+
+  background: rgba(10, 14, 18, 0.96);
+  color: white;
+
+  font-size: 16px;
+}
+
+.game-over-panel strong {
+  font-size: 28px;
+}
