@@ -47,10 +47,18 @@ function getMissionLabel(mission: ArmyMission) {
     }
 
   if (
-    mission.type === "transfer"
-  ) {
-    return "Army Transferring";
-  }
+      mission.type === "transfer" &&
+      mission.phase === "outbound"
+    ) {
+      return "Army Transferring";
+    }
+
+    if (
+      mission.type === "transfer" &&
+      mission.phase === "returning"
+    ) {
+      return "Army Returning";
+    }
 
   if (
     mission.type === "expand" &&

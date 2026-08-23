@@ -886,6 +886,12 @@ function App() {
 
         secondsRemaining:
           travelTime,
+
+        destinationRow:
+          destinationBase.row,
+
+        destinationCol:
+          destinationBase.col,
       };
 
       return {
@@ -2378,6 +2384,50 @@ function App() {
                 mission.phase === "outbound"
               ) {
 
+                const destinationBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id === mission.destinationBaseId,
+                  );
+
+                const originBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id === mission.originBaseId,
+                  );
+
+                /*
+                 * If the destination base was destroyed while
+                 * the transfer was traveling, turn around.
+                 */
+                if (!destinationBase) {
+                  /*
+                   * If the origin is also already gone, there is
+                   * nowhere to return to. The mission is lost.
+                   */
+                  if (!originBase) {
+                    return;
+                  }
+
+                  const distance =
+                    Math.abs(
+                      originBase.row -
+                        mission.destinationRow!,
+                    ) +
+                    Math.abs(
+                      originBase.col -
+                        mission.destinationCol!,
+                    );
+
+                  updatedArmyMissions.push({
+                    ...mission,
+                    phase: "returning",
+                    secondsRemaining: distance * 5,
+                  });
+
+                  return;
+                }
+
                 /*
                  * Add armies.
                  */
@@ -2440,6 +2490,87 @@ function App() {
 
                 return;
               }
+
+              /*
+               * =================================================
+               * MISSION ARRIVAL:
+               * RETURNING TRANSFER
+               * =================================================
+               *
+               * A transfer whose destination was destroyed
+               * returns its armies and cargo to the origin base.
+               */
+              if (
+                mission.type === "transfer" &&
+                mission.phase === "returning"
+              ) {
+                const originBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id === mission.originBaseId,
+                  );
+
+                /*
+                 * If the origin was destroyed while the transfer
+                 * was returning, everything is lost.
+                 */
+                if (!originBase) {
+                  return;
+                }
+
+                updatedBases =
+                  updatedBases.map((base) => {
+                    if (
+                      base.id !== mission.originBaseId
+                    ) {
+                      return base;
+                    }
+
+                    return {
+                      ...base,
+
+                      armies: {
+                        water:
+                          base.armies.water +
+                          mission.armies.water,
+
+                        fire:
+                          base.armies.fire +
+                          mission.armies.fire,
+
+                        grass:
+                          base.armies.grass +
+                          mission.armies.grass,
+                      },
+                    };
+                  });
+
+                const originResources =
+                  updatedResources[
+                    mission.originBaseId
+                  ];
+
+                if (originResources) {
+                  updatedResources[
+                    mission.originBaseId
+                  ] = {
+                    water:
+                      originResources.water +
+                      mission.resources.water,
+
+                    fire:
+                      originResources.fire +
+                      mission.resources.fire,
+
+                    grass:
+                      originResources.grass +
+                      mission.resources.grass,
+                  };
+                }
+
+                return;
+              }
+
             },
           );
 
