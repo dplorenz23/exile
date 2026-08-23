@@ -59,6 +59,13 @@ function getMissionLabel(mission: ArmyMission) {
     return "Settlers Expanding";
   }
 
+  if (
+      mission.type === "expand" &&
+      mission.phase === "returning"
+    ) {
+      return "Settlers Returning";
+    }
+
   return "Army Moving";
 }
 

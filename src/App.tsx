@@ -1191,12 +1191,10 @@ function App() {
           },
 
           resources: {
-            water: 0,
-            fire: 0,
-            grass: 0,
+            ...pendingExpansionPayment,
           },
 
-          expansionKeys: 0,
+          expansionKeys: 1,
 
           destinationRow: row,
           destinationCol: col,
@@ -2112,10 +2110,10 @@ function App() {
               }
 
               const destinationOccupied =
-                updatedBases.some(
+                current.bases.some(
                   (base) =>
-                    base.row === mission.destinationRow &&
-                    base.col === mission.destinationCol,
+                    base.row === row &&
+                    base.col === col,
                 );
 
               const destinationHasTreasure =
@@ -2132,11 +2130,39 @@ function App() {
                * We will add return/refund behavior later.
                */
               if (
-                destinationOccupied ||
-                destinationHasTreasure
-              ) {
-                return;
-              }
+                  destinationOccupied ||
+                  destinationHasTreasure
+                ) {
+                  /*
+                   * Someone beat us to the destination.
+                   *
+                   * Settlers turn around and carry the original
+                   * Expansion Key + 500-resource payment home.
+                   */
+                  const distance =
+                    Math.abs(
+                      originBase.row -
+                        mission.destinationRow,
+                    ) +
+                    Math.abs(
+                      originBase.col -
+                        mission.destinationCol,
+                    );
+
+                  const returnTravelTime =
+                    distance * 5;
+
+                  updatedArmyMissions.push({
+                    ...mission,
+
+                    phase: "returning",
+
+                    secondsRemaining:
+                      returnTravelTime,
+                  });
+
+                  return;
+                }
 
               /*
                * Create the new base.
@@ -2177,6 +2203,79 @@ function App() {
 
               return;
             }
+
+            /*
+             * =================================================
+             * MISSION ARRIVAL:
+             * RETURNING EXPANSION
+             * =================================================
+             *
+             * Failed settlers return their Expansion Key
+             * and 500-resource payment to the origin base.
+             */
+            if (
+              mission.type === "expand" &&
+              mission.phase === "returning"
+            ) {
+              const originBase =
+                updatedBases.find(
+                  (base) =>
+                    base.id === mission.originBaseId,
+                );
+
+              /*
+               * If the origin base was destroyed while the
+               * settlers were away, everything is lost.
+               */
+              if (!originBase) {
+                return;
+              }
+
+              /*
+               * Refund the 500-resource payment.
+               */
+              const originResources =
+                updatedResources[
+                  mission.originBaseId
+                ];
+
+              if (originResources) {
+                updatedResources[
+                  mission.originBaseId
+                ] = {
+                  water:
+                    originResources.water +
+                    mission.resources.water,
+
+                  fire:
+                    originResources.fire +
+                    mission.resources.fire,
+
+                  grass:
+                    originResources.grass +
+                    mission.resources.grass,
+                };
+              }
+
+              /*
+               * Refund the global Expansion Key.
+               */
+              const playerId =
+                originBase.playerId;
+
+              updatedExpansionKeysByPlayer[
+                playerId
+              ] =
+                (
+                  updatedExpansionKeysByPlayer[
+                    playerId
+                  ] ?? 0
+                ) +
+                mission.expansionKeys;
+
+              return;
+            }
+
               /*
                * =================================================
                * MISSION ARRIVAL:
