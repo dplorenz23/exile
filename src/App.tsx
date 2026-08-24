@@ -11,6 +11,7 @@ import {
   bases as startingBases,
   players,
   startingResourcesByBase,
+  getBaseName,
 } from "./game/gameState";
 
 import type { BaseResources } from "./game/gameState";
@@ -2411,10 +2412,10 @@ function App() {
               }
 
               const destinationOccupied =
-                current.bases.some(
+                updatedBases.some(
                   (base) =>
-                    base.row === row &&
-                    base.col === col,
+                    base.row === mission.destinationRow &&
+                    base.col === mission.destinationCol,
                 );
 
               const destinationHasTreasure =
@@ -2471,10 +2472,31 @@ function App() {
               const newBaseId =
                 getNextBaseId(updatedBases);
 
+              const usedBaseSlots =
+                updatedBases
+                  .filter(
+                    (base) =>
+                      base.playerId === originBase.playerId,
+                  )
+                  .map(
+                    (base) => base.baseSlot,
+                  );
+
+              const newBaseSlot =
+                ([1, 2, 3] as const).find(
+                  (slot) =>
+                    !usedBaseSlots.includes(slot),
+                );
+
+              if (newBaseSlot === undefined) {
+                return;
+              }
+
               updatedBases.push({
                 id: newBaseId,
 
                 playerId: originBase.playerId,
+                baseSlot: newBaseSlot,
 
                 row: mission.destinationRow,
                 col: mission.destinationCol,
@@ -2610,15 +2632,15 @@ function App() {
                  * Check whether another base or treasure now
                  * occupies the intended destination.
                  */
-                const destinationOccupied = true; //fix back
-                /*const destinationOccupied =
+
+                const destinationOccupied =
                   updatedBases.some(
                     (base) =>
                       base.id !== relocatingBase.id &&
                       !base.isRelocating &&
                       base.row === mission.destinationRow &&
                       base.col === mission.destinationCol,
-                  );*/
+                  );
 
                 const destinationHasTreasure =
                   updatedTreasures.some(
@@ -3310,7 +3332,7 @@ function App() {
       {/* Traveling armies */}
       <ArmyMovements
         missions={gameState.armyMissions}
-        bases={yourBases}
+        bases={gameState.bases}
         treasures={gameState.treasures}
       />
 
@@ -3381,7 +3403,7 @@ function App() {
         </div>
 
         {yourBases.map(
-          (base, index) => (
+          (base) => (
             <button
               key={base.id}
               className={[
@@ -3401,7 +3423,10 @@ function App() {
               }
             >
               <span>
-                Base {index + 1}
+                {getBaseName(
+                  base.playerId,
+                  base.baseSlot,
+                )}
               </span>
 
               {/* Armies stationed here */}

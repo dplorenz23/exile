@@ -122,6 +122,8 @@ export interface Base {
   training: TrainingOrder | null;
 
   relocations: number;
+
+  baseSlot: 1 | 2 | 3;
 }
 
 export interface Player {

@@ -1,3 +1,5 @@
+import { getBaseName } from "../game/gameState";
+
 import type {
   ArmyMission,
   Base,
@@ -111,14 +113,21 @@ export default function ArmyMovements({
    * because this component currently receives only
    * the local player's bases.
    */
-  function getBaseName(baseId: number) {
-    const baseIndex = bases.findIndex(
+  function getMissionBaseName(
+    baseId: number,
+  ) {
+    const base = bases.find(
       (base) => base.id === baseId,
     );
 
-    return baseIndex >= 0
-      ? `Base ${baseIndex + 1}`
-      : "Unknown Base";
+    if (!base) {
+      return "Unknown Base";
+    }
+
+    return getBaseName(
+      base.playerId,
+      base.baseSlot,
+    );
   }
 
   function getCoordinateName(
@@ -176,43 +185,61 @@ export default function ArmyMovements({
                       mission.destinationRow,
                       mission.destinationCol,
                     )
-                  : getBaseName(
-                      mission.originBaseId,
+                  : getMissionBaseName(
+                     mission.originBaseId,
                     )
-                : mission.phase === "returning"
-                  ? mission.type === "loot"
-                    ? getTreasureName(
-                        mission.destinationBaseId,
+                : mission.type === "expand"
+                  ? mission.phase === "returning"
+                    ? getCoordinateName(
+                        mission.destinationRow,
+                        mission.destinationCol,
                       )
-                    : getBaseName(
-                        mission.destinationBaseId,
+                    : getMissionBaseName(
+                        mission.originBaseId,
                       )
-                  : getBaseName(
-                      mission.originBaseId,
-                    )}
+                  : mission.phase === "returning"
+                    ? mission.type === "loot"
+                      ? getTreasureName(
+                          mission.destinationBaseId,
+                        )
+                      : getMissionBaseName(
+                          mission.destinationBaseId,
+                        )
+                    : getMissionBaseName(
+                        mission.originBaseId,
+                      )}
 
               {" → "}
 
               {mission.type === "relocate"
                 ? mission.phase === "returning"
-                  ? getBaseName(
+                  ? getMissionBaseName(
                       mission.originBaseId,
                     )
                   : getCoordinateName(
                       mission.destinationRow,
                       mission.destinationCol,
                     )
-                : mission.phase === "returning"
-                  ? getBaseName(
-                      mission.originBaseId,
-                    )
-                  : mission.type === "loot"
-                    ? getTreasureName(
-                        mission.destinationBaseId,
+                : mission.type === "expand"
+                  ? mission.phase === "returning"
+                    ? getMissionBaseName(
+                        mission.originBaseId,
                       )
-                    : getBaseName(
-                        mission.destinationBaseId,
-                      )}
+                    : getCoordinateName(
+                        mission.destinationRow,
+                        mission.destinationCol,
+                      )
+                  : mission.phase === "returning"
+                    ? getMissionBaseName(
+                        mission.originBaseId,
+                      )
+                    : mission.type === "loot"
+                      ? getTreasureName(
+                          mission.destinationBaseId,
+                        )
+                      : getMissionBaseName(
+                          mission.destinationBaseId,
+                        )}
             </span>
 
             <strong>
