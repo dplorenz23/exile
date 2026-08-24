@@ -1,13 +1,11 @@
-import { useState } from "react";
-
 import type {
-  BattleReport,
+  GameEvent,
   Player,
   ResourceType,
 } from "../game/types";
 
-interface BattleReportsProps {
-  reports: BattleReport[];
+interface GameLogProps {
+  events: GameEvent[];
   players: Player[];
 }
 
@@ -63,12 +61,10 @@ function formatArmies(
     : "None";
 }
 
-export default function BattleReports({
-  reports,
+export default function GameLog({
+  events,
   players,
-}: BattleReportsProps) {
-  const [isOpen, setIsOpen] =
-    useState(false);
+}: GameLogProps) {
 
   function getPlayerName(playerId: number) {
     return (
@@ -80,27 +76,87 @@ export default function BattleReports({
 
   return (
     <div className="battle-reports">
-      <button
-        className="battle-reports-button"
-        onClick={() =>
-          setIsOpen((current) => !current)
-        }
-      >
-        ⚔ Battle Reports
-        {reports.length > 0 &&
-          ` (${reports.length})`}
-      </button>
+      <div className="battle-reports-button">
+          📜 Game Log
+          {events.length > 0 &&
+            ` (${events.length})`}
+        </div>
 
-      {isOpen && (
         <div className="battle-reports-panel">
-          {reports.length === 0 ? (
+          {events.length === 0 ? (
             <div className="battle-report-empty">
-              No battles yet.
+              No game events yet.
             </div>
           ) : (
-            [...reports]
+            [...events]
               .reverse()
-              .map((report) => {
+              .map((event) => {
+                if (event.type === "expansion") {
+                  const playerName =
+                    getPlayerName(event.playerId);
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="battle-report"
+                    >
+                      <div className="battle-report-header">
+                        <strong>
+                          🏕️ {playerName} established{" "}
+                          {event.baseName} at{" "}
+                          {getCoordinates(
+                            event.row,
+                            event.col,
+                          )}.
+                        </strong>
+
+                        <span>
+                          {formatTime(
+                            event.gameSeconds,
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (event.type === "relocation") {
+                  const playerName =
+                    getPlayerName(event.playerId);
+
+                  return (
+                    <div
+                      key={event.id}
+                      className="battle-report"
+                    >
+                      <div className="battle-report-header">
+                        <strong>
+                          📦 {playerName} relocated{" "}
+                          {event.baseName} from{" "}
+                          {getCoordinates(
+                            event.fromRow,
+                            event.fromCol,
+                          )}{" "}
+                          to{" "}
+                          {getCoordinates(
+                            event.toRow,
+                            event.toCol,
+                          )}.
+                        </strong>
+
+                        <span>
+                          {formatTime(
+                            event.gameSeconds,
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                const report =
+                  event.report;
+
                 const attacker =
                   getPlayerName(
                     report.attackerPlayerId,
@@ -197,7 +253,6 @@ export default function BattleReports({
               })
           )}
         </div>
-      )}
     </div>
   );
 }

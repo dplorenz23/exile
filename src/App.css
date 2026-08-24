@@ -510,7 +510,8 @@ body {
   z-index: 20;
 
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
 
   padding: 12px;
@@ -526,6 +527,11 @@ body {
 
   font-size: 13px;
   font-weight: bold;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
 }
 
 .base-selector-button {
@@ -549,6 +555,12 @@ body {
 .base-selector-button--selected {
   border-color: rgba(255, 255, 255, 0.8);
   background: rgba(255, 255, 255, 0.2);
+}
+
+.base-selector-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
 }
 
 /* =========================
@@ -627,10 +639,15 @@ body {
   top: 20px;
   left: 24px;
 
+  width: 420px;
+
   z-index: 20;
 }
 
 .battle-reports-button {
+  width: 460px;
+  box-sizing: border-box;
+
   padding: 10px 16px;
 
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -640,19 +657,14 @@ body {
   color: white;
 
   font-size: 15px;
-
-  cursor: pointer;
-}
-
-.battle-reports-button:hover {
-  background: rgba(255, 255, 255, 0.14);
 }
 
 .battle-reports-panel {
   margin-top: 8px;
 
-  width: 340px;
-  max-height: 500px;
+  width: 460px;
+
+  height: calc(100vh - 220px);
 
   overflow-y: auto;
 
@@ -667,6 +679,8 @@ body {
 
   background: rgba(10, 14, 18, 0.94);
   color: white;
+
+  box-sizing: border-box;
 }
 
 .battle-report {

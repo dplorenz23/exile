@@ -192,6 +192,39 @@ export interface BattleReport {
   eliminatedPlayerId?: number;
 }
 
+export type GameEvent =
+  | {
+      type: "battle";
+      report: BattleReport;
+    }
+  | {
+      type: "expansion";
+
+      id: number;
+      gameSeconds: number;
+
+      playerId: number;
+      baseName: string;
+
+      row: number;
+      col: number;
+    }
+  | {
+      type: "relocation";
+
+      id: number;
+      gameSeconds: number;
+
+      playerId: number;
+      baseName: string;
+
+      fromRow: number;
+      fromCol: number;
+
+      toRow: number;
+      toCol: number;
+    };
+
 export interface Treasure {
   id: number;
 

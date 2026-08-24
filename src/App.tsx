@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import ArmyMovements from "./components/ArmyMovements";
 import BaseActions from "./components/BaseActions";
-import BattleReports from "./components/BattleReports";
+import GameLog from "./components/GameLog";
 import GameClock from "./components/GameClock";
 import GameMap from "./components/GameMap";
 import ResourceBar from "./components/ResourceBar";
@@ -27,7 +27,7 @@ import {
 import type {
   ArmyCounts,
   ArmyMission,
-  BattleReport,
+  GameEvent,
   ResourceType,
   Treasure,
 } from "./game/types";
@@ -98,8 +98,8 @@ function App() {
     armyMissions: ArmyMission[];
     nextMissionId: number;
 
-    battleReports: BattleReport[];
-    nextBattleReportId: number;
+    gameEvents: GameEvent[];
+    nextGameEventId: number;
 
     treasures: Treasure[];
     nextTreasureId: number;
@@ -132,8 +132,8 @@ function App() {
     armyMissions: [],
     nextMissionId: 1,
 
-    battleReports: [],
-    nextBattleReportId: 1,
+    gameEvents: [],
+    nextGameEventId: 1,
 
     treasures: [],
     nextTreasureId: 1,
@@ -1607,12 +1607,12 @@ function App() {
             ...current.expansionKeysByPlayer,
           };
 
-          const updatedBattleReports = [
-            ...current.battleReports,
+          const updatedGameEvents = [
+            ...current.gameEvents,
           ];
 
-          let nextBattleReportId =
-            current.nextBattleReportId;
+          let nextGameEventId =
+            current.nextGameEventId;
 
           const updatedTreasures = [
             ...current.treasures,
@@ -1987,15 +1987,18 @@ function App() {
                  * - resources remaining
                  * - final battle result
                  */
-                updatedBattleReports.push({
-                  id:
-                    nextBattleReportId,
+                updatedGameEvents.push({
+                  type: "battle",
 
-                  gameSeconds:
-                    current.gameSeconds + 1,
+                  report: {
+                    id:
+                      nextGameEventId,
 
-                  attackerPlayerId:
-                    originBase.playerId,
+                    gameSeconds:
+                      current.gameSeconds + 1,
+
+                    attackerPlayerId:
+                      originBase.playerId,
 
                   defenderPlayerId:
                     defendingBase.playerId,
@@ -2041,9 +2044,10 @@ function App() {
                       .baseDestroyed,
 
                   eliminatedPlayerId,
-                });
+                },
+              });
 
-                nextBattleReportId += 1;
+                nextGameEventId += 1;
 
 
                 /*
@@ -2524,7 +2528,33 @@ function App() {
                 grass: 50,
               };
 
-              return;
+              updatedGameEvents.push({
+                type: "expansion",
+
+                id: nextGameEventId,
+
+                gameSeconds:
+                  current.gameSeconds + 1,
+
+                playerId:
+                  originBase.playerId,
+
+                baseName:
+                  getBaseName(
+                    originBase.playerId,
+                    newBaseSlot,
+                  ),
+
+                row:
+                  mission.destinationRow,
+
+                col:
+                  mission.destinationCol,
+              });
+
+              nextGameEventId += 1;
+
+                return;
             }
 
             /*
@@ -2632,7 +2662,6 @@ function App() {
                  * Check whether another base or treasure now
                  * occupies the intended destination.
                  */
-
                 const destinationOccupied =
                   updatedBases.some(
                     (base) =>
@@ -2722,6 +2751,45 @@ function App() {
                 ] = {
                   ...mission.resources,
                 };
+
+                /*
+                 * Record the successful relocation
+                 * in the public Game Log.
+                 *
+                 * relocatingBase still contains the ORIGINAL
+                 * row/col, which is exactly what we need here.
+                 */
+                updatedGameEvents.push({
+                  type: "relocation",
+
+                  id: nextGameEventId,
+
+                  gameSeconds:
+                    current.gameSeconds + 1,
+
+                  playerId:
+                    relocatingBase.playerId,
+
+                  baseName:
+                    getBaseName(
+                      relocatingBase.playerId,
+                      relocatingBase.baseSlot,
+                    ),
+
+                  fromRow:
+                    relocatingBase.row,
+
+                  fromCol:
+                    relocatingBase.col,
+
+                  toRow:
+                    mission.destinationRow,
+
+                  toCol:
+                    mission.destinationCol,
+                });
+
+                nextGameEventId += 1;
 
                 return;
               }
@@ -3232,10 +3300,10 @@ function App() {
             armyMissions:
               updatedArmyMissions,
 
-            battleReports:
-              updatedBattleReports,
+            gameEvents:
+              updatedGameEvents,
 
-            nextBattleReportId,
+            nextGameEventId,
 
             treasures:
               updatedTreasures,
@@ -3294,8 +3362,8 @@ function App() {
       )}
 
       {/* Top-left */}
-      <BattleReports
-        reports={gameState.battleReports}
+      <GameLog
+        events={gameState.gameEvents}
         players={players}
       />
 
@@ -3391,84 +3459,78 @@ function App() {
        * - see stored resources
        */}
       <div className="base-selector">
-        <div className="base-selector-title">
-          <span>
-            {yourPlayer?.name ??
-              "Your Bases"}
-          </span>
+          <div className="base-selector-title">
+            <span>
+              {yourPlayer?.name ??
+                "Your Bases"}
+            </span>
 
-          <span className="expansion-key-count">
-            🔑 {yourExpansionKeys}
-          </span>
+            <span className="expansion-key-count">
+              🔑 {yourExpansionKeys}
+            </span>
+          </div>
+
+          <div className="base-selector-row">
+            {yourBases.map(
+              (base) => (
+                <button
+                  key={base.id}
+                  className={[
+                    "base-selector-button",
+
+                    base.id ===
+                    selectedBaseId
+                      ? "base-selector-button--selected"
+                      : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  onClick={() =>
+                    setSelectedBaseId(
+                      base.id,
+                    )
+                  }
+                >
+                  <span>
+                    {getBaseName(
+                      base.playerId,
+                      base.baseSlot,
+                    )}
+                  </span>
+
+                  <span className="base-army-summary">
+                    ⚔️💧{base.armies.water}{" "}
+                    ⚔️🔥{base.armies.fire}{" "}
+                    ⚔️🌱{base.armies.grass}
+                  </span>
+
+                  <span className="base-resource-summary">
+                    💧
+                    {Math.floor(
+                      gameState.resourcesByBase[
+                        base.id
+                      ]?.water ?? 0,
+                    )}{" "}
+
+                    🔥
+                    {Math.floor(
+                      gameState.resourcesByBase[
+                        base.id
+                      ]?.fire ?? 0,
+                    )}{" "}
+
+                    🌱
+                    {Math.floor(
+                      gameState.resourcesByBase[
+                        base.id
+                      ]?.grass ?? 0,
+                    )}
+                  </span>
+                </button>
+              ),
+            )}
+          </div>
         </div>
-
-        {yourBases.map(
-          (base) => (
-            <button
-              key={base.id}
-              className={[
-                "base-selector-button",
-
-                base.id ===
-                selectedBaseId
-                  ? "base-selector-button--selected"
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() =>
-                setSelectedBaseId(
-                  base.id,
-                )
-              }
-            >
-              <span>
-                {getBaseName(
-                  base.playerId,
-                  base.baseSlot,
-                )}
-              </span>
-
-              {/* Armies stationed here */}
-              <span className="base-army-summary">
-                ⚔️💧
-                {base.armies.water}{" "}
-                ⚔️🔥
-                {base.armies.fire}{" "}
-                ⚔️🌱
-                {base.armies.grass}
-              </span>
-
-              {/* Resources stored here */}
-              <span className="base-resource-summary">
-                💧
-                {Math.floor(
-                  gameState
-                    .resourcesByBase[
-                    base.id
-                  ]?.water ?? 0,
-                )}{" "}
-
-                🔥
-                {Math.floor(
-                  gameState
-                    .resourcesByBase[
-                    base.id
-                  ]?.fire ?? 0,
-                )}{" "}
-
-                🌱
-                {Math.floor(
-                  gameState
-                    .resourcesByBase[
-                    base.id
-                  ]?.grass ?? 0,
-                )}
-              </span>
-            </button>
-          ),
-        )}
-      </div>
     </main>
   );
 }
