@@ -46,6 +46,10 @@ interface BaseActionsProps {
     resources: BaseResources,
   ) => void;
 
+  onStartRelocateTargeting: (
+    payment: BaseResources,
+  ) => void;
+
 }
 
 export default function BaseActions({
@@ -61,6 +65,7 @@ export default function BaseActions({
   onStartLootTargeting,
   onStartExpandTargeting,
   onStartTransferTargeting,
+  onStartRelocateTargeting,
 }: BaseActionsProps) {
   const [mode, setMode] = useState<
     | "main"
@@ -94,6 +99,18 @@ export default function BaseActions({
       fire: 0,
       grass: 0,
     });
+
+  const [relocationPayment, setRelocationPayment] =
+    useState<BaseResources>({
+      water: 0,
+      fire: 0,
+      grass: 0,
+    });
+
+  const totalRelocationPayment =
+    relocationPayment.water +
+    relocationPayment.fire +
+    relocationPayment.grass;
 
   if (!base) {
     return null;
@@ -129,6 +146,14 @@ export default function BaseActions({
     expansionPayment.water +
     expansionPayment.fire +
     expansionPayment.grass;
+
+  const relocationCost =
+    base
+      ? (base.relocations + 1) * 250
+      : 250;
+
+  const canAffordRelocation =
+    totalResources >= relocationCost;
 
   function canAfford(resource: ResourceType) {
     return resources[resource] >= armyCost;
@@ -223,6 +248,51 @@ export default function BaseActions({
         newValue;
 
       if (newTotal > 500) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [resource]: newValue,
+      };
+    });
+  }
+
+  function changeRelocationPayment(
+    resource: ResourceType,
+    change: number,
+  ) {
+    setRelocationPayment((current) => {
+      const newValue =
+        current[resource] + change;
+
+      if (newValue < 0) {
+        return current;
+      }
+
+      /*
+       * Cannot spend more of a resource
+       * than this base currently owns.
+       */
+      if (newValue > resources[resource]) {
+        return current;
+      }
+
+      const currentTotal =
+        current.water +
+        current.fire +
+        current.grass;
+
+      const newTotal =
+        currentTotal -
+        current[resource] +
+        newValue;
+
+      /*
+       * Stop once the exact relocation
+       * cost has been reached.
+       */
+      if (newTotal > relocationCost) {
         return current;
       }
 
@@ -777,6 +847,101 @@ if (mode === "attack-armies") {
       </div>
     );
   }
+
+  if (mode === "relocate-payment") {
+    return (
+        <div className="base-actions send-menu">
+          <div className="send-menu-title">
+            📦 Relocate Base
+          </div>
+
+          <div className="send-menu-message">
+            Cost: {relocationCost} resources
+          </div>
+
+          <ResourceSelector
+            icon="💧"
+            label="Water"
+            available={resources.water}
+            selected={relocationPayment.water}
+            onDecrease={() =>
+              changeRelocationPayment("water", -50)
+            }
+            onIncrease={() =>
+              changeRelocationPayment("water", 50)
+            }
+          />
+
+          <ResourceSelector
+            icon="🔥"
+            label="Fire"
+            available={resources.fire}
+            selected={relocationPayment.fire}
+            onDecrease={() =>
+              changeRelocationPayment("fire", -50)
+            }
+            onIncrease={() =>
+              changeRelocationPayment("fire", 50)
+            }
+          />
+
+          <ResourceSelector
+            icon="🌱"
+            label="Grass"
+            available={resources.grass}
+            selected={relocationPayment.grass}
+            onDecrease={() =>
+              changeRelocationPayment("grass", -50)
+            }
+            onIncrease={() =>
+              changeRelocationPayment("grass", 50)
+            }
+          />
+
+          <div className="send-menu-message">
+            Payment: {totalRelocationPayment} / {relocationCost}
+          </div>
+
+          <button
+              className="base-action-button"
+              disabled={
+                totalRelocationPayment !== relocationCost
+              }
+              onClick={() => {
+                onStartRelocateTargeting(
+                  relocationPayment,
+                );
+
+                setRelocationPayment({
+                  water: 0,
+                  fire: 0,
+                  grass: 0,
+                });
+
+                setMode("main");
+              }}
+            >
+              Choose Location
+            </button>
+
+          <button
+            className="base-action-button"
+            onClick={() => {
+              setRelocationPayment({
+                water: 0,
+                fire: 0,
+                grass: 0,
+              });
+
+              setMode("main");
+            }}
+          >
+            Back
+          </button>
+        </div>
+      );
+    }
+
   /*
    * Main actions.
    */
@@ -810,8 +975,14 @@ if (mode === "attack-armies") {
         🔑 Expand
       </button>
 
-      <button className="base-action-button">
-        🏕 Relocate
+      <button
+        className="base-action-button"
+        disabled={!canAffordRelocation}
+        onClick={() =>
+          setMode("relocate-payment")
+        }
+      >
+        📦 Relocate ({relocationCost})
       </button>
     </div>
   );

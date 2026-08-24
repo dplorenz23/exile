@@ -43,6 +43,8 @@ export const bases: Base[] = [
 
     armiesBuilt: 0,
     training: null,
+    relocations: 0,
+    isRelocating: false,
   },
   {
     id: 2,
@@ -59,6 +61,8 @@ export const bases: Base[] = [
 
     armiesBuilt: 0,
     training: null,
+    relocations: 0,
+    isRelocating: false,
   },
   {
     id: 3,
@@ -75,6 +79,8 @@ export const bases: Base[] = [
 
     armiesBuilt: 0,
     training: null,
+    relocations: 0,
+    isRelocating: false,
   },
   {
     id: 4,
@@ -91,6 +97,8 @@ export const bases: Base[] = [
 
     armiesBuilt: 0,
     training: null,
+    relocations: 0,
+    isRelocating: false,
   },
   {
   id: 5,
@@ -107,6 +115,8 @@ export const bases: Base[] = [
 
     armiesBuilt: 0,
     training: null,
+    relocations: 0,
+    isRelocating: false,
 },
  {
   id: 6,
@@ -123,6 +133,8 @@ export const bases: Base[] = [
 
     armiesBuilt: 0,
     training: null,
+    relocations: 0,
+    isRelocating: false,
 },
 ];
 

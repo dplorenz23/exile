@@ -227,7 +227,7 @@ function App() {
   */
   const [targetingMode, setTargetingMode] =
   useState<
-    "attack" | "loot" | "expand" | "transfer" | null
+    "attack" | "loot" | "expand" | "transfer" | "relocate" | null
   >(null);
 
   const [pendingAttackArmies, setPendingAttackArmies] =
@@ -243,6 +243,9 @@ function App() {
     useState<ArmyCounts | null>(null);
 
   const [pendingTransferResources, setPendingTransferResources] =
+    useState<BaseResources | null>(null);
+
+  const [pendingRelocationPayment, setPendingRelocationPayment] =
     useState<BaseResources | null>(null);
 
   function cancelTargeting() {
@@ -1268,6 +1271,201 @@ function App() {
       setTargetingMode("transfer");
     }
 
+  function handleStartRelocateTargeting(
+    payment: BaseResources,
+  ) {
+    setPendingRelocationPayment(payment);
+    setTargetingMode("relocate");
+  }
+
+  function handleRelocateTargetSelected(
+      row: number,
+      col: number,
+    ) {
+      if (!pendingRelocationPayment) {
+        return;
+      }
+
+      setGameState((current) => {
+        const originBase =
+          current.bases.find(
+            (base) =>
+              base.id === selectedBaseId,
+          );
+
+        if (!originBase) {
+          return current;
+        }
+
+        const destinationOccupied =
+          current.bases.some(
+            (base) =>
+              base.row === row &&
+              base.col === col,
+          );
+
+        const destinationHasTreasure =
+          current.treasures.some(
+            (treasure) =>
+              treasure.row === row &&
+              treasure.col === col,
+          );
+
+        if (
+          destinationOccupied ||
+          destinationHasTreasure
+        ) {
+          return current;
+        }
+
+        const relocationCost =
+          (originBase.relocations + 1) * 250;
+
+        const paymentTotal =
+          pendingRelocationPayment.water +
+          pendingRelocationPayment.fire +
+          pendingRelocationPayment.grass;
+
+        if (paymentTotal !== relocationCost) {
+          return current;
+        }
+
+        const baseResources =
+          current.resourcesByBase[
+            originBase.id
+          ];
+
+        if (!baseResources) {
+          return current;
+        }
+
+        if (
+          pendingRelocationPayment.water >
+            baseResources.water ||
+          pendingRelocationPayment.fire >
+            baseResources.fire ||
+          pendingRelocationPayment.grass >
+            baseResources.grass
+        ) {
+          return current;
+        }
+
+        /*
+         * Pay relocation cost immediately.
+         */
+        const updatedResources = {
+          ...current.resourcesByBase,
+
+          [originBase.id]: {
+            water:
+              baseResources.water -
+              pendingRelocationPayment.water,
+
+            fire:
+              baseResources.fire -
+              pendingRelocationPayment.fire,
+
+            grass:
+              baseResources.grass -
+              pendingRelocationPayment.grass,
+          },
+        };
+
+        const updatedBases =
+          current.bases.map((base) => {
+            if (base.id !== originBase.id) {
+              return base;
+            }
+
+            return {
+              ...base,
+
+              /*
+               * The base still EXISTS for elimination/base-count
+               * purposes, but it is no longer physically on the map.
+               */
+              isRelocating: true,
+
+              /*
+               * Armies are traveling with the base.
+               */
+              armies: {
+                water: 0,
+                fire: 0,
+                grass: 0,
+              },
+            };
+          });
+
+        const distance =
+          Math.abs(
+            originBase.row - row,
+          ) +
+          Math.abs(
+            originBase.col - col,
+          );
+
+        const travelTime =
+          distance * 15;
+
+        const newMission: ArmyMission = {
+          id: current.nextMissionId,
+
+          type: "relocate",
+          phase: "outbound",
+
+          originBaseId:
+            originBase.id,
+
+          destinationBaseId: 0,
+
+          armies: {
+            ...originBase.armies,
+          },
+
+          resources: {
+            ...updatedResources[
+              originBase.id
+            ],
+          },
+
+          relocationPayment: {
+            ...pendingRelocationPayment,
+          },
+
+          expansionKeys: 0,
+
+          destinationRow: row,
+          destinationCol: col,
+
+          secondsRemaining:
+            travelTime,
+        };
+
+        delete updatedResources[originBase.id];
+
+        return {
+          ...current,
+
+          bases: updatedBases,
+
+          resourcesByBase:
+            updatedResources,
+
+          armyMissions: [
+            ...current.armyMissions,
+            newMission,
+          ],
+
+          nextMissionId:
+            current.nextMissionId + 1,
+        };
+      });
+
+      setPendingRelocationPayment(null);
+      setTargetingMode(null);
+    }
+
   /*
    * ==========================================================
    * MASTER GAME TIMER
@@ -1309,6 +1507,15 @@ function App() {
            */
           let updatedBases =
             current.bases.map((base) => {
+
+              /*
+               * A relocating base still exists, but it does not
+               * age, train armies, or otherwise operate while moving.
+               */
+              if (base.isRelocating) {
+                return base;
+              }
+
               let updatedArmies =
                 base.armies;
 
@@ -2281,8 +2488,8 @@ function App() {
                 },
 
                 armiesBuilt: 0,
-
                 training: null,
+                relocations: 0,
               });
 
               /*
@@ -2369,6 +2576,339 @@ function App() {
 
               return;
             }
+
+              /*
+               * =================================================
+               * MISSION ARRIVAL:
+               * RELOCATION
+               * =================================================
+               *
+               * The existing base arrives at its new location.
+               */
+              if (
+                mission.type === "relocate" &&
+                mission.phase === "outbound"
+              ) {
+                if (
+                  mission.destinationRow === undefined ||
+                  mission.destinationCol === undefined
+                ) {
+                  return;
+                }
+
+                const relocatingBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id === mission.originBaseId,
+                  );
+
+                if (!relocatingBase) {
+                  return;
+                }
+
+                /*
+                 * Check whether another base or treasure now
+                 * occupies the intended destination.
+                 */
+                const destinationOccupied = true; //fix back
+                /*const destinationOccupied =
+                  updatedBases.some(
+                    (base) =>
+                      base.id !== relocatingBase.id &&
+                      !base.isRelocating &&
+                      base.row === mission.destinationRow &&
+                      base.col === mission.destinationCol,
+                  );*/
+
+                const destinationHasTreasure =
+                  updatedTreasures.some(
+                    (treasure) =>
+                      treasure.row === mission.destinationRow &&
+                      treasure.col === mission.destinationCol,
+                  );
+
+                /*
+                 * Destination is blocked.
+                 *
+                 * Turn around and return to the base's
+                 * original location.
+                 */
+                if (
+                  destinationOccupied ||
+                  destinationHasTreasure
+                ) {
+                  const returnDistance =
+                    Math.abs(
+                      relocatingBase.row -
+                        mission.destinationRow,
+                    ) +
+                    Math.abs(
+                      relocatingBase.col -
+                        mission.destinationCol,
+                    );
+
+                  updatedArmyMissions.push({
+                    ...mission,
+
+                    phase: "returning",
+
+                    secondsRemaining:
+                      returnDistance * 15,
+                  });
+
+                  return;
+                }
+
+                /*
+                 * Destination is still available.
+                 * Complete the relocation normally.
+                 */
+                updatedBases =
+                  updatedBases.map((base) => {
+                    if (
+                      base.id !== relocatingBase.id
+                    ) {
+                      return base;
+                    }
+
+                    return {
+                      ...base,
+
+                      row: mission.destinationRow!,
+                      col: mission.destinationCol!,
+
+                      isRelocating: false,
+
+                      /*
+                       * Successful relocation increases this
+                       * base's NEXT relocation cost by 250.
+                       */
+                      relocations:
+                        base.relocations + 1,
+
+                      armies: {
+                        ...mission.armies,
+                      },
+                    };
+                  });
+
+                /*
+                 * Restore the resource bank at the new location.
+                 */
+                updatedResources[
+                  relocatingBase.id
+                ] = {
+                  ...mission.resources,
+                };
+
+                return;
+              }
+
+              /*
+               * =================================================
+               * MISSION ARRIVAL:
+               * RETURNING RELOCATION
+               * =================================================
+               *
+               * A relocation failed because its destination
+               * became occupied.
+               *
+               * The base now tries to return to its original tile.
+               *
+               * If the original tile is also occupied, the
+               * relocating base is lost.
+               */
+              if (
+                mission.type === "relocate" &&
+                mission.phase === "returning"
+              ) {
+                const relocatingBase =
+                  updatedBases.find(
+                    (base) =>
+                      base.id === mission.originBaseId,
+                 );
+
+                /*
+                 * If the relocating base somehow no longer exists,
+                 * there is nothing left to restore.
+                 */
+                if (!relocatingBase) {
+                  return;
+                }
+
+                /*
+                 * Check whether another active base now occupies
+                 * the original tile.
+                 *
+                 * The relocating base itself does not count.
+                 */
+                const originalOccupied =
+                  updatedBases.some(
+                    (base) =>
+                      base.id !== relocatingBase.id &&
+                      !base.isRelocating &&
+                      base.row === relocatingBase.row &&
+                      base.col === relocatingBase.col,
+                  );
+
+                /*
+                 * Treasure also prevents the base from returning
+                 * to its original tile.
+                 */
+                const originalHasTreasure =
+                  updatedTreasures.some(
+                    (treasure) =>
+                      treasure.row === relocatingBase.row &&
+                      treasure.col === relocatingBase.col,
+                  );
+
+                /*
+                 * -----------------------------------------------
+                 * ORIGINAL TILE IS BLOCKED
+                 * -----------------------------------------------
+                 *
+                 * The base is lost.
+                 *
+                 * Everything traveling with it is also lost:
+                 * - armies
+                 * - resources
+                 *
+                 * We do NOT restore its resource bank.
+                 */
+                if (
+                  originalOccupied ||
+                  originalHasTreasure
+                ) {
+                  /*
+                   * The base tried to return home, but its
+                   * original tile is no longer available.
+                   *
+                   * The relocating base and everything traveling
+                   * with it are permanently lost.
+                   */
+                  updatedBases =
+                    updatedBases.filter(
+                      (base) =>
+                        base.id !== relocatingBase.id,
+                    );
+
+                  delete updatedResources[
+                    relocatingBase.id
+                  ];
+
+                  /*
+                   * Check whether this player still has any
+                   * other bases.
+                   *
+                   * Relocating bases still count because they
+                   * remain in updatedBases until they are lost.
+                   */
+                  const playerStillHasBase =
+                    updatedBases.some(
+                      (base) =>
+                        base.playerId ===
+                        relocatingBase.playerId,
+                    );
+
+                  /*
+                   * Losing the final base means immediate
+                   * elimination.
+                   */
+                  if (
+                    !playerStillHasBase &&
+                    !updatedEliminatedPlayerIds.includes(
+                      relocatingBase.playerId,
+                    )
+                  ) {
+                    updatedEliminatedPlayerIds.push(
+                      relocatingBase.playerId,
+                    );
+
+                    /*
+                     * See whether this elimination leaves
+                     * exactly one surviving player.
+                     */
+                    const remainingPlayers =
+                      players.filter(
+                        (player) =>
+                          !updatedEliminatedPlayerIds.includes(
+                            player.id,
+                          ),
+                      );
+
+                    if (
+                      remainingPlayers.length === 1
+                    ) {
+                      updatedWinnerPlayerId =
+                        remainingPlayers[0].id;
+                    }
+                  }
+
+                  return;
+                }
+
+                /*
+                 * -----------------------------------------------
+                 * ORIGINAL TILE IS STILL OPEN
+                 * -----------------------------------------------
+                 *
+                 * Restore the same base back to its original
+                 * location.
+                 *
+                 * Its row/col never changed during the failed
+                 * relocation, so we do not need to change them.
+                 */
+                updatedBases =
+                  updatedBases.map((base) => {
+                    if (
+                      base.id !== relocatingBase.id
+                    ) {
+                      return base;
+                    }
+
+                    return {
+                      ...base,
+
+                      isRelocating: false,
+
+                      /*
+                       * Restore the armies that traveled
+                       * with the base.
+                       */
+                      armies: {
+                        ...mission.armies,
+                      },
+                    };
+                  });
+
+                /*
+                 * Restore the base's carried resources.
+                 */
+                const relocationPayment =
+                  mission.relocationPayment ?? {
+                    water: 0,
+                    fire: 0,
+                    grass: 0,
+                  };
+
+                updatedResources[
+                  relocatingBase.id
+                ] = {
+                  water:
+                    mission.resources.water +
+                    relocationPayment.water,
+
+                  fire:
+                    mission.resources.fire +
+                    relocationPayment.fire,
+
+                  grass:
+                    mission.resources.grass +
+                    relocationPayment.grass,
+                };
+
+                return;
+              }
 
               /*
                * =================================================
@@ -2590,6 +3130,11 @@ function App() {
            * tile multiplier
            */
           updatedBases.forEach((base) => {
+
+            if (base.isRelocating) {
+              return;
+            }
+
             const tile =
               mapOne.find(
                 (tile) =>
@@ -2759,6 +3304,7 @@ function App() {
         onStartLootTargeting={handleStartLootTargeting}
         onStartExpandTargeting={handleStartExpandTargeting}
         onStartTransferTargeting={handleStartTransferTargeting}
+        onStartRelocateTargeting={handleStartRelocateTargeting}
       />
 
       {/* Traveling armies */}
@@ -2784,6 +3330,9 @@ function App() {
               {targetingMode === "transfer" &&
                 "Choose one of your bases to transfer to"}
 
+              {targetingMode === "relocate" &&
+                "Choose an empty tile to relocate to"}
+
             </span>
 
             <button onClick={cancelTargeting}>
@@ -2804,6 +3353,7 @@ function App() {
         onLootTargetSelected={handleLootTargetSelected}
         onExpandTargetSelected={handleExpandTargetSelected}
         onTransferTargetSelected={handleTransferTargetSelected}
+        onRelocateTargetSelected={handleRelocateTargetSelected}
       />
 
 

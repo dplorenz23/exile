@@ -110,6 +110,7 @@ export interface Base {
   row: number;
   col: number;
   timeInLocationSeconds: number;
+  isRelocating: boolean;
 
   armies: ArmyCounts;
 
@@ -119,6 +120,8 @@ export interface Base {
 
   // Null means this base is not currently training.
   training: TrainingOrder | null;
+
+  relocations: number;
 }
 
 export interface Player {
@@ -131,7 +134,7 @@ export interface Player {
 export interface ArmyMission {
   id: number;
 
-  type: "transfer" | "attack" | "loot" | "expand";
+  type: "transfer" | "attack" | "loot" | "expand" | "relocate";
 
   phase: "outbound" | "returning";
 
@@ -148,6 +151,8 @@ export interface ArmyMission {
 
   destinationRow?: number;
   destinationCol?: number;
+
+  relocationPayment?: BaseResources;
 }
 
 export interface CombatResult {

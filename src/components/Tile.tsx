@@ -26,6 +26,9 @@ interface TileProps {
   isTransferTarget?: boolean;
   transferTravelTimeSeconds?: number;
   onTransferTargetClick?: () => void;
+  isRelocateTarget?: boolean;
+  relocationTravelTimeSeconds?: number;
+  onRelocateTargetClick?: () => void;
 }
 
 function getTerrainIcon(tile: TileType) {
@@ -64,6 +67,9 @@ export default function Tile({
   isTransferTarget,
   transferTravelTimeSeconds,
   onTransferTargetClick,
+  isRelocateTarget = false,
+  relocationTravelTimeSeconds,
+  onRelocateTargetClick,
 }: TileProps) {
   const isTop = tile.row === 0;
   const isBottom = tile.row === gridSize - 1;
@@ -91,11 +97,18 @@ export default function Tile({
         isExpandTarget
           ? "map-tile--expand-target"
           : "",
+        isRelocateTarget
+          ? "map-tile--relocate-target"
+          : "",
         edgeClasses,
       ]
         .filter(Boolean)
         .join(" ")}
-      onClick={onExpandTargetClick}
+      onClick={
+        isRelocateTarget
+          ? onRelocateTargetClick
+          : onExpandTargetClick
+      }
       title={
         isAttackTarget
           ? undefined
@@ -106,6 +119,13 @@ export default function Tile({
       expandTravelTimeSeconds !== undefined && (
         <div className="expand-travel-time">
           {expandTravelTimeSeconds}s
+        </div>
+      )}
+
+    {isRelocateTarget &&
+      relocationTravelTimeSeconds !== undefined && (
+        <div className="relocate-travel-time">
+          📦 {relocationTravelTimeSeconds}s
         </div>
       )}
 

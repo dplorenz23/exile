@@ -13,7 +13,7 @@ interface GameMapProps {
   bases: Base[];
   treasures: Treasure[];
 
-  targetingMode: "attack" | "loot" | "expand" | "transfer" | null;
+  targetingMode: "attack" | "loot" | "expand" | "transfer" | "relocate" | null;
   yourPlayerId: number;
 
   originBase?: Base;
@@ -35,6 +35,11 @@ interface GameMapProps {
     destinationBaseId: number,
   ) => void;
 
+  onRelocateTargetSelected: (
+    row: number,
+    col: number,
+  ) => void;
+
 }
 
 export default function GameMap({
@@ -48,12 +53,14 @@ export default function GameMap({
   onLootTargetSelected,
   onExpandTargetSelected,
   onTransferTargetSelected,
+  onRelocateTargetSelected,
 }: GameMapProps) {
   return (
     <div className="game-map">
       {mapOne.map((tile) => {
         const base = bases.find(
           (base) =>
+            !base.isRelocating &&
             base.row === tile.row &&
             base.col === tile.col,
         );
@@ -121,6 +128,23 @@ export default function GameMap({
               ) * 5
             : undefined;
 
+        const isRelocateTarget =
+          targetingMode === "relocate" &&
+          base === undefined &&
+          treasure === undefined;
+
+        const relocationTravelTimeSeconds =
+          isRelocateTarget && originBase
+            ? (
+                Math.abs(
+                  originBase.row - tile.row,
+                ) +
+                Math.abs(
+                  originBase.col - tile.col,
+                )
+              ) * 15
+            : undefined;
+
         /*
         * During Attack Targeting Mode, any enemy base
         * is a valid map target.
@@ -185,6 +209,17 @@ export default function GameMap({
               isTransferTarget && base
                 ? () =>
                     onTransferTargetSelected(base.id)
+                : undefined
+            }
+            isRelocateTarget={isRelocateTarget}
+            relocationTravelTimeSeconds={relocationTravelTimeSeconds}
+            onRelocateTargetClick={
+              isRelocateTarget
+                ? () =>
+                    onRelocateTargetSelected(
+                      tile.row,
+                      tile.col,
+                    )
                 : undefined
             }
         />
