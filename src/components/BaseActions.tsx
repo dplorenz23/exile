@@ -3,31 +3,19 @@ import { useState } from "react";
 import type {
   ArmyCounts,
   Base,
+  BaseResources,
   ResourceType,
 } from "../game/types";
 
-import type { BaseResources } from "../game/gameState";
 import { getArmyCost } from "../game/rules";
 
 interface BaseActionsProps {
   base?: Base;
   resources: BaseResources;
   ownedBases: Base[];
-  enemyBases: Base[];
   expansionKeys: number;
 
   onTrainArmy: (resource: ResourceType) => void;
-
-  onTransferArmies: (
-    destinationBaseId: number,
-    armies: ArmyCounts,
-    resources: BaseResources,
-  ) => void;
-
-  onAttackArmies: (
-    destinationBaseId: number,
-    armies: ArmyCounts,
-  ) => void;
 
   onStartAttackTargeting: (
     armies: ArmyCounts,
@@ -56,11 +44,8 @@ export default function BaseActions({
   base,
   resources,
   ownedBases,
-  enemyBases,
   expansionKeys,
   onTrainArmy,
-  onTransferArmies,
-  onAttackArmies,
   onStartAttackTargeting,
   onStartLootTargeting,
   onStartExpandTargeting,
@@ -77,6 +62,7 @@ export default function BaseActions({
     | "transfer-destination"
     | "loot-armies"
     | "expand-payment"
+    | "relocate-payment"
   >("main");
 
   const [selectedArmies, setSelectedArmies] =
@@ -115,6 +101,8 @@ export default function BaseActions({
   if (!base) {
     return null;
   }
+
+  const currentBase = base;
 
   const armyCosts = {
     water:
@@ -187,7 +175,7 @@ export default function BaseActions({
     change: number,
   ) {
     setSelectedArmies((current) => {
-      const maximum = base.armies[resource];
+      const maximum = currentBase.armies[resource];
 
       const newValue = Math.max(
         0,
@@ -335,16 +323,6 @@ export default function BaseActions({
     });
 
     setMode("main");
-  }
-
-  function handleTransfer(destinationBaseId: number) {
-    onTransferArmies(
-      destinationBaseId,
-      selectedArmies,
-      selectedResources,
-    );
-
-    resetSend();
   }
 
   /*

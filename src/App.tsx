@@ -14,8 +14,6 @@ import {
   getBaseName,
 } from "./game/gameState";
 
-import type { BaseResources } from "./game/gameState";
-
 import { mapOne } from "./game/maps/mapOne";
 
 import {
@@ -28,6 +26,7 @@ import type {
   ArmyCounts,
   ArmyMission,
   GameEvent,
+  BaseResources,
   ResourceType,
   Treasure,
 } from "./game/types";
@@ -153,11 +152,6 @@ function App() {
   const yourBases = gameState.bases.filter(
     (base) =>
       base.playerId === yourPlayerId,
-  );
-
-  const enemyBases = gameState.bases.filter(
-    (base) =>
-      base.playerId !== yourPlayerId,
   );
 
   const yourExpansionKeys =
@@ -1643,8 +1637,9 @@ function App() {
             ...current.eliminatedPlayerIds,
           ];
 
-          let updatedWinnerPlayerId =
-            current.winnerPlayerId;
+          let updatedWinnerPlayerId:
+            number | null =
+              current.winnerPlayerId;
 
           /*
            * ==================================================
@@ -3158,18 +3153,17 @@ function App() {
                   );
 
                 /*
+                 * If the origin base no longer exists,
+                 * the transfer mission is lost.
+                 */
+                if (!originBase) {
+                  return;
+                }
+                /*
                  * If the destination base was destroyed while
                  * the transfer was traveling, turn around.
                  */
                 if (!destinationBase) {
-                  /*
-                   * If the origin is also already gone, there is
-                   * nowhere to return to. The mission is lost.
-                   */
-                  if (!originBase) {
-                    return;
-                  }
-
                   const distance =
                     Math.abs(
                       originBase.row -
@@ -3550,11 +3544,8 @@ function App() {
         base={selectedBase}
         resources={selectedResources}
         ownedBases={yourBases}
-        enemyBases={enemyBases}
         expansionKeys={yourExpansionKeys}
         onTrainArmy={handleTrainArmy}
-        onTransferArmies={handleTransferArmies}
-        onAttackArmies={handleAttackArmies}
         onStartAttackTargeting={handleStartAttackTargeting}
         onStartLootTargeting={handleStartLootTargeting}
         onStartExpandTargeting={handleStartExpandTargeting}

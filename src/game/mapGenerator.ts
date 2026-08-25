@@ -120,5 +120,7 @@ export function generateMap(gridSize: number): Tile[] {
     col: cell.col,
     resource: cell.resource as ResourceType,
     multiplier: 1,
+
+    terrain: "meadow"
   }));
 }

@@ -1,4 +1,4 @@
-import type { Base, Player, ResourceType } from "./types";
+import type { Base, Player, BaseResources } from "./types";
 
 export const players: Player[] = [
   {
@@ -206,12 +206,6 @@ export const bases: Base[] = [
     isRelocating: false,
 },
 ];
-
-export interface BaseResources {
-  water: number;
-  fire: number;
-  grass: number;
-}
 
 export const startingResourcesByBase: Record<number, BaseResources> =
   Object.fromEntries(

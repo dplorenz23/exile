@@ -401,11 +401,25 @@ export function calculateLoot(
       remaining[largestResource],
     );
 
-    loot[largestResource] += amountTaken;
-    remaining[largestResource] -= amountTaken;
-    remainingCapacity -= amountTaken;
-  }
+    switch (largestResource) {
+      case "water":
+        loot.water += amountTaken;
+        remaining.water -= amountTaken;
+        break;
 
+      case "fire":
+        loot.fire += amountTaken;
+        remaining.fire -= amountTaken;
+        break;
+
+      case "grass":
+        loot.grass += amountTaken;
+        remaining.grass -= amountTaken;
+        break;
+    }
+
+    remainingCapacity -= amountTaken;
+    }
   return {
     loot,
     remaining,

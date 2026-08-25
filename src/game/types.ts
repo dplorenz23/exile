@@ -87,6 +87,12 @@ export interface Tile {
   flowDirection?: FlowDirection;
 }
 
+export interface BaseResources {
+  water: number;
+  fire: number;
+  grass: number;
+}
+
 export interface ResourceCounts {
   water: number;
   fire: number;
