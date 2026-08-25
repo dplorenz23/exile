@@ -166,30 +166,6 @@ export const bases: Base[] = [
     relocations: 0,
     isRelocating: false,
   },
-  {
-    id: 4,
-    playerId: 4,
-    baseSlot: 2,
-    row: 7,
-    col: 0,
-    timeInLocationSeconds: 0,
-
-    armies: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    armiesBuilt: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    training: null,
-    relocations: 0,
-    isRelocating: false,
-  },
 ];
 
 export const startingResourcesByBase: Record<number, BaseResources> =

@@ -161,7 +161,10 @@ function App() {
    *
    * Later, multiplayer will determine this dynamically.
    */
-  const yourPlayerId = 1;
+  const [
+    yourPlayerId,
+    setYourPlayerId,
+  ] = useState(1);
 
 
   /*
@@ -286,6 +289,36 @@ function App() {
     setPendingExpansionPayment(null);
     setPendingTransferArmies(null);
     setPendingTransferResources(null);
+  }
+
+  function handleDevPlayerSwitch(
+    playerId: number,
+  ) {
+    setYourPlayerId(playerId);
+
+    const firstBase =
+      gameState.bases.find(
+        (base) =>
+          base.playerId === playerId,
+      );
+
+    if (firstBase) {
+      setSelectedBaseId(
+        firstBase.id,
+      );
+    }
+
+    /*
+     * Cancel any targeting operation that belonged
+     * to the previously controlled player.
+     */
+    setTargetingMode(null);
+
+    setPendingAttackArmies(null);
+    setPendingTransferArmies(null);
+    setPendingTransferResources(null);
+    setPendingExpansionPayment(null);
+    setPendingRelocationPayment(null);
   }
 
   /*
@@ -3607,6 +3640,30 @@ function App() {
       <GameClock
         seconds={gameState.gameSeconds}
       />
+
+      <div className="dev-player-switcher">
+        <strong>DEV: Playing as</strong>
+
+        <div className="dev-player-switcher-buttons">
+          {players.map((player) => (
+            <button
+              key={player.id}
+              className={
+                player.id === yourPlayerId
+                  ? "dev-player-button dev-player-button--active"
+                  : "dev-player-button"
+              }
+              onClick={() =>
+                handleDevPlayerSwitch(
+                  player.id,
+                )
+              }
+            >
+              {player.avatar} {player.name}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Bottom-right */}
       <BaseActions
