@@ -445,6 +445,12 @@ function App() {
         destinationBaseId:
           destinationBase.id,
 
+        destinationRow:
+          destinationBase.row,
+
+        destinationCol:
+          destinationBase.col,
+
         armies: {
           ...armies,
         },
@@ -617,6 +623,8 @@ function App() {
             fire: 0,
             grass: 0,
           },
+
+          expansionKeys: 0,
 
           secondsRemaining: travelTime,
         };
@@ -888,6 +896,8 @@ function App() {
           ...transferredResources,
         },
 
+        expansionKeys: 0,
+
         secondsRemaining:
           travelTime,
 
@@ -963,7 +973,7 @@ function App() {
        */
       const cost =
         getArmyCost(
-          base.armiesBuilt,
+          base.armiesBuilt[resource],
         );
 
       /*
@@ -1553,7 +1563,12 @@ function App() {
                       ] + 1,
                   };
 
-                  updatedArmiesBuilt += 1;
+                  updatedArmiesBuilt = {
+                    ...base.armiesBuilt,
+
+                    [resource]:
+                      base.armiesBuilt[resource] + 1,
+                  };
 
                   updatedTraining = null;
                 } else {
@@ -1685,15 +1700,37 @@ function App() {
                   );
 
                 /*
-                 * If either relevant base no longer
-                 * exists, terminate the mission.
-                 *
-                 * We can refine this edge case later.
+                 * If the origin base is gone,
+                 * the mission has nowhere to return.
                  */
-                if (
-                  !defendingBase ||
-                  !originBase
-                ) {
+                if (!originBase) {
+                  return;
+                }
+
+                /*
+                 * If the target base was destroyed before
+                 * this army arrived, turn around and go home.
+                 */
+                if (!defendingBase) {
+                  const distance =
+                    Math.abs(
+                      originBase.row -
+                        mission.destinationRow!,
+                    ) +
+                    Math.abs(
+                      originBase.col -
+                        mission.destinationCol!,
+                    );
+
+                  updatedArmyMissions.push({
+                    ...mission,
+
+                    phase: "returning",
+
+                    secondsRemaining:
+                      distance * 5,
+                  });
+
                   return;
                 }
 
@@ -1811,6 +1848,23 @@ function App() {
                       defendingBase.playerId,
                     );
 
+                    updatedGameEvents.push({
+                      type: "elimination",
+
+                      id: nextGameEventId,
+
+                      gameSeconds:
+                        current.gameSeconds + 1,
+
+                      eliminatedPlayerId:
+                        defendingBase.playerId,
+
+                      eliminatedByPlayerId:
+                        originBase.playerId,
+                    });
+
+                    nextGameEventId += 1;
+
                     /*
                      * Save this so the Battle Report can announce
                      * who was eliminated.
@@ -1826,9 +1880,25 @@ function App() {
                           ),
                       );
 
-                    if (remainingPlayers.length === 1) {
+                    if (
+                      remainingPlayers.length === 1
+                    ) {
                       updatedWinnerPlayerId =
                         remainingPlayers[0].id;
+
+                      updatedGameEvents.push({
+                        type: "victory",
+
+                        id: nextGameEventId,
+
+                        gameSeconds:
+                          current.gameSeconds + 1,
+
+                        winnerPlayerId:
+                          remainingPlayers[0].id,
+                      });
+
+                      nextGameEventId += 1;
                     }
                   }
                 }
@@ -2247,6 +2317,34 @@ function App() {
                   lootCapacity,
                 );
 
+                updatedGameEvents.push({
+                  type: "loot",
+
+                  id: nextGameEventId,
+
+                  gameSeconds:
+                    current.gameSeconds + 1,
+
+                  playerId:
+                    originBase.playerId,
+
+                  row:
+                    treasure.row,
+
+                  col:
+                    treasure.col,
+
+                  resourcesLooted: {
+                    ...lootResult.loot,
+                  },
+
+                  resourcesRemaining: {
+                    ...lootResult.remaining,
+                  },
+                });
+
+                nextGameEventId += 1;
+
                 /*
                  * Update or remove the treasure chest.
                  */
@@ -2506,6 +2604,7 @@ function App() {
                 col: mission.destinationCol,
 
                 timeInLocationSeconds: 0,
+                isRelocating: false,
 
                 armies: {
                   water: 0,
@@ -2513,7 +2612,11 @@ function App() {
                   grass: 0,
                 },
 
-                armiesBuilt: 0,
+                armiesBuilt: {
+                  water: 0,
+                  fire: 0,
+                  grass: 0,
+                },
                 training: null,
                 relocations: 0,
               });
@@ -2914,6 +3017,20 @@ function App() {
                       relocatingBase.playerId,
                     );
 
+                    updatedGameEvents.push({
+                      type: "elimination",
+
+                      id: nextGameEventId,
+
+                      gameSeconds:
+                        current.gameSeconds + 1,
+
+                      eliminatedPlayerId:
+                        relocatingBase.playerId,
+                    });
+
+                    nextGameEventId += 1;
+
                     /*
                      * See whether this elimination leaves
                      * exactly one surviving player.
@@ -2931,6 +3048,20 @@ function App() {
                     ) {
                       updatedWinnerPlayerId =
                         remainingPlayers[0].id;
+
+                      updatedGameEvents.push({
+                        type: "victory",
+
+                        id: nextGameEventId,
+
+                        gameSeconds:
+                          current.gameSeconds + 1,
+
+                        winnerPlayerId:
+                          remainingPlayers[0].id,
+                      });
+
+                      nextGameEventId += 1;
                     }
                   }
 
@@ -3117,6 +3248,40 @@ function App() {
                       mission.resources.grass,
                   };
                 }
+
+                updatedGameEvents.push({
+                  type: "transfer",
+
+                  id: nextGameEventId,
+
+                  gameSeconds:
+                    current.gameSeconds + 1,
+
+                  playerId:
+                    destinationBase.playerId,
+
+                  fromBaseName:
+                    getBaseName(
+                      originBase.playerId,
+                      originBase.baseSlot,
+                    ),
+
+                  toBaseName:
+                    getBaseName(
+                      destinationBase.playerId,
+                      destinationBase.baseSlot,
+                    ),
+
+                  armies: {
+                    ...mission.armies,
+                  },
+
+                  resources: {
+                    ...mission.resources,
+                  },
+                });
+
+                nextGameEventId += 1;
 
                 return;
               }

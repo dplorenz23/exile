@@ -29,6 +29,7 @@ interface TileProps {
   isRelocateTarget?: boolean;
   relocationTravelTimeSeconds?: number;
   onRelocateTargetClick?: () => void;
+  isUnavailableTarget?: boolean;
 }
 
 function getTerrainIcon(tile: TileType) {
@@ -70,6 +71,7 @@ export default function Tile({
   isRelocateTarget = false,
   relocationTravelTimeSeconds,
   onRelocateTargetClick,
+  isUnavailableTarget = false,
 }: TileProps) {
   const isTop = tile.row === 0;
   const isBottom = tile.row === gridSize - 1;
@@ -99,6 +101,9 @@ export default function Tile({
           : "",
         isRelocateTarget
           ? "map-tile--relocate-target"
+          : "",
+        isUnavailableTarget
+          ? "map-tile--unavailable-target"
           : "",
         edgeClasses,
       ]

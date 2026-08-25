@@ -116,7 +116,22 @@ export default function BaseActions({
     return null;
   }
 
-  const armyCost = getArmyCost(base.armiesBuilt);
+  const armyCosts = {
+    water:
+      getArmyCost(
+        base.armiesBuilt.water,
+      ),
+
+    fire:
+      getArmyCost(
+        base.armiesBuilt.fire,
+      ),
+
+    grass:
+      getArmyCost(
+        base.armiesBuilt.grass,
+      ),
+  };
 
   const isTraining = base.training !== null;
 
@@ -156,7 +171,10 @@ export default function BaseActions({
     totalResources >= relocationCost;
 
   function canAfford(resource: ResourceType) {
-    return resources[resource] >= armyCost;
+    return (
+      resources[resource] >=
+      armyCosts[resource]
+    );
   }
 
   function handleTrain(resource: ResourceType) {
@@ -360,7 +378,7 @@ export default function BaseActions({
     return (
       <div className="base-actions train-menu">
         <div className="train-menu-title">
-          Train Army — Cost {armyCost}
+          Train Army
         </div>
 
         <button
@@ -368,7 +386,7 @@ export default function BaseActions({
           disabled={!canAfford("water")}
           onClick={() => handleTrain("water")}
         >
-          💧 Water Army
+          💧 Water Army — {armyCosts.water}
         </button>
 
         <button
@@ -376,7 +394,7 @@ export default function BaseActions({
           disabled={!canAfford("fire")}
           onClick={() => handleTrain("fire")}
         >
-          🔥 Fire Army
+          🔥 Fire Army — {armyCosts.fire}
         </button>
 
         <button
@@ -384,7 +402,7 @@ export default function BaseActions({
           disabled={!canAfford("grass")}
           onClick={() => handleTrain("grass")}
         >
-          🌱 Grass Army
+          🌱 Grass Army — {armyCosts.grass}
         </button>
 
         <button

@@ -81,7 +81,11 @@ export const bases: Base[] = [
       grass: 0,
     },
 
-    armiesBuilt: 0,
+    armiesBuilt: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
     training: null,
     relocations: 0,
     isRelocating: false,
@@ -100,7 +104,11 @@ export const bases: Base[] = [
       grass: 0,
     },
 
-    armiesBuilt: 0,
+    armiesBuilt: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
     training: null,
     relocations: 0,
     isRelocating: false,
@@ -119,7 +127,11 @@ export const bases: Base[] = [
       grass: 0,
     },
 
-    armiesBuilt: 0,
+    armiesBuilt: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
     training: null,
     relocations: 0,
     isRelocating: false,
@@ -138,7 +150,11 @@ export const bases: Base[] = [
       grass: 0,
     },
 
-    armiesBuilt: 0,
+    armiesBuilt: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
     training: null,
     relocations: 0,
     isRelocating: false,
@@ -157,7 +173,11 @@ export const bases: Base[] = [
       grass: 0,
     },
 
-    armiesBuilt: 0,
+    armiesBuilt: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
     training: null,
     relocations: 0,
     isRelocating: false,
@@ -176,7 +196,11 @@ export const bases: Base[] = [
       grass: 0,
     },
 
-    armiesBuilt: 0,
+    armiesBuilt: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
     training: null,
     relocations: 0,
     isRelocating: false,

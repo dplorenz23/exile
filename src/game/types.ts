@@ -116,7 +116,7 @@ export interface Base {
 
   // Historical number produced by this base.
   // Losing armies later will NOT lower army cost.
-  armiesBuilt: number;
+  armiesBuilt: ArmyCounts;
 
   // Null means this base is not currently training.
   training: TrainingOrder | null;
@@ -223,7 +223,52 @@ export type GameEvent =
 
       toRow: number;
       toCol: number;
-    };
+    }
+  | {
+    type: "loot";
+
+    id: number;
+    gameSeconds: number;
+
+    playerId: number;
+
+    row: number;
+    col: number;
+
+    resourcesLooted: BaseResources;
+    resourcesRemaining: BaseResources;
+  }
+  | {
+    type: "transfer";
+
+    id: number;
+    gameSeconds: number;
+
+    playerId: number;
+
+    fromBaseName: string;
+    toBaseName: string;
+
+    armies: ArmyCounts;
+    resources: BaseResources;
+  }
+  | {
+    type: "elimination";
+
+    id: number;
+    gameSeconds: number;
+
+    eliminatedPlayerId: number;
+    eliminatedByPlayerId?: number;
+  }
+| {
+    type: "victory";
+
+    id: number;
+    gameSeconds: number;
+
+    winnerPlayerId: number;
+  };
 
 export interface Treasure {
   id: number;

@@ -166,6 +166,20 @@ export default function GameMap({
               ) * 5
             : undefined;
 
+        const isTargeting =
+          targetingMode !== null;
+
+        const isAvailableTarget =
+          isAttackTarget ||
+          isLootTarget ||
+          isExpandTarget ||
+          isTransferTarget ||
+          isRelocateTarget;
+
+        const isUnavailableTarget =
+          isTargeting &&
+          !isAvailableTarget;
+
         return (
           <Tile
             key={`${tile.row}-${tile.col}`}
@@ -222,6 +236,7 @@ export default function GameMap({
                     )
                 : undefined
             }
+            isUnavailableTarget={isUnavailableTarget}
         />
         );
       })}
