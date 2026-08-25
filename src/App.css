@@ -421,11 +421,43 @@ body {
     0 0 16px var(--player-color);
 }
 
+.base-name {
+  position: absolute;
+
+  left: 50%;
+  bottom: 2px;
+
+  transform: translateX(-50%);
+
+  z-index: 6;
+
+  width: max-content;
+  max-width: 140%;
+
+  padding: 1px 4px;
+
+  white-space: nowrap;
+
+  border-radius: 3px;
+
+  background: rgba(10, 14, 18, 0.8);
+  color: white;
+
+  font-size: clamp(8px, 0.8vw, 11px);
+  font-weight: 700;
+  line-height: 1.2;
+
+  text-align: center;
+
+  pointer-events: none;
+  user-select: none;
+}
+
 .base-structure {
   position: absolute;
 
   left: 50%;
-  bottom: 8%;
+  bottom: 20%;
 
   transform: translateX(-50%);
 

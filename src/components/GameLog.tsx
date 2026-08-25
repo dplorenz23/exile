@@ -61,6 +61,32 @@ function formatArmies(
     : "None";
 }
 
+function formatCompactArmies(
+  armies: {
+    water: number;
+    fire: number;
+    grass: number;
+  },
+) {
+  const parts: string[] = [];
+
+  if (armies.water > 0) {
+    parts.push(`💧${armies.water}`);
+  }
+
+  if (armies.fire > 0) {
+    parts.push(`🔥${armies.fire}`);
+  }
+
+  if (armies.grass > 0) {
+    parts.push(`🌱${armies.grass}`);
+  }
+
+  return parts.length > 0
+    ? parts.join(" ")
+    : "—";
+}
+
 export default function GameLog({
   events,
   players,
@@ -365,72 +391,72 @@ export default function GameLog({
                   >
                     <div className="battle-report-header">
                       <strong>
-                        {attacker} attacked{" "}
-                        {defender}
+                        {attacker} ({report.attackerBaseName}) attacked{" "}
+                        {defender} ({report.defenderBaseName})
                       </strong>
 
                       <span>
-                        {formatTime(
-                          report.gameSeconds,
-                        )}
+                        {getCoordinates(report.row, report.col)}
+                        {" · "}
+                        {formatTime(report.gameSeconds)}
                       </span>
                     </div>
 
                     <div>
-                      📍{" "}
-                      {getCoordinates(
-                        report.row,
-                        report.col,
-                      )}
-                    </div>
-
-                    <div>
-                      Attack:{" "}
-                      {formatArmies(
+                      ⚔️·
+                      {formatCompactArmies(
                         report.attackerArmies,
                       )}
-                    </div>
+                      {" → "}
+                      {formatCompactArmies(
+                        report.attackerSurvivors,
+                      )}
 
-                    <div>
-                      Defense:{" "}
+                      {" | "}
+
                       {report.defenderArmies.water +
                         report.defenderArmies.fire +
-                        report.defenderArmies.grass ===
-                      0
-                        ? "🛡️ Militia"
-                        : `${formatArmies(report.defenderArmies)} + 🛡️ Militia`}
+                        report.defenderArmies.grass >
+                      0 ? (
+                        <>
+                          🛡️·
+                          {formatCompactArmies(
+                            report.defenderArmies,
+                          )}
+                          {" → "}
+                          {formatCompactArmies(
+                            report.defenderSurvivors,
+                          )}
+                          {" | "}
+                        </>
+                      ) : null}
+
+                      🧑‍🌾{" "}
+                      {report.militiaSurvived
+                        ? "→ 🧑‍🌾"
+                        : "→ —"}
                     </div>
 
                     <div>
-                      Resources Looted:{" "}
+                      <strong>
+                        {report.baseDestroyed
+                          ? `💥 ${report.defenderBaseName} destroyed`
+                          : `🛡️ ${report.defenderBaseName} defended`}
+                      </strong>
+
+                      {" · Loot "}
                       💧{report.resourcesLooted.water}{" "}
                       🔥{report.resourcesLooted.fire}{" "}
                       🌱{report.resourcesLooted.grass}
-                    </div>
 
-                    <div>
-                      Resources Remaining:{" "}
-                      💧{report.resourcesRemaining.water}{" "}
-                      🔥{report.resourcesRemaining.fire}{" "}
-                      🌱{report.resourcesRemaining.grass}
+                      {" · "}
+                        {report.baseDestroyed
+                          ? "Chest "
+                          : "Kept "}
+                        💧{report.resourcesRemaining.water}{" "}
+                        🔥{report.resourcesRemaining.fire}{" "}
+                        🌱{report.resourcesRemaining.grass}
                     </div>
-
-                    <div>
-                      Survivors:{" "}
-                      {formatArmies(
-                        report.attackerSurvivors,
-                      )}{" "}
-                      vs.{" "}
-                      {formatArmies(
-                        report.defenderSurvivors,
-                      )}
-                    </div>
-
-                    <strong>
-                      {report.baseDestroyed
-                        ? `${attacker} destroyed the base.`
-                        : `${defender} defended the base.`}
-                    </strong>
                   </div>
                 );
               })

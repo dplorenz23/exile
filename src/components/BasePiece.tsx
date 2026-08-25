@@ -2,6 +2,7 @@ import type { Base, Player } from "../game/types";
 
 interface BasePieceProps {
   base: Base;
+  baseName?: string;
   player: Player;
   isSelected?: boolean;
   isAttackTarget?: boolean;
@@ -50,6 +51,7 @@ function getBaseIcon(tier: number) {
 
 export default function BasePiece({
   base,
+  baseName,
   player,
   isSelected = false,
   isAttackTarget = false,
@@ -80,6 +82,12 @@ export default function BasePiece({
       <div className="base-avatar">
         {player.avatar}
       </div>
+
+      {baseName && (
+        <div className="base-name">
+          {baseName}
+        </div>
+      )}
 
       {isAttackTarget && travelTimeSeconds !== undefined && (
         <div className="attack-travel-time">

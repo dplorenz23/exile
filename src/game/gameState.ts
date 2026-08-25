@@ -51,7 +51,7 @@ export const baseNamesByPlayer: Record<
 
   4: {
     1: "Blackwater",
-    2: "Rumrunner's Rest",
+    2: "Rumrunner Rest",
     3: "Deadman's Cay",
   },
 };
@@ -73,7 +73,7 @@ export const bases: Base[] = [
     baseSlot: 1,
     row: 0,
     col: 3,
-    timeInLocationSeconds: 100,
+    timeInLocationSeconds: 0,
 
     armies: {
       water: 0,
@@ -86,17 +86,19 @@ export const bases: Base[] = [
       fire: 0,
       grass: 0,
     },
+
     training: null,
     relocations: 0,
     isRelocating: false,
   },
+
   {
     id: 2,
     playerId: 2,
     baseSlot: 1,
     row: 1,
     col: 7,
-    timeInLocationSeconds: 210,
+    timeInLocationSeconds: 0,
 
     armies: {
       water: 0,
@@ -109,17 +111,19 @@ export const bases: Base[] = [
       fire: 0,
       grass: 0,
     },
+
     training: null,
     relocations: 0,
     isRelocating: false,
   },
+
   {
     id: 3,
     playerId: 3,
     baseSlot: 1,
     row: 7,
     col: 6,
-    timeInLocationSeconds: 420,
+    timeInLocationSeconds: 0,
 
     armies: {
       water: 0,
@@ -132,6 +136,32 @@ export const bases: Base[] = [
       fire: 0,
       grass: 0,
     },
+
+    training: null,
+    relocations: 0,
+    isRelocating: false,
+  },
+
+  {
+    id: 4,
+    playerId: 4,
+    baseSlot: 1,
+    row: 6,
+    col: 0,
+    timeInLocationSeconds: 0,
+
+    armies: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
+
+    armiesBuilt: {
+      water: 0,
+      fire: 0,
+      grass: 0,
+    },
+
     training: null,
     relocations: 0,
     isRelocating: false,
@@ -139,10 +169,10 @@ export const bases: Base[] = [
   {
     id: 4,
     playerId: 4,
-    baseSlot: 1,
-    row: 6,
+    baseSlot: 2,
+    row: 7,
     col: 0,
-    timeInLocationSeconds: 620,
+    timeInLocationSeconds: 0,
 
     armies: {
       water: 0,
@@ -155,56 +185,11 @@ export const bases: Base[] = [
       fire: 0,
       grass: 0,
     },
+
     training: null,
     relocations: 0,
     isRelocating: false,
   },
-  {
-  id: 5,
-  playerId: 1,
-  baseSlot: 2,
-  row: 3,
-  col: 2,
-  timeInLocationSeconds: 350,
-
-  armies: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    armiesBuilt: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-    training: null,
-    relocations: 0,
-    isRelocating: false,
-},
- {
-  id: 6,
-  playerId: 2,
-  baseSlot: 2,
-  row: 4,
-  col: 4,
-  timeInLocationSeconds: 350,
-
-  armies: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    armiesBuilt: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-    training: null,
-    relocations: 0,
-    isRelocating: false,
-},
 ];
 
 export const startingResourcesByBase: Record<number, BaseResources> =

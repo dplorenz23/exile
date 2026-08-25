@@ -1,5 +1,5 @@
 import { mapOne } from "../game/maps/mapOne";
-import { players } from "../game/gameState";
+import { players, getBaseName } from "../game/gameState";
 import type {
   Base,
   Treasure,
@@ -92,6 +92,14 @@ export default function GameMap({
               (player) => player.id === base.playerId,
             )
           : undefined;
+
+        const baseName =
+          base
+            ? getBaseName(
+                base.playerId,
+                base.baseSlot,
+              )
+            : undefined;
 
         const isExpandTarget =
           targetingMode === "expand" &&
@@ -186,6 +194,7 @@ export default function GameMap({
             tile={tile}
             gridSize={GRID_SIZE}
             base={base}
+            baseName={baseName}
             player={player}
             treasure={treasure}
             isSelectedBase={base?.id === selectedBaseId}

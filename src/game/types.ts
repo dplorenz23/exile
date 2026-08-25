@@ -186,6 +186,9 @@ export interface BattleReport {
   attackerArmies: ArmyCounts;
   defenderArmies: ArmyCounts;
 
+  defenderBaseName: string;
+  attackerBaseName: string;
+
   resourcesLooted: ResourceCounts;
   resourcesRemaining: ResourceCounts;
 

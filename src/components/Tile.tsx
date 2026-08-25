@@ -11,6 +11,7 @@ interface TileProps {
   tile: TileType;
   gridSize: number;
   base?: Base;
+  baseName?: string;
   player?: Player;
   treasure?: Treasure;
   isSelectedBase?: boolean;
@@ -53,6 +54,7 @@ export default function Tile({
   tile,
   gridSize,
   base,
+  baseName,
   player,
   treasure,
   isSelectedBase = false,
@@ -174,6 +176,7 @@ export default function Tile({
       {base && player && (
         <BasePiece
           base={base}
+          baseName={baseName}
           player={player}
           isSelected={isSelectedBase}
           isAttackTarget={isAttackTarget}

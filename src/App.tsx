@@ -63,6 +63,94 @@ function getLocationMultiplier(seconds: number) {
 }
 
 
+type GameState = {
+  gameSeconds: number;
+
+  bases: typeof startingBases;
+
+  resourcesByBase:
+    typeof startingResourcesByBase;
+
+  expansionKeysByPlayer:
+    Record<number, number>;
+
+  armyMissions: ArmyMission[];
+  nextMissionId: number;
+
+  gameEvents: GameEvent[];
+  nextGameEventId: number;
+
+  treasures: Treasure[];
+  nextTreasureId: number;
+
+  eliminatedPlayerIds: number[];
+
+  winnerPlayerId: number | null;
+};
+
+
+function createInitialGameState(): GameState {
+  return {
+    gameSeconds: 0,
+
+    /*
+     * Fresh copies so a reset cannot accidentally
+     * reuse mutated live-game objects.
+     */
+    bases:
+      startingBases.map((base) => ({
+        ...base,
+
+        armies: {
+          ...base.armies,
+        },
+
+        armiesBuilt: {
+          ...base.armiesBuilt,
+        },
+
+        training:
+          base.training
+            ? { ...base.training }
+            : null,
+      })),
+
+    resourcesByBase:
+      Object.fromEntries(
+        Object.entries(
+          startingResourcesByBase,
+        ).map(([baseId, resources]) => [
+          Number(baseId),
+          {
+            ...resources,
+          },
+        ]),
+      ),
+
+    expansionKeysByPlayer:
+      Object.fromEntries(
+        players.map((player) => [
+          player.id,
+          1,
+        ]),
+      ),
+
+    armyMissions: [],
+    nextMissionId: 1,
+
+    gameEvents: [],
+    nextGameEventId: 1,
+
+    treasures: [],
+    nextTreasureId: 1,
+
+    eliminatedPlayerIds: [],
+
+    winnerPlayerId: null,
+  };
+}
+
+
 function App() {
   /*
    * ==========================================================
@@ -84,63 +172,10 @@ function App() {
    * Everything that changes while a match is running lives
    * here.
    */
-  const [gameState, setGameState] = useState<{
-    gameSeconds: number;
-
-    bases: typeof startingBases;
-
-    resourcesByBase:
-      typeof startingResourcesByBase;
-
-    expansionKeysByPlayer: Record<number, number>;
-
-    armyMissions: ArmyMission[];
-    nextMissionId: number;
-
-    gameEvents: GameEvent[];
-    nextGameEventId: number;
-
-    treasures: Treasure[];
-    nextTreasureId: number;
-
-    eliminatedPlayerIds: number[];
-
-    winnerPlayerId: number | null;
-  }>({
-    gameSeconds: 0,
-
-    bases: startingBases,
-
-    resourcesByBase:
-      startingResourcesByBase,
-
-    /*
-     * Every player begins the game with one Expansion Key.
-     *
-     * Additional keys must be earned by destroying
-     * enemy bases.
-     */
-    expansionKeysByPlayer:
-      Object.fromEntries(
-        players.map((player) => [
-          player.id,
-          1,
-        ]),
-      ),
-
-    armyMissions: [],
-    nextMissionId: 1,
-
-    gameEvents: [],
-    nextGameEventId: 1,
-
-    treasures: [],
-    nextTreasureId: 1,
-
-    eliminatedPlayerIds: [],
-
-    winnerPlayerId: null,
-  });
+  const [gameState, setGameState] =
+    useState<GameState>(
+      createInitialGameState,
+    );
 
   /*
    * ==========================================================
@@ -1471,6 +1506,22 @@ function App() {
       setTargetingMode(null);
     }
 
+  function handlePlayAgain() {
+    setGameState(
+      createInitialGameState(),
+    );
+
+    setSelectedBaseId(1);
+
+    setTargetingMode(null);
+
+    setPendingAttackArmies(null);
+    setPendingTransferArmies(null);
+    setPendingTransferResources(null);
+    setPendingExpansionPayment(null);
+    setPendingRelocationPayment(null);
+  }
+
   /*
    * ==========================================================
    * MASTER GAME TIMER
@@ -2065,52 +2116,64 @@ function App() {
                     attackerPlayerId:
                       originBase.playerId,
 
-                  defenderPlayerId:
-                    defendingBase.playerId,
+                    defenderPlayerId:
+                      defendingBase.playerId,
 
-                  row:
-                    defendingBase.row,
+                    row:
+                      defendingBase.row,
 
-                  col:
-                    defendingBase.col,
+                    col:
+                      defendingBase.col,
 
-                  attackerArmies: {
-                    ...mission.armies,
+                    attackerBaseName:
+                      getBaseName(
+                        originBase.playerId,
+                        originBase.baseSlot,
+                      ),
+
+                    defenderBaseName:
+                      getBaseName(
+                        defendingBase.playerId,
+                        defendingBase.baseSlot,
+                      ),
+
+                    attackerArmies: {
+                      ...mission.armies,
+                    },
+
+                    defenderArmies: {
+                      ...defendingBase.armies,
+                    },
+
+                    attackerSurvivors: {
+                      ...combatResult
+                        .attackerSurvivors,
+                    },
+
+                    defenderSurvivors: {
+                      ...combatResult
+                        .defenderSurvivors,
+                    },
+
+                    resourcesLooted: {
+                      ...resourcesLooted,
+                    },
+
+                    resourcesRemaining: {
+                      ...resourcesRemaining,
+                    },
+
+                    militiaSurvived:
+                      combatResult
+                        .militiaSurvived,
+
+                    baseDestroyed:
+                      combatResult
+                        .baseDestroyed,
+
+                    eliminatedPlayerId,
                   },
-
-                  defenderArmies: {
-                    ...defendingBase.armies,
-                  },
-
-                  attackerSurvivors: {
-                    ...combatResult
-                      .attackerSurvivors,
-                  },
-
-                  defenderSurvivors: {
-                    ...combatResult
-                      .defenderSurvivors,
-                  },
-
-                  resourcesLooted: {
-                    ...resourcesLooted,
-                  },
-
-                  resourcesRemaining: {
-                    ...resourcesRemaining,
-                  },
-
-                  militiaSurvived:
-                    combatResult
-                      .militiaSurvived,
-
-                  baseDestroyed:
-                    combatResult
-                      .baseDestroyed,
-
-                  eliminatedPlayerId,
-                },
-              });
+                });
 
                 nextGameEventId += 1;
 
@@ -3504,6 +3567,13 @@ function App() {
             <span>
               {winner.name} is the last player standing.
             </span>
+
+            <button
+              className="play-again-button"
+              onClick={handlePlayAgain}
+            >
+              🔄 Play Again
+            </button>
           </div>
         </div>
       )}
