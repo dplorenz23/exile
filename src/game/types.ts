@@ -1,3 +1,29 @@
+export type MatchType =
+  | "30m"
+  | "sudden-death";
+
+export interface LobbySlot {
+  slotId: number;
+
+  playerId: number | null;
+
+  isReady: boolean;
+}
+
+export type PlayerCount =
+  | 2
+  | 3
+  | 4;
+
+export interface MatchConfig {
+  matchType: MatchType;
+
+  matchDurationMinutes:
+    number | null;
+
+  playerCount: PlayerCount;
+}
+
 export type ResourceType = "water" | "fire" | "grass";
 
 export type TerrainType =

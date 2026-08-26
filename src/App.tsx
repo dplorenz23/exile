@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import Lobby from "./components/Lobby";
 import ArmyMovements from "./components/ArmyMovements";
 import BaseActions from "./components/BaseActions";
 import GameLog from "./components/GameLog";
@@ -23,6 +24,9 @@ import {
 } from "./game/rules";
 
 import type {
+  LobbySlot,
+  MatchConfig,
+  MatchType,
   ArmyCounts,
   ArmyMission,
   GameEvent,
@@ -150,6 +154,23 @@ function createInitialGameState(): GameState {
   };
 }
 
+function createLobbySlots(
+  playerCount: number,
+): LobbySlot[] {
+  return Array.from(
+    { length: playerCount },
+    (_, index) => ({
+      slotId: index + 1,
+
+      playerId:
+        index === 0
+          ? 1
+          : null,
+
+      isReady: false,
+    }),
+  );
+}
 
 function App() {
   /*
@@ -166,6 +187,85 @@ function App() {
     setYourPlayerId,
   ] = useState(1);
 
+  /*
+   * ==========================================================
+   * LOBBY STATE
+   * ==========================================================
+   *
+   * The Lobby state where characters are chosen and pre-game
+   * decisions are made
+   */
+
+   const [isGameStarted, setIsGameStarted] =
+     useState(false);
+
+   const [lobbySlots, setLobbySlots] =
+     useState<LobbySlot[]>(
+       createLobbySlots(4),
+     );
+
+   const [matchConfig, setMatchConfig] =
+     useState<MatchConfig>({
+       matchType: "30m",
+       matchDurationMinutes: 30,
+       playerCount: 4,
+     });
+
+   function handlePlayerCountChange(
+     playerCount: 2 | 3 | 4,
+   ) {
+     setMatchConfig((current) => ({
+       ...current,
+       playerCount,
+     }));
+
+     setLobbySlots(
+       createLobbySlots(playerCount),
+     );
+   }
+
+   function handleMatchTypeChange(
+     matchType: MatchType,
+   ) {
+     setMatchConfig((current) => ({
+       ...current,
+
+       matchType,
+
+       matchDurationMinutes:
+         matchType === "30m"
+           ? 30
+           : null,
+     }));
+   }
+
+   function handleToggleReady(
+     slotId: number,
+   ) {
+     setLobbySlots((current) =>
+       current.map((slot) =>
+         slot.slotId === slotId
+           ? {
+               ...slot,
+               isReady:
+                 !slot.isReady,
+             }
+           : slot,
+       ),
+     );
+   }
+
+   function handleStartGame() {
+     setGameState(
+       createInitialGameState(),
+     );
+
+     setSelectedBaseId(1);
+
+     setTargetingMode(null);
+
+     setIsGameStarted(true);
+   }
 
   /*
    * ==========================================================
@@ -3583,6 +3683,32 @@ function App() {
     return () =>
       window.clearInterval(timer);
   }, []);
+
+  if (!isGameStarted) {
+    return (
+      <Lobby
+        slots={lobbySlots}
+        players={players}
+        matchConfig={matchConfig}
+
+        onPlayerCountChange={
+          handlePlayerCountChange
+        }
+
+        onMatchTypeChange={
+          handleMatchTypeChange
+        }
+
+        onToggleReady={
+          handleToggleReady
+        }
+
+        onStartGame={
+          handleStartGame
+        }
+      />
+    );
+  }
 
   /*
    * ==========================================================

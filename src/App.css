@@ -1285,3 +1285,62 @@ body {
 .dev-player-button--active {
   outline: 2px solid white;
 }
+
+.lobby {
+  min-height: 100vh;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: #11161b;
+  color: white;
+}
+
+.lobby-panel {
+  width: min(700px, 90vw);
+
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+
+  padding: 24px;
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+
+  background: rgba(10, 14, 18, 0.95);
+}
+
+.lobby-panel h1 {
+  margin: 0;
+
+  text-align: center;
+}
+
+.lobby-slots {
+  display: grid;
+  grid-template-columns:
+    repeat(2, 1fr);
+  gap: 12px;
+}
+
+.lobby-slot {
+  min-height: 90px;
+
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+
+  padding: 12px;
+
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+}
+
+.lobby-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
