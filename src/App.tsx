@@ -3584,14 +3584,6 @@ function App() {
       window.clearInterval(timer);
   }, []);
 
-
-  console.log({
-  yourPlayerId,
-  eliminatedPlayerIds:
-    gameState.eliminatedPlayerIds,
-  youAreEliminated,
-});
-
   /*
    * ==========================================================
    * MAIN GAME UI
