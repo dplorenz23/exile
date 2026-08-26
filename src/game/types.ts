@@ -149,6 +149,8 @@ export interface ArmyMission {
   originBaseId: number;
   destinationBaseId: number;
 
+  playerId: number;
+
   armies: ArmyCounts;
 
   resources: ResourceCounts;

@@ -497,6 +497,7 @@ function App() {
        */
       const newMission: ArmyMission = {
         id: current.nextMissionId,
+        playerId: originBase.playerId,
 
         type: "attack",
         phase: "outbound",
@@ -669,6 +670,7 @@ function App() {
          */
         const newMission: ArmyMission = {
           id: current.nextMissionId,
+          playerId: originBase.playerId,
 
           type: "loot",
           phase: "outbound",
@@ -940,6 +942,7 @@ function App() {
        */
       const newMission: ArmyMission = {
         id: current.nextMissionId,
+        playerId: originBase.playerId,
 
         type: "transfer",
         phase: "outbound",
@@ -1273,6 +1276,7 @@ function App() {
 
         const newMission: ArmyMission = {
           id: current.nextMissionId,
+          playerId: originBase.playerId,
 
           type: "expand",
           phase: "outbound",
@@ -1483,6 +1487,7 @@ function App() {
 
         const newMission: ArmyMission = {
           id: current.nextMissionId,
+          playerId: originBase.playerId,
 
           type: "relocate",
           phase: "outbound",
@@ -3580,6 +3585,13 @@ function App() {
   }, []);
 
 
+  console.log({
+  yourPlayerId,
+  eliminatedPlayerIds:
+    gameState.eliminatedPlayerIds,
+  youAreEliminated,
+});
+
   /*
    * ==========================================================
    * MAIN GAME UI
@@ -3682,10 +3694,13 @@ function App() {
 
       {/* Traveling armies */}
       <ArmyMovements
-        missions={gameState.armyMissions}
-        bases={gameState.bases}
-        treasures={gameState.treasures}
-      />
+          missions={gameState.armyMissions.filter(
+            (mission) =>
+              mission.playerId === yourPlayerId,
+          )}
+          bases={gameState.bases}
+          treasures={gameState.treasures}
+        />
 
       {/* Map Targeting Banner */}
       {targetingMode !== null && (

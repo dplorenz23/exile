@@ -1251,8 +1251,8 @@ body {
 .dev-player-switcher {
   position: absolute;
 
-  top: 80px;
   right: 24px;
+  bottom: 400px;
 
   z-index: 50;
 
@@ -1273,7 +1273,7 @@ body {
 
 .dev-player-switcher-buttons {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 4px;
 }
 
