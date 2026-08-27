@@ -14,6 +14,7 @@ import {
   players,
   startingResourcesByBase,
   getBaseName,
+  matchTypes,
 } from "./game/gameState";
 
 import { mapOne } from "./game/maps/mapOne";
@@ -72,6 +73,8 @@ function getLocationMultiplier(seconds: number) {
 type GameState = {
   gameSeconds: number;
 
+  matchType: MatchType;
+
   bases: typeof startingBases;
 
   resourcesByBase:
@@ -109,9 +112,13 @@ function createInitialGameState(
     players.map(
       (player) => player.id,
     ),
+
+  matchType: MatchType = "30m",
 ): GameState {
   return {
     gameSeconds: 0,
+
+    matchType,
 
     /*
      * Fresh copies so a reset cannot accidentally
@@ -409,6 +416,7 @@ function App() {
       const newGameState =
         createInitialGameState(
           activePlayerIds,
+          matchConfig.matchType,
         );
 
       setGameState(
@@ -503,6 +511,61 @@ function App() {
             gameState.winnerPlayerId,
         )
       : undefined;
+
+  const finalStandings = players
+    .filter((player) =>
+      Object.prototype.hasOwnProperty.call(
+        gameState.armiesTrainedByPlayer,
+        player.id,
+      ),
+    )
+    .map((player) => {
+      const isEliminated =
+        gameState.eliminatedPlayerIds.includes(
+          player.id,
+        );
+
+      const score =
+        isEliminated
+          ? gameState.finalScoreByPlayer[
+              player.id
+            ] ?? 0
+          : calculatePlayerScore(
+              player.id,
+              gameState.bases,
+              gameState.resourcesByBase,
+              gameState.armyMissions,
+              gameState.armiesTrainedByPlayer[
+                player.id
+              ] ?? 0,
+              gameState.armyResourcesSpentByPlayer[
+                player.id
+              ] ?? 0,
+            ).totalScore;
+
+      return {
+        player,
+        score,
+        isEliminated,
+      };
+    })
+    .sort((a, b) => {
+      if (
+        a.player.id ===
+        gameState.winnerPlayerId
+      ) {
+        return -1;
+      }
+
+      if (
+        b.player.id ===
+        gameState.winnerPlayerId
+      ) {
+        return 1;
+      }
+
+      return b.score - a.score;
+    });
 
   /*
    * ==========================================================
@@ -1877,14 +1940,24 @@ function App() {
     const timer =
       window.setInterval(() => {
         setGameState((current) => {
-
           /*
            * Once a winner has been declared,
            * the game state is completely frozen.
            */
           if (current.winnerPlayerId !== null) {
             return current;
-}
+            }
+
+          const currentMatchType =
+            matchTypes[
+              current.matchType
+            ];
+
+          const matchDurationSeconds =
+            currentMatchType.durationMinutes !== null
+              ? currentMatchType.durationMinutes * 60
+              : null;
+
           const updatedArmiesTrainedByPlayer = {
             ...current.armiesTrainedByPlayer,
           };
@@ -2303,9 +2376,17 @@ function App() {
                     eliminatedPlayerId =
                       defendingBase.playerId;
 
+                    const activePlayerIds =
+                      Object.keys(
+                        updatedArmiesTrainedByPlayer,
+                      ).map(Number);
+
                     const remainingPlayers =
                       players.filter(
                         (player) =>
+                          activePlayerIds.includes(
+                            player.id,
+                          ) &&
                           !updatedEliminatedPlayerIds.includes(
                             player.id,
                           ),
@@ -3477,9 +3558,17 @@ function App() {
                      * See whether this elimination leaves
                      * exactly one surviving player.
                      */
+                    const activePlayerIds =
+                      Object.keys(
+                        updatedArmiesTrainedByPlayer,
+                      ).map(Number);
+
                     const remainingPlayers =
                       players.filter(
                         (player) =>
+                          activePlayerIds.includes(
+                            player.id,
+                          ) &&
                           !updatedEliminatedPlayerIds.includes(
                             player.id,
                           ),
@@ -3880,6 +3969,64 @@ function App() {
 
           /*
            * ==================================================
+           * TIME-LIMIT CHECK
+           * ==================================================
+           */
+           const nextGameSeconds =
+             current.gameSeconds + 1;
+
+           const timedMatchEnded =
+             matchDurationSeconds !== null &&
+             nextGameSeconds >=
+               matchDurationSeconds;
+
+           if (
+             timedMatchEnded &&
+             updatedWinnerPlayerId === null
+           ) {
+             const survivingPlayerIds =
+              Object.keys(
+                updatedArmiesTrainedByPlayer,
+              )
+                .map(Number)
+                .filter(
+                  (playerId) =>
+                    !updatedEliminatedPlayerIds.includes(
+                      playerId,
+                    ),
+                );
+
+             const standings =
+               survivingPlayerIds
+                 .map((playerId) => ({
+                   playerId,
+
+                   score:
+                     calculatePlayerScore(
+                       playerId,
+                       updatedBases,
+                       updatedResources,
+                       updatedArmyMissions,
+                       updatedArmiesTrainedByPlayer[
+                         playerId
+                       ] ?? 0,
+                       updatedArmyResourcesSpentByPlayer[
+                         playerId
+                       ] ?? 0,
+                     ).totalScore,
+                 }))
+                 .sort(
+                   (a, b) =>
+                     b.score - a.score,
+                 );
+
+             updatedWinnerPlayerId =
+               standings[0]?.playerId ??
+               null;
+           }
+
+          /*
+           * ==================================================
            * STEP 5:
            * SAVE THE COMPLETED GAME TICK
            * ==================================================
@@ -3888,7 +4035,10 @@ function App() {
             ...current,
 
             gameSeconds:
-              current.gameSeconds + 1,
+              timedMatchEnded &&
+              matchDurationSeconds !== null
+                ? matchDurationSeconds
+                : nextGameSeconds,
 
             bases:
               updatedBases,
@@ -3990,8 +4140,47 @@ function App() {
             </strong>
 
             <span>
-              {winner.name} is the last player standing.
+              {gameState.matchType === "sudden-death"
+                ? `${winner.name} is the last player standing.`
+                : `${winner.name} had the highest score when time expired.`}
             </span>
+
+            <h2>Final Standings</h2>
+
+            <div className="final-standings-list">
+              {finalStandings.map(
+                (
+                  {
+                    player,
+                    score,
+                    isEliminated,
+                  },
+                  index,
+                ) => (
+                  <div
+                    key={player.id}
+                    className={`final-standing-row ${
+                      isEliminated
+                        ? "eliminated"
+                        : ""
+                    }`}
+                  >
+                    <span className="final-rank">
+                      {index + 1}.
+                    </span>
+
+                    <span className="final-player">
+                      {player.avatar}{" "}
+                      {player.name}
+                    </span>
+
+                    <span className="final-score">
+                      {Math.round(score)}
+                    </span>
+                  </div>
+                ),
+              )}
+            </div>
 
             <button
               className="play-again-button"
