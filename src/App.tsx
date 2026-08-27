@@ -1901,11 +1901,14 @@ function App() {
     }
 
   function handlePlayAgain() {
-    setGameState(
-      createInitialGameState(),
-    );
+    setIsGameStarted(false);
 
-    setSelectedBaseId(1);
+    setLobbySlots((currentSlots) =>
+      currentSlots.map((slot) => ({
+        ...slot,
+        isReady: false,
+      })),
+    );
 
     setTargetingMode(null);
 
