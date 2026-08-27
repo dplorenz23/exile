@@ -957,6 +957,7 @@ body {
 
   z-index: 20;
 
+  min-height: 340px;
   min-width: 230px;
 
   display: flex;
@@ -1339,8 +1340,115 @@ body {
   border-radius: 8px;
 }
 
-.lobby-controls {
+.lobby-controls,
+.lobby-host-controls {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
+  gap: 20px;
+
+  padding-top: 8px;
+}
+
+.lobby-controls label,
+.lobby-host-controls label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  flex: 1;
+}
+
+.lobby-controls select,
+.lobby-host-controls select {
+  min-width: 180px;
+  padding: 8px 10px;
+}
+
+.lobby-controls > button,
+.lobby-host-controls > button {
+  min-width: 130px;
+  padding: 9px 16px;
+}
+
+.lobby-ready-button {
+  background: #2f8f46;
+  color: white;
+
+  border: 1px solid #48b962;
+  border-radius: 6px;
+
+  padding: 7px 12px;
+
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lobby-leave-button {
+  background: #9d3535;
+  color: white;
+
+  border: 1px solid #c95050;
+  border-radius: 6px;
+
+  padding: 7px 12px;
+
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.lobby-ready-button:hover {
+  filter: brightness(1.1);
+}
+
+.lobby-leave-button:hover {
+  filter: brightness(1.1);
+}
+
+.lobby-ready-button:disabled,
+.lobby-leave-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.leaderboard {
+  position: absolute;
+
+  top: 24px;
+  right: 320px;
+
+  z-index: 20;
+
+  width: 190px;
+
+  padding: 10px;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+
+  background:
+    rgba(10, 14, 18, 0.85);
+
+  color: white;
+}
+
+.leaderboard-title {
+  display: block;
+
+  margin-bottom: 8px;
+}
+
+.leaderboard-row {
+  display: flex;
   justify-content: space-between;
+  gap: 10px;
+
+  padding: 3px 0;
+
+  font-size: 13px;
+}
+
+.leaderboard-row--eliminated {
+  text-decoration: line-through;
+  opacity: 0.55;
 }

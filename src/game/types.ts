@@ -10,18 +10,11 @@ export interface LobbySlot {
   isReady: boolean;
 }
 
-export type PlayerCount =
-  | 2
-  | 3
-  | 4;
-
 export interface MatchConfig {
+  mapId: string;
+
   matchType: MatchType;
 
-  matchDurationMinutes:
-    number | null;
-
-  playerCount: PlayerCount;
 }
 
 export type ResourceType = "water" | "fire" | "grass";
@@ -314,4 +307,14 @@ export interface Treasure {
   col: number;
 
   resources: ResourceCounts;
+}
+
+export interface PlayerScore {
+  playerId: number;
+
+  baseScore: number;
+  resourceScore: number;
+  armyScore: number;
+
+  totalScore: number;
 }

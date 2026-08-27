@@ -1,3 +1,5 @@
+import { maps } from "../game/gameState";
+
 import type {
   LobbySlot,
   MatchConfig,
@@ -11,10 +13,6 @@ interface LobbyProps {
 
   matchConfig: MatchConfig;
 
-  onPlayerCountChange: (
-    playerCount: 2 | 3 | 4,
-  ) => void;
-
   onMatchTypeChange: (
     matchType: MatchType,
   ) => void;
@@ -24,16 +22,31 @@ interface LobbyProps {
   ) => void;
 
   onStartGame: () => void;
+
+  onJoinSlot: (
+    slotId: number,
+  ) => void;
+
+  onCharacterChange: (
+    slotId: number,
+    playerId: number,
+  ) => void;
+
+  onLeaveSlot: (
+    slotId: number,
+  ) => void;
 }
 
 export default function Lobby({
   slots,
   players,
   matchConfig,
-  onPlayerCountChange,
   onMatchTypeChange,
   onToggleReady,
   onStartGame,
+  onJoinSlot,
+  onCharacterChange,
+  onLeaveSlot,
 }: LobbyProps) {
 
   const occupiedSlots =
@@ -42,8 +55,18 @@ export default function Lobby({
         slot.playerId !== null,
     );
 
-  const allReady =
-    occupiedSlots.length >= 2 &&
+  const currentMap =
+    maps.find(
+      (map) =>
+        map.id === matchConfig.mapId,
+    );
+
+  const canStart =
+    currentMap !== undefined &&
+    occupiedSlots.length >=
+      currentMap.minPlayers &&
+    occupiedSlots.length <=
+      currentMap.maxPlayers &&
     occupiedSlots.every(
       (slot) =>
         slot.isReady,
@@ -72,25 +95,66 @@ export default function Lobby({
               >
                 <strong>
                   Slot {slot.slotId}
+                  {slot.slotId === 1 && " 👑 Host"}
                 </strong>
 
                 {player ? (
-                  <span>
-                    {player.avatar}{" "}
-                    {player.name}
-                  </span>
+                  <select
+                    value={slot.playerId ?? ""}
+                    onChange={(event) =>
+                      onCharacterChange(
+                        slot.slotId,
+                        Number(event.target.value),
+                      )
+                    }
+                  >
+                    {players.map((character) => {
+                      const claimedByAnotherSlot =
+                        slots.some(
+                          (otherSlot) =>
+                            otherSlot.slotId !==
+                              slot.slotId &&
+                            otherSlot.playerId ===
+                              character.id,
+                        );
+
+                      return (
+                        <option
+                          key={character.id}
+                          value={character.id}
+                          disabled={
+                            claimedByAnotherSlot
+                          }
+                        >
+                          {character.avatar}{" "}
+                          {character.name}
+                        </option>
+                      );
+                    })}
+                  </select>
                 ) : (
-                  <span>
-                    Open
-                  </span>
+                  <>
+                    <span>
+                      Open
+                    </span>
+
+                    <button
+                      onClick={() =>
+                        onJoinSlot(
+                          slot.slotId,
+                        )
+                      }
+                    >
+                      Join
+                    </button>
+                  </>
                 )}
 
                 {player && (
                   <button
+                    className="lobby-ready-button"
                     onClick={() =>
-                      onToggleReady(
-                        slot.slotId,
-                      )
+                      onToggleReady(slot.slotId)
                     }
                   >
                     {slot.isReady
@@ -98,30 +162,39 @@ export default function Lobby({
                       : "Ready Up"}
                   </button>
                 )}
+
+                {player && slot.slotId !== 1 && (
+                  <button
+                    className="lobby-leave-button"
+                    onClick={() =>
+                      onLeaveSlot(slot.slotId)
+                    }
+                  >
+                    Leave
+                  </button>
+                )}
+
               </div>
             );
           })}
         </div>
 
-        <div className="lobby-controls">
+        <div className="lobby-host-controls">
           <label>
-            Players{" "}
+            Map{" "}
 
             <select
-              value={
-                matchConfig.playerCount
-              }
-              onChange={(event) =>
-                onPlayerCountChange(
-                  Number(
-                    event.target.value,
-                  ) as 2 | 3 | 4,
-                )
-              }
+              value={matchConfig.mapId}
+              disabled
             >
-              <option value={2}>2</option>
-              <option value={3}>3</option>
-              <option value={4}>4</option>
+              {maps.map((map) => (
+                <option
+                  key={map.id}
+                  value={map.id}
+                >
+                  {map.name} ({map.minPlayers}–{map.maxPlayers} Players)
+                </option>
+              ))}
             </select>
           </label>
 
@@ -149,7 +222,7 @@ export default function Lobby({
           </label>
 
           <button
-            disabled={!allReady}
+            disabled={!canStart}
             onClick={onStartGame}
           >
             Play Game

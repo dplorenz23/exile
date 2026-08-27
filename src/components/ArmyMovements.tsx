@@ -98,12 +98,6 @@ export default function ArmyMovements({
   bases,
   treasures,
 }: ArmyMovementsProps) {
-  /*
-   * Hide the entire panel when nothing is moving.
-   */
-  if (missions.length === 0) {
-    return null;
-  }
 
   /*
    * Convert a base ID into the player's local

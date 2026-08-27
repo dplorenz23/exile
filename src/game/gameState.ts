@@ -1,5 +1,28 @@
 import type { Base, Player, BaseResources } from "./types";
 
+export const maps = [
+  {
+    id: "exile-island",
+
+    name: "EXiLE ISLAND",
+
+    minPlayers: 2,
+    maxPlayers: 4,
+  },
+];
+
+export const matchTypes = {
+  "30m": {
+    name: "30 Minutes",
+    durationMinutes: 30,
+  },
+
+  "sudden-death": {
+    name: "Sudden Death",
+    durationMinutes: null,
+  },
+};
+
 export const players: Player[] = [
   {
     id: 1,

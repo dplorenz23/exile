@@ -7,6 +7,7 @@ import GameLog from "./components/GameLog";
 import GameClock from "./components/GameClock";
 import GameMap from "./components/GameMap";
 import ResourceBar from "./components/ResourceBar";
+import Leaderboard from "./components/Leaderboard";
 
 import {
   bases as startingBases,
@@ -21,6 +22,7 @@ import {
   calculateLoot,
   getArmyCost,
   resolveCombat,
+  calculatePlayerScore,
 } from "./game/rules";
 
 import type {
@@ -87,13 +89,27 @@ type GameState = {
   treasures: Treasure[];
   nextTreasureId: number;
 
+  armiesTrainedByPlayer:
+    Record<number, number>;
+
+  armyResourcesSpentByPlayer:
+    Record<number, number>;
+
+  finalScoreByPlayer:
+    Record<number, number>;
+
   eliminatedPlayerIds: number[];
 
   winnerPlayerId: number | null;
 };
 
 
-function createInitialGameState(): GameState {
+function createInitialGameState(
+  activePlayerIds: number[] =
+    players.map(
+      (player) => player.id,
+    ),
+): GameState {
   return {
     gameSeconds: 0,
 
@@ -102,42 +118,91 @@ function createInitialGameState(): GameState {
      * reuse mutated live-game objects.
      */
     bases:
-      startingBases.map((base) => ({
-        ...base,
+      startingBases
+        .filter(
+          (base) =>
+            activePlayerIds.includes(
+              base.playerId,
+            ),
+        )
+        .map((base) => ({
+          ...base,
 
-        armies: {
-          ...base.armies,
-        },
+          armies: {
+            ...base.armies,
+          },
 
-        armiesBuilt: {
-          ...base.armiesBuilt,
-        },
+          armiesBuilt: {
+            ...base.armiesBuilt,
+          },
 
-        training:
-          base.training
-            ? { ...base.training }
-            : null,
-      })),
+          training:
+            base.training
+              ? { ...base.training }
+              : null,
+        })),
 
     resourcesByBase:
       Object.fromEntries(
         Object.entries(
           startingResourcesByBase,
-        ).map(([baseId, resources]) => [
-          Number(baseId),
-          {
-            ...resources,
-          },
-        ]),
+        )
+          .filter(([baseId]) => {
+            const base =
+              startingBases.find(
+                (base) =>
+                  base.id ===
+                  Number(baseId),
+              );
+
+            return (
+              base !== undefined &&
+              activePlayerIds.includes(
+                base.playerId,
+              )
+            );
+          })
+          .map(
+            ([baseId, resources]) => [
+              Number(baseId),
+              {
+                ...resources,
+              },
+            ],
+          ),
       ),
 
     expansionKeysByPlayer:
       Object.fromEntries(
-        players.map((player) => [
-          player.id,
-          1,
-        ]),
+        activePlayerIds.map(
+          (playerId) => [
+            playerId,
+            1,
+          ],
+        ),
       ),
+
+    armiesTrainedByPlayer:
+      Object.fromEntries(
+        activePlayerIds.map(
+          (playerId) => [
+            playerId,
+            0,
+          ],
+        ),
+      ),
+
+    armyResourcesSpentByPlayer:
+      Object.fromEntries(
+        activePlayerIds.map(
+          (playerId) => [
+            playerId,
+            0,
+          ],
+        ),
+      ),
+
+    finalScoreByPlayer: {},
 
     armyMissions: [],
     nextMissionId: 1,
@@ -206,38 +271,111 @@ function App() {
 
    const [matchConfig, setMatchConfig] =
      useState<MatchConfig>({
+       mapId: "exile-island",
        matchType: "30m",
-       matchDurationMinutes: 30,
-       playerCount: 4,
      });
 
-   function handlePlayerCountChange(
-     playerCount: 2 | 3 | 4,
-   ) {
-     setMatchConfig((current) => ({
-       ...current,
-       playerCount,
-     }));
+   function handleJoinSlot(
+      slotId: number,
+    ) {
+      setLobbySlots((current) => {
+        const claimedPlayerIds =
+          current
+            .map(
+              (slot) => slot.playerId,
+            )
+            .filter(
+              (playerId):
+                playerId is number =>
+                  playerId !== null,
+            );
 
-     setLobbySlots(
-       createLobbySlots(playerCount),
-     );
-   }
+        const availablePlayer =
+          players.find(
+            (player) =>
+              !claimedPlayerIds.includes(
+                player.id,
+              ),
+          );
+
+        if (!availablePlayer) {
+          return current;
+        }
+
+        return current.map((slot) =>
+          slot.slotId === slotId
+            ? {
+                ...slot,
+
+                playerId:
+                  availablePlayer.id,
+
+                isReady: false,
+              }
+            : slot,
+        );
+      });
+    }
 
    function handleMatchTypeChange(
      matchType: MatchType,
    ) {
      setMatchConfig((current) => ({
        ...current,
-
        matchType,
-
-       matchDurationMinutes:
-         matchType === "30m"
-           ? 30
-           : null,
      }));
    }
+
+   function handleCharacterChange(
+     slotId: number,
+     playerId: number,
+   ) {
+     setLobbySlots((current) => {
+       const alreadyClaimed =
+         current.some(
+           (slot) =>
+             slot.slotId !== slotId &&
+             slot.playerId === playerId,
+         );
+
+       if (alreadyClaimed) {
+         return current;
+       }
+
+       return current.map((slot) =>
+         slot.slotId === slotId
+           ? {
+               ...slot,
+               playerId,
+               isReady: false,
+             }
+           : slot,
+       );
+     });
+   }
+
+   function handleLeaveSlot(
+      slotId: number,
+    ) {
+      /*
+       * Slot 1 is the host and cannot leave.
+       */
+      if (slotId === 1) {
+        return;
+      }
+
+      setLobbySlots((current) =>
+        current.map((slot) =>
+          slot.slotId === slotId
+            ? {
+                ...slot,
+                playerId: null,
+                isReady: false,
+              }
+            : slot,
+        ),
+      );
+    }
 
    function handleToggleReady(
      slotId: number,
@@ -256,16 +394,59 @@ function App() {
    }
 
    function handleStartGame() {
-     setGameState(
-       createInitialGameState(),
-     );
+      const activePlayerIds =
+        lobbySlots
+          .map(
+            (slot) =>
+              slot.playerId,
+          )
+          .filter(
+            (playerId):
+              playerId is number =>
+                playerId !== null,
+          );
 
-     setSelectedBaseId(1);
+      const newGameState =
+        createInitialGameState(
+          activePlayerIds,
+        );
 
-     setTargetingMode(null);
+      setGameState(
+        newGameState,
+      );
 
-     setIsGameStarted(true);
-   }
+      /*
+       * Slot 1 is the host/local player.
+       */
+      const hostPlayerId =
+        lobbySlots[0]?.playerId;
+
+      if (
+        hostPlayerId !== null &&
+        hostPlayerId !== undefined
+      ) {
+        setYourPlayerId(
+          hostPlayerId,
+        );
+
+        const hostBase =
+          newGameState.bases.find(
+            (base) =>
+              base.playerId ===
+              hostPlayerId,
+          );
+
+        if (hostBase) {
+          setSelectedBaseId(
+            hostBase.id,
+          );
+        }
+      }
+
+      setTargetingMode(null);
+
+      setIsGameStarted(true);
+    }
 
   /*
    * ==========================================================
@@ -291,6 +472,18 @@ function App() {
     (base) =>
       base.playerId === yourPlayerId,
   );
+
+  const activePlayerIds =
+    lobbySlots
+      .map(
+        (slot) =>
+          slot.playerId,
+      )
+      .filter(
+        (playerId):
+          playerId is number =>
+            playerId !== null,
+      );
 
   const yourExpansionKeys =
     gameState.expansionKeysByPlayer[
@@ -1692,6 +1885,13 @@ function App() {
           if (current.winnerPlayerId !== null) {
             return current;
 }
+          const updatedArmiesTrainedByPlayer = {
+            ...current.armiesTrainedByPlayer,
+          };
+
+          const updatedArmyResourcesSpentByPlayer = {
+            ...current.armyResourcesSpentByPlayer,
+          };
 
           /*
            * ==================================================
@@ -1752,6 +1952,30 @@ function App() {
                     [resource]:
                       base.armiesBuilt[resource] + 1,
                   };
+
+                  const completedArmyCost =
+                    getArmyCost(
+                      base.armiesBuilt[resource],
+                    );
+
+                  updatedArmiesTrainedByPlayer[
+                    base.playerId
+                  ] =
+                    (
+                      updatedArmiesTrainedByPlayer[
+                        base.playerId
+                     ] ?? 0
+                    ) + 1;
+
+                  updatedArmyResourcesSpentByPlayer[
+                    base.playerId
+                  ] =
+                    (
+                      updatedArmyResourcesSpentByPlayer[
+                        base.playerId
+                      ] ?? 0
+                    ) +
+                    completedArmyCost;
 
                   updatedTraining = null;
                 } else {
@@ -1825,6 +2049,10 @@ function App() {
           const updatedEliminatedPlayerIds = [
             ...current.eliminatedPlayerIds,
           ];
+
+          const updatedFinalScoreByPlayer = {
+            ...current.finalScoreByPlayer,
+          };
 
           let updatedWinnerPlayerId:
             number | null =
@@ -1983,6 +2211,20 @@ function App() {
                     };
                   });
 
+                const defenderScoreBeforeDestruction =
+                  calculatePlayerScore(
+                    defendingBase.playerId,
+                    updatedBases,
+                    updatedResources,
+                    updatedArmyMissions,
+                    updatedArmiesTrainedByPlayer[
+                      defendingBase.playerId
+                    ] ?? 0,
+                    updatedArmyResourcesSpentByPlayer[
+                      defendingBase.playerId
+                    ] ?? 0,
+                  ).totalScore;
+
                 /*
                  * -----------------------------------------------
                  * DESTROY THE BASE IF ATTACKER WON
@@ -2031,6 +2273,11 @@ function App() {
                     updatedEliminatedPlayerIds.push(
                       defendingBase.playerId,
                     );
+
+                    updatedFinalScoreByPlayer[
+                      defendingBase.playerId
+                    ] =
+                      defenderScoreBeforeDestruction;
 
                     updatedGameEvents.push({
                       type: "elimination",
@@ -2365,7 +2612,6 @@ function App() {
                  */
                 return;
               }
-
 
               /*
                * =================================================
@@ -3632,7 +3878,6 @@ function App() {
             };
           });
 
-
           /*
            * ==================================================
            * STEP 5:
@@ -3668,6 +3913,15 @@ function App() {
             treasures:
               updatedTreasures,
 
+            armiesTrainedByPlayer:
+              updatedArmiesTrainedByPlayer,
+
+            armyResourcesSpentByPlayer:
+              updatedArmyResourcesSpentByPlayer,
+
+            finalScoreByPlayer:
+              updatedFinalScoreByPlayer,
+
             nextTreasureId,
 
             winnerPlayerId:
@@ -3691,10 +3945,6 @@ function App() {
         players={players}
         matchConfig={matchConfig}
 
-        onPlayerCountChange={
-          handlePlayerCountChange
-        }
-
         onMatchTypeChange={
           handleMatchTypeChange
         }
@@ -3705,6 +3955,18 @@ function App() {
 
         onStartGame={
           handleStartGame
+        }
+
+        onJoinSlot={
+          handleJoinSlot
+        }
+
+        onCharacterChange={
+          handleCharacterChange
+        }
+
+        onLeaveSlot={
+          handleLeaveSlot
         }
       />
     );
@@ -3767,6 +4029,31 @@ function App() {
       />
 
       {/* Top-right */}
+      <Leaderboard
+        bases={gameState.bases}
+        resourcesByBase={
+          gameState.resourcesByBase
+        }
+        armyMissions={
+          gameState.armyMissions
+        }
+        armiesTrainedByPlayer={
+          gameState.armiesTrainedByPlayer
+        }
+        armyResourcesSpentByPlayer={
+          gameState.armyResourcesSpentByPlayer
+        }
+        activePlayerIds={
+          activePlayerIds
+        }
+        eliminatedPlayerIds={
+          gameState.eliminatedPlayerIds
+        }
+        finalScoreByPlayer={
+          gameState.finalScoreByPlayer
+        }
+      />
+
       <GameClock
         seconds={gameState.gameSeconds}
       />

@@ -3,6 +3,10 @@ import type {
   CombatResult,
   ResourceType,
   ResourceCounts,
+  ArmyMission,
+  Base,
+  BaseResources,
+  PlayerScore,
 } from "./types";
 
 export function getArmyCost(armiesBuilt: number) {
@@ -423,5 +427,168 @@ export function calculateLoot(
   return {
     loot,
     remaining,
+  };
+}
+
+export function calculatePlayerScore(
+  playerId: number,
+  bases: Base[],
+  resourcesByBase: Record<number, BaseResources>,
+  armyMissions: ArmyMission[],
+  armiesTrained: number,
+  armyResourcesSpent: number,
+): PlayerScore {
+  /*
+   * ==================================================
+   * BASE VALUE
+   * ==================================================
+   *
+   * Relocating bases still belong to the player,
+   * so they still count.
+   */
+  const playerBases =
+    bases.filter(
+      (base) =>
+        base.playerId === playerId,
+    );
+
+  const baseScore =
+    playerBases.length * 500;
+
+  /*
+   * ==================================================
+   * RESOURCES STORED AT ACTIVE BASES
+   * ==================================================
+   *
+   * Relocating bases have their resources carried
+   * by their mission, so don't count them here.
+   */
+  const resourcesAtBases =
+    playerBases.reduce(
+      (total, base) => {
+        if (base.isRelocating) {
+          return total;
+        }
+
+        const resources =
+          resourcesByBase[base.id];
+
+        if (!resources) {
+          return total;
+        }
+
+        return (
+          total +
+          resources.water +
+          resources.fire +
+          resources.grass
+        );
+      },
+      0,
+    );
+
+  /*
+   * ==================================================
+   * RESOURCES IN TRANSIT
+   * ==================================================
+   */
+  const playerMissions =
+    armyMissions.filter(
+      (mission) =>
+        mission.playerId === playerId,
+    );
+
+  const resourcesInTransit =
+    playerMissions.reduce(
+      (total, mission) => {
+        let missionResources =
+          mission.resources.water +
+          mission.resources.fire +
+          mission.resources.grass;
+
+        /*
+         * Relocation payment is refundable if
+         * relocation fails, so while the mission
+         * is unresolved it still counts as owned value.
+         */
+        if (mission.relocationPayment) {
+          missionResources +=
+            mission.relocationPayment.water +
+            mission.relocationPayment.fire +
+            mission.relocationPayment.grass;
+        }
+
+        return total + missionResources;
+      },
+      0,
+    );
+
+  const resourceScore =
+    resourcesAtBases +
+    resourcesInTransit;
+
+  /*
+   * ==================================================
+   * SURVIVING ARMIES
+   * ==================================================
+   *
+   * Relocating-base armies are represented by the
+   * relocation mission, so don't count them twice.
+   */
+  const stationedArmies =
+    playerBases.reduce(
+      (total, base) => {
+        if (base.isRelocating) {
+          return total;
+        }
+
+        return (
+          total +
+          base.armies.water +
+          base.armies.fire +
+          base.armies.grass
+        );
+      },
+      0,
+    );
+
+  const armiesInTransit =
+    playerMissions.reduce(
+      (total, mission) =>
+        total +
+        mission.armies.water +
+        mission.armies.fire +
+        mission.armies.grass,
+      0,
+    );
+
+  const survivingArmies =
+    stationedArmies +
+    armiesInTransit;
+
+  /*
+   * Historical average price paid per army.
+   */
+  const averageArmyCost =
+    armiesTrained > 0
+      ? armyResourcesSpent /
+        armiesTrained
+      : 0;
+
+  const armyScore =
+    survivingArmies *
+    averageArmyCost;
+
+  return {
+    playerId,
+
+    baseScore,
+    resourceScore,
+    armyScore,
+
+    totalScore:
+      baseScore +
+      resourceScore +
+      armyScore,
   };
 }
