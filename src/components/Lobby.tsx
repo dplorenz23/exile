@@ -79,6 +79,34 @@ export default function Lobby({
         slot.isReady,
     );
 
+  let startError = "";
+
+  if (currentMap) {
+    if (
+      occupiedSlots.length <
+      currentMap.minPlayers
+    ) {
+      startError =
+        `${currentMap.name} requires at least ` +
+        `${currentMap.minPlayers} players.`;
+    } else if (
+      occupiedSlots.length >
+      currentMap.maxPlayers
+    ) {
+      startError =
+        `${currentMap.name} supports a maximum of ` +
+        `${currentMap.maxPlayers} players.`;
+    } else if (
+      !occupiedSlots.every(
+        (slot) =>
+          slot.isReady,
+      )
+    ) {
+      startError =
+        "All players must be ready.";
+    }
+  }
+
   return (
     <div className="lobby">
       <div className="lobby-panel">
@@ -102,7 +130,7 @@ export default function Lobby({
               >
                 <strong>
                   Slot {slot.slotId}
-                  {slot.slotId === 1 && " 👑 Host"}
+                  {slot.isHost && " 👑 Host"}
                 </strong>
 
                 {player ? (
@@ -173,16 +201,17 @@ export default function Lobby({
                   </button>
                 )}
 
-                {player && slot.slotId !== 1 && (
-                  <button
-                    className="lobby-leave-button"
-                    onClick={() =>
-                      onLeaveSlot(slot.slotId)
-                    }
-                  >
-                    Leave
-                  </button>
-                )}
+                {player &&
+                  slot.clientId === myClientId && (
+                    <button
+                      className="lobby-leave-button"
+                      onClick={() =>
+                        onLeaveSlot(slot.slotId)
+                      }
+                    >
+                      Leave
+                    </button>
+                  )}
 
               </div>
             );
@@ -195,6 +224,13 @@ export default function Lobby({
 
             <select
               value={matchConfig.mapId}
+              disabled={
+                !slots.some(
+                  (slot) =>
+                    slot.clientId === myClientId &&
+                    slot.isHost,
+                )
+              }
               onChange={(event) =>
                 onMapChange(
                   event.target.value,
@@ -216,8 +252,13 @@ export default function Lobby({
             Match Type{" "}
 
             <select
-              value={
-                matchConfig.matchType
+              value={matchConfig.matchType}
+              disabled={
+                !slots.some(
+                  (slot) =>
+                    slot.clientId === myClientId &&
+                    slot.isHost,
+                )
               }
               onChange={(event) =>
                 onMatchTypeChange(
@@ -235,12 +276,29 @@ export default function Lobby({
             </select>
           </label>
 
-          <button
-            disabled={!canStart}
-            onClick={onStartGame}
-          >
-            Play Game
-          </button>
+          <div className="lobby-start-section">
+            {startError && (
+              <div className="lobby-start-error">
+                {startError}
+              </div>
+            )}
+
+            <button
+              disabled={
+                !canStart ||
+                !slots.some(
+                  (slot) =>
+                    slot.clientId ===
+                      myClientId &&
+                    slot.isHost,
+                )
+              }
+              onClick={onStartGame}
+            >
+              Play Game
+            </button>
+          </div>
+
         </div>
       </div>
     </div>

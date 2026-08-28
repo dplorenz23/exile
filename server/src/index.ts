@@ -10,6 +10,17 @@ const server =
     port: PORT,
   });
 
+const mapConfigs = {
+  "exile-island": {
+    minPlayers: 2,
+    maxPlayers: 4,
+  },
+  "map-two": {
+    minPlayers: 2,
+    maxPlayers: 2,
+  },
+};
+
 let nextClientId = 1;
 let hostClientId: number | null = null;
 
@@ -26,6 +37,11 @@ const connectedClients =
 
 const lobbyPlayers =
   new Map<number, LobbyPlayer>();
+
+let matchConfig = {
+  mapId: "exile-island",
+  matchType: "30m",
+};
 
 function getNextAvailableSlot() {
   const usedSlots =
@@ -86,6 +102,7 @@ function broadcastLobby() {
     JSON.stringify({
       type: "lobby-state",
       players,
+      matchConfig,
     });
 
   for (
@@ -197,6 +214,208 @@ server.on(
 
           broadcastLobby();
         }
+
+        if (
+          message.type ===
+          "leave-lobby"
+        ) {
+          lobbyPlayers.delete(
+            clientId,
+          );
+
+          if (
+            clientId === hostClientId
+          ) {
+            const nextHost =
+              lobbyPlayers
+                .values()
+                .next();
+
+            hostClientId =
+              nextHost.done
+                ? null
+                : nextHost.value.clientId;
+
+            if (
+              hostClientId !== null
+            ) {
+              const newHost =
+                lobbyPlayers.get(
+                  hostClientId,
+                );
+
+              if (newHost) {
+                newHost.isHost = true;
+              }
+            }
+          }
+
+          console.log(
+            `Client ${clientId} left lobby`,
+          );
+
+          broadcastLobby();
+        }
+
+        if (
+          message.type ===
+          "start-game"
+        ) {
+          if (
+            clientId !== hostClientId
+          ) {
+            return;
+          }
+
+          const players =
+            Array.from(
+              lobbyPlayers.values(),
+            );
+
+          const currentMap =
+            mapConfigs[
+              matchConfig.mapId as
+                keyof typeof mapConfigs
+            ];
+
+          if (!currentMap) {
+            return;
+          }
+
+          if (
+            players.length <
+              currentMap.minPlayers ||
+            players.length >
+              currentMap.maxPlayers
+          ) {
+            return;
+          }
+
+          if (
+            players.length < 2
+          ) {
+            return;
+          }
+
+          const everyoneReady =
+            players.every(
+              (player) =>
+                player.isReady,
+            );
+
+          if (!everyoneReady) {
+            return;
+          }
+
+          const gameStartedMessage =
+            JSON.stringify({
+              type: "game-started",
+              players,
+              matchConfig,
+            });
+
+          for (
+            const socket
+            of connectedClients.values()
+          ) {
+            socket.send(
+              gameStartedMessage,
+            );
+          }
+
+          console.log(
+            `Client ${clientId} started the game`,
+          );
+        }
+
+        if (
+          message.type === "set-map"
+        ) {
+          if (
+            clientId !== hostClientId
+          ) {
+            return;
+          }
+
+          matchConfig = {
+            ...matchConfig,
+            mapId: message.mapId,
+          };
+
+          broadcastLobby();
+        }
+
+        if (
+          message.type ===
+          "set-match-type"
+        ) {
+          if (
+            clientId !== hostClientId
+          ) {
+            return;
+          }
+
+          matchConfig = {
+            ...matchConfig,
+            matchType:
+              message.matchType,
+          };
+
+          broadcastLobby();
+        }
+
+        if (
+          message.type ===
+          "change-character"
+        ) {
+          const player =
+            lobbyPlayers.get(
+              clientId,
+            );
+
+          if (!player) {
+            return;
+          }
+
+          const requestedPlayerId =
+            Number(
+              message.playerId,
+            );
+
+          if (
+            requestedPlayerId < 1 ||
+            requestedPlayerId > 4
+          ) {
+            return;
+          }
+
+          const alreadyClaimed =
+            Array.from(
+              lobbyPlayers.values(),
+            ).some(
+              (otherPlayer) =>
+                otherPlayer.clientId !==
+                  clientId &&
+                otherPlayer.playerId ===
+                  requestedPlayerId,
+            );
+
+          if (alreadyClaimed) {
+            return;
+          }
+
+          player.playerId =
+            requestedPlayerId;
+
+          player.isReady = false;
+
+          console.log(
+            `Client ${clientId} changed to player ${requestedPlayerId}`,
+          );
+
+          broadcastLobby();
+        }
+
       },
     );
 

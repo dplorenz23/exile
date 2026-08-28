@@ -15,7 +15,6 @@ import {
   startingResourcesByBase,
   getBaseName,
   matchTypes,
-  maps,
 } from "./game/gameState";
 
 import { mapOne } from "./game/maps/mapOne";
@@ -284,6 +283,11 @@ function App() {
        null,
      );
 
+  const myClientIdRef =
+    useRef<number | null>(
+      null,
+    );
+
    const [myClientId, setMyClientId] =
      useState<number | null>(null);
 
@@ -312,6 +316,9 @@ function App() {
         if (
           message.type === "connected"
         ) {
+          myClientIdRef.current =
+            message.clientId;
+
           setMyClientId(
             message.clientId,
           );
@@ -351,7 +358,67 @@ function App() {
               }),
             ),
           );
+          setMatchConfig(
+            message.matchConfig,
+          );
         }
+
+        if (
+          message.type === "game-started"
+        ) {
+          const activePlayerIds =
+            message.players.map(
+              (player: {
+                playerId: number;
+              }) =>
+                player.playerId,
+            );
+
+          const newGameState =
+            createInitialGameState(
+              activePlayerIds,
+              message.matchConfig.matchType,
+              message.matchConfig.mapId,
+            );
+
+          setGameState(
+            newGameState,
+          );
+
+          const myLobbyPlayer =
+            message.players.find(
+              (player: {
+                clientId: number;
+                playerId: number;
+              }) =>
+                player.clientId ===
+                myClientIdRef.current,
+            );
+
+          if (myLobbyPlayer) {
+            setYourPlayerId(
+              myLobbyPlayer.playerId,
+            );
+
+            const myBase =
+              newGameState.bases.find(
+                (base) =>
+                  base.playerId ===
+                  myLobbyPlayer.playerId,
+              );
+
+            if (myBase) {
+              setSelectedBaseId(
+                myBase.id,
+              );
+            }
+          }
+
+          setTargetingMode(null);
+
+          setIsGameStarted(true);
+        }
+
       };
 
       socket.onclose = () => {
@@ -447,84 +514,72 @@ function App() {
    function handleMatchTypeChange(
      matchType: MatchType,
    ) {
-     setMatchConfig((current) => ({
-       ...current,
-       matchType,
-     }));
+     socketRef.current?.send(
+       JSON.stringify({
+         type: "set-match-type",
+         matchType,
+       }),
+     );
    }
 
    function handleMapChange(
-      mapId: string,
-    ) {
-      const selectedMap =
-        maps.find(
-          (map) => map.id === mapId,
-        );
-
-      if (!selectedMap) return;
-
-      setMatchConfig((current) => ({
-        ...current,
-        mapId,
-      }));
-
-      setLobbySlots(
-        createLobbySlots(
-          selectedMap.maxPlayers,
-        ),
-      );
-    }
-
-   function handleCharacterChange(
-     slotId: number,
-     playerId: number,
+     mapId: string,
    ) {
-     setLobbySlots((current) => {
-       const alreadyClaimed =
-         current.some(
-           (slot) =>
-             slot.slotId !== slotId &&
-             slot.playerId === playerId,
-         );
-
-       if (alreadyClaimed) {
-         return current;
-       }
-
-       return current.map((slot) =>
-         slot.slotId === slotId
-           ? {
-               ...slot,
-               playerId,
-               isReady: false,
-             }
-           : slot,
-       );
-     });
+     socketRef.current?.send(
+       JSON.stringify({
+         type: "set-map",
+         mapId,
+       }),
+     );
    }
 
-   function handleLeaveSlot(
+   function handleCharacterChange(
       slotId: number,
+      playerId: number,
     ) {
-      /*
-       * Slot 1 is the host and cannot leave.
-       */
-      if (slotId === 1) {
+      const slot =
+        lobbySlots.find(
+          (slot) =>
+            slot.slotId === slotId,
+        );
+
+      if (
+        !slot ||
+        slot.clientId !== myClientId
+      ) {
         return;
       }
 
-      setLobbySlots((current) =>
-        current.map((slot) =>
-          slot.slotId === slotId
-            ? {
-                ...slot,
-                playerId: null,
-                isReady: false,
-              }
-            : slot,
-        ),
+      socketRef.current?.send(
+        JSON.stringify({
+          type: "change-character",
+          playerId,
+        }),
       );
     }
+
+   function handleLeaveSlot(
+     slotId: number,
+   ) {
+     const slot =
+       lobbySlots.find(
+         (slot) =>
+           slot.slotId === slotId,
+       );
+
+     if (
+       !slot ||
+       slot.clientId !== myClientId
+     ) {
+       return;
+     }
+
+     socketRef.current?.send(
+       JSON.stringify({
+         type: "leave-lobby",
+       }),
+     );
+   }
 
    function handleToggleReady(
       slotId: number,
@@ -552,61 +607,22 @@ function App() {
     }
 
    function handleStartGame() {
-      const activePlayerIds =
-        lobbySlots
-          .map(
-            (slot) =>
-              slot.playerId,
-          )
-          .filter(
-            (playerId):
-              playerId is number =>
-                playerId !== null,
-          );
+     const mySlot =
+       lobbySlots.find(
+         (slot) =>
+           slot.clientId === myClientId,
+       );
 
-      const newGameState =
-        createInitialGameState(
-          activePlayerIds,
-          matchConfig.matchType,
-          matchConfig.mapId,
-        );
+     if (!mySlot?.isHost) {
+       return;
+     }
 
-      setGameState(
-        newGameState,
-      );
-
-      /*
-       * Slot 1 is the host/local player.
-       */
-      const hostPlayerId =
-        lobbySlots[0]?.playerId;
-
-      if (
-        hostPlayerId !== null &&
-        hostPlayerId !== undefined
-      ) {
-        setYourPlayerId(
-          hostPlayerId,
-        );
-
-        const hostBase =
-          newGameState.bases.find(
-            (base) =>
-              base.playerId ===
-              hostPlayerId,
-          );
-
-        if (hostBase) {
-          setSelectedBaseId(
-            hostBase.id,
-          );
-        }
-      }
-
-      setTargetingMode(null);
-
-      setIsGameStarted(true);
-    }
+     socketRef.current?.send(
+      JSON.stringify({
+        type: "start-game",
+      }),
+    );
+   }
 
   /*
    * ==========================================================

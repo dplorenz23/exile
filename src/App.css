@@ -1415,6 +1415,17 @@ body {
   cursor: not-allowed;
 }
 
+.lobby-start-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.lobby-start-error {
+  color: red;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
 .leaderboard {
   position: absolute;
 
