@@ -15,9 +15,11 @@ import {
   startingResourcesByBase,
   getBaseName,
   matchTypes,
+  maps,
 } from "./game/gameState";
 
 import { mapOne } from "./game/maps/mapOne";
+import { mapTwo } from "./game/maps/mapTwo";
 
 import {
   calculateLoot,
@@ -75,6 +77,8 @@ type GameState = {
 
   matchType: MatchType;
 
+  mapId: string;
+
   bases: typeof startingBases;
 
   resourcesByBase:
@@ -114,40 +118,62 @@ function createInitialGameState(
     ),
 
   matchType: MatchType = "30m",
+  mapId: string = "exile-island",
 ): GameState {
+
+  const mapTwoStarts = [
+    { row: 0, col: 1 }, // B1
+    { row: 7, col: 2 }, // C8
+  ];
+
+  const initialBases =
+    startingBases
+      .filter((base) =>
+        activePlayerIds.includes(base.playerId),
+      )
+      .map((base, index) => {
+        if (mapId !== "map-two") {
+          return base;
+        }
+
+        const start =
+          mapTwoStarts[index];
+
+        return {
+          ...base,
+          row: start.row,
+          col: start.col,
+        };
+      });
+
   return {
     gameSeconds: 0,
 
     matchType,
+
+    mapId,
 
     /*
      * Fresh copies so a reset cannot accidentally
      * reuse mutated live-game objects.
      */
     bases:
-      startingBases
-        .filter(
-          (base) =>
-            activePlayerIds.includes(
-              base.playerId,
-            ),
-        )
-        .map((base) => ({
-          ...base,
+      initialBases.map((base) => ({
+        ...base,
 
-          armies: {
-            ...base.armies,
-          },
+        armies: {
+          ...base.armies,
+        },
 
-          armiesBuilt: {
-            ...base.armiesBuilt,
-          },
+        armiesBuilt: {
+          ...base.armiesBuilt,
+        },
 
-          training:
-            base.training
-              ? { ...base.training }
-              : null,
-        })),
+        training:
+          base.training
+            ? { ...base.training }
+            : null,
+      })),
 
     resourcesByBase:
       Object.fromEntries(
@@ -156,7 +182,7 @@ function createInitialGameState(
         )
           .filter(([baseId]) => {
             const base =
-              startingBases.find(
+              initialBases.find(
                 (base) =>
                   base.id ===
                   Number(baseId),
@@ -333,6 +359,28 @@ function App() {
      }));
    }
 
+   function handleMapChange(
+      mapId: string,
+    ) {
+      const selectedMap =
+        maps.find(
+          (map) => map.id === mapId,
+        );
+
+      if (!selectedMap) return;
+
+      setMatchConfig((current) => ({
+        ...current,
+        mapId,
+      }));
+
+      setLobbySlots(
+        createLobbySlots(
+          selectedMap.maxPlayers,
+        ),
+      );
+    }
+
    function handleCharacterChange(
      slotId: number,
      playerId: number,
@@ -417,6 +465,7 @@ function App() {
         createInitialGameState(
           activePlayerIds,
           matchConfig.matchType,
+          matchConfig.mapId,
         );
 
       setGameState(
@@ -468,6 +517,11 @@ function App() {
     useState<GameState>(
       createInitialGameState,
     );
+
+  const currentMapTiles =
+    gameState.mapId === "map-two"
+      ? mapTwo
+      : mapOne;
 
   /*
    * ==========================================================
@@ -3923,8 +3977,13 @@ function App() {
               return;
             }
 
+            const activeMapTiles =
+              current.mapId === "map-two"
+                ? mapTwo
+                : mapOne;
+
             const tile =
-              mapOne.find(
+              activeMapTiles.find(
                 (tile) =>
                   tile.row === base.row &&
                   tile.col === base.col,
@@ -4100,6 +4159,10 @@ function App() {
 
         onMatchTypeChange={
           handleMatchTypeChange
+        }
+
+        onMapChange={
+          handleMapChange
         }
 
         onToggleReady={
@@ -4328,6 +4391,7 @@ function App() {
 
       {/* Main battlefield */}
       <GameMap
+        mapTiles={currentMapTiles}
         selectedBaseId={selectedBaseId}
         bases={gameState.bases}
         treasures={gameState.treasures}

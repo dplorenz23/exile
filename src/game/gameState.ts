@@ -3,11 +3,19 @@ import type { Base, Player, BaseResources } from "./types";
 export const maps = [
   {
     id: "exile-island",
-
     name: "EXiLE ISLAND",
-
     minPlayers: 2,
     maxPlayers: 4,
+    rows: 8,
+    columns: 8,
+  },
+  {
+    id: "map-two",
+    name: "Map Two",
+    minPlayers: 2,
+    maxPlayers: 2,
+    rows: 8,
+    columns: 4,
   },
 ];
 
@@ -119,7 +127,7 @@ export const bases: Base[] = [
     id: 2,
     playerId: 2,
     baseSlot: 1,
-    row: 1,
+    row: 3,
     col: 7,
     timeInLocationSeconds: 0,
 
@@ -145,7 +153,7 @@ export const bases: Base[] = [
     playerId: 3,
     baseSlot: 1,
     row: 7,
-    col: 6,
+    col: 3,
     timeInLocationSeconds: 0,
 
     armies: {
@@ -169,7 +177,7 @@ export const bases: Base[] = [
     id: 4,
     playerId: 4,
     baseSlot: 1,
-    row: 6,
+    row: 4,
     col: 0,
     timeInLocationSeconds: 0,
 

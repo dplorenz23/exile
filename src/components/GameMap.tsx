@@ -1,17 +1,16 @@
-import { mapOne } from "../game/maps/mapOne";
 import { players, getBaseName } from "../game/gameState";
 import type {
   Base,
+  Tile as MapTile,
   Treasure,
 } from "../game/types";
 import Tile from "./Tile";
-
-const GRID_SIZE = 8;
 
 interface GameMapProps {
   selectedBaseId: number;
   bases: Base[];
   treasures: Treasure[];
+  mapTiles: MapTile[];
 
   targetingMode: "attack" | "loot" | "expand" | "transfer" | "relocate" | null;
   yourPlayerId: number;
@@ -54,10 +53,28 @@ export default function GameMap({
   onExpandTargetSelected,
   onTransferTargetSelected,
   onRelocateTargetSelected,
+  mapTiles,
 }: GameMapProps) {
+
+  const mapColumns =
+    Math.max(
+      ...mapTiles.map((tile) => tile.col),
+    ) + 1;
+
+  const mapRows =
+    Math.max(
+      ...mapTiles.map((tile) => tile.row),
+    ) + 1;
+
   return (
-    <div className="game-map">
-      {mapOne.map((tile) => {
+    <div
+      className="game-map"
+      style={{
+        "--map-columns": mapColumns,
+        "--map-rows": mapRows,
+      } as React.CSSProperties}
+    >
+      {mapTiles.map((tile) => {
         const base = bases.find(
           (base) =>
             !base.isRelocating &&
@@ -192,7 +209,10 @@ export default function GameMap({
           <Tile
             key={`${tile.row}-${tile.col}`}
             tile={tile}
-            gridSize={GRID_SIZE}
+            gridSize={Math.max(
+              mapColumns,
+              mapRows,
+            )}
             base={base}
             baseName={baseName}
             player={player}

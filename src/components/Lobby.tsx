@@ -17,6 +17,10 @@ interface LobbyProps {
     matchType: MatchType,
   ) => void;
 
+  onMapChange: (
+    mapId: string,
+  ) => void;
+
   onToggleReady: (
     slotId: number,
   ) => void;
@@ -42,6 +46,7 @@ export default function Lobby({
   players,
   matchConfig,
   onMatchTypeChange,
+  onMapChange,
   onToggleReady,
   onStartGame,
   onJoinSlot,
@@ -185,7 +190,11 @@ export default function Lobby({
 
             <select
               value={matchConfig.mapId}
-              disabled
+              onChange={(event) =>
+                onMapChange(
+                  event.target.value,
+                )
+              }
             >
               {maps.map((map) => (
                 <option

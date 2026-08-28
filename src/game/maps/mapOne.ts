@@ -277,9 +277,9 @@ const mapLayout: MapTile[][] = [
   // =========================================================
   [
     G(),                              // A4
-    W("river", 1, "north-south"),     // B4
-    W("lake", 3),                     // C4
-    W("lake"),                        // D4
+    W("lake"),                        // B4
+    W("lake", 2),                     // C4
+    W("lake", 3),                     // D4
     G("forest", 2),                   // E4
     F("lava", 1, "north-east"),       // F4
     F("lava", 1, "east-west"),        // G4
@@ -305,7 +305,7 @@ const mapLayout: MapTile[][] = [
   // =========================================================
   [
     W("river", 1, "east-west"),       // A6
-    W("lake", 2),                     // B6
+    W("river", 1, "north-west"),      // B6
     W("lake"),                        // C6
     W("lake", 2),                     // D6
     F("volcano", 3),                  // E6
@@ -319,7 +319,7 @@ const mapLayout: MapTile[][] = [
   // =========================================================
   [
     G(),                              // A7
-    G("forest"),                      // B7
+    G("forest", 2),                      // B7
     F("lava", 1, "south-east"),       // C7
     F("lava", 1, "east-west"),        // D7
     F("lava", 1, "north-west"),       // E7
