@@ -4,10 +4,10 @@ export type MatchType =
 
 export interface LobbySlot {
   slotId: number;
-
   playerId: number | null;
-
   isReady: boolean;
+  clientId?: number;
+  isHost?: boolean;
 }
 
 export interface MatchConfig {

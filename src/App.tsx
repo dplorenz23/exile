@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import Lobby from "./components/Lobby";
 import ArmyMovements from "./components/ArmyMovements";
@@ -273,6 +273,101 @@ function createLobbySlots(
 function App() {
   /*
    * ==========================================================
+   * SERVER CONNECTION
+   * ==========================================================
+   *
+   * Connect to EXiLE Server
+   *
+   */
+   const socketRef =
+     useRef<WebSocket | null>(
+       null,
+     );
+
+   const [myClientId, setMyClientId] =
+     useState<number | null>(null);
+
+   useEffect(() => {
+      const socket =
+        new WebSocket("ws://localhost:8080");
+
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        console.log(
+          "Connected to EXiLE server",
+        );
+      };
+
+      socket.onmessage = (event) => {
+        const message = JSON.parse(
+          event.data,
+        );
+
+        console.log(
+          "Server message:",
+          message,
+        );
+
+        if (
+          message.type === "connected"
+        ) {
+          setMyClientId(
+            message.clientId,
+          );
+
+          console.log(
+            `I am Client ${message.clientId}`,
+          );
+        }
+
+        if (
+          message.type === "lobby-state"
+        ) {
+          console.log(
+            "Server lobby:",
+            message.players,
+          );
+
+          setLobbySlots(
+            message.players.map(
+              (player: {
+                clientId: number;
+                slotId: number;
+                playerId: number;
+                isReady: boolean;
+                isHost: boolean;
+              }) => ({
+                clientId:
+                  player.clientId,
+                slotId:
+                  player.slotId,
+                playerId:
+                  player.playerId,
+                isReady:
+                  player.isReady,
+                isHost:
+                  player.isHost,
+              }),
+            ),
+          );
+        }
+      };
+
+      socket.onclose = () => {
+        console.log(
+          "Disconnected from EXiLE server",
+        );
+      };
+
+      return () => {
+        socket.close();
+        socketRef.current = null;
+      };
+    }, []);
+
+  /*
+   * ==========================================================
    * LOCAL PLAYER
    * ==========================================================
    *
@@ -293,7 +388,6 @@ function App() {
    * The Lobby state where characters are chosen and pre-game
    * decisions are made
    */
-
    const [isGameStarted, setIsGameStarted] =
      useState(false);
 
@@ -433,20 +527,29 @@ function App() {
     }
 
    function handleToggleReady(
-     slotId: number,
-   ) {
-     setLobbySlots((current) =>
-       current.map((slot) =>
-         slot.slotId === slotId
-           ? {
-               ...slot,
-               isReady:
-                 !slot.isReady,
-             }
-           : slot,
-       ),
-     );
-   }
+      slotId: number,
+    ) {
+      const slot =
+        lobbySlots.find(
+          (slot) =>
+            slot.slotId === slotId,
+        );
+
+      if (
+        !slot ||
+        slot.clientId !== myClientId
+      ) {
+        return;
+      }
+
+      socketRef.current?.send(
+        JSON.stringify({
+          type: "set-ready",
+          isReady:
+            !slot.isReady,
+        }),
+      );
+    }
 
    function handleStartGame() {
       const activePlayerIds =
@@ -4153,38 +4256,39 @@ function App() {
   if (!isGameStarted) {
     return (
       <Lobby
-        slots={lobbySlots}
-        players={players}
-        matchConfig={matchConfig}
+          slots={lobbySlots}
+          players={players}
+          matchConfig={matchConfig}
+          myClientId={myClientId}
 
-        onMatchTypeChange={
-          handleMatchTypeChange
-        }
+          onMatchTypeChange={
+            handleMatchTypeChange
+          }
 
-        onMapChange={
-          handleMapChange
-        }
+          onMapChange={
+            handleMapChange
+          }
 
-        onToggleReady={
-          handleToggleReady
-        }
+          onToggleReady={
+            handleToggleReady
+          }
 
-        onStartGame={
-          handleStartGame
-        }
+          onStartGame={
+            handleStartGame
+          }
 
-        onJoinSlot={
-          handleJoinSlot
-        }
+          onJoinSlot={
+            handleJoinSlot
+          }
 
-        onCharacterChange={
-          handleCharacterChange
-        }
+          onCharacterChange={
+            handleCharacterChange
+          }
 
-        onLeaveSlot={
-          handleLeaveSlot
-        }
-      />
+          onLeaveSlot={
+            handleLeaveSlot
+          }
+        />
     );
   }
 

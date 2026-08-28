@@ -8,6 +8,7 @@ import type {
 } from "../game/types";
 
 interface LobbyProps {
+  myClientId: number | null;
   slots: LobbySlot[];
   players: Player[];
 
@@ -42,6 +43,7 @@ interface LobbyProps {
 }
 
 export default function Lobby({
+  myClientId,
   slots,
   players,
   matchConfig,
@@ -158,6 +160,9 @@ export default function Lobby({
                 {player && (
                   <button
                     className="lobby-ready-button"
+                    disabled={
+                      slot.clientId !== myClientId
+                    }
                     onClick={() =>
                       onToggleReady(slot.slotId)
                     }
