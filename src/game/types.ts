@@ -318,3 +318,41 @@ export interface PlayerScore {
 
   totalScore: number;
 }
+
+export type GameState = {
+  gameSeconds: number;
+
+  matchType: MatchType;
+
+  mapId: string;
+
+  bases: Base[];
+
+  resourcesByBase:
+    Record<number, BaseResources>;
+
+  expansionKeysByPlayer:
+    Record<number, number>;
+
+  armyMissions: ArmyMission[];
+  nextMissionId: number;
+
+  gameEvents: GameEvent[];
+  nextGameEventId: number;
+
+  treasures: Treasure[];
+  nextTreasureId: number;
+
+  armiesTrainedByPlayer:
+    Record<number, number>;
+
+  armyResourcesSpentByPlayer:
+    Record<number, number>;
+
+  finalScoreByPlayer:
+    Record<number, number>;
+
+  eliminatedPlayerIds: number[];
+
+  winnerPlayerId: number | null;
+};

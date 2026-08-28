@@ -12,10 +12,11 @@ import Leaderboard from "./components/Leaderboard";
 import {
   bases as startingBases,
   players,
-  startingResourcesByBase,
   getBaseName,
   matchTypes,
 } from "./game/gameState";
+
+import { createInitialGameState } from "./game/createInitialGameState";
 
 import { mapOne } from "./game/maps/mapOne";
 import { mapTwo } from "./game/maps/mapTwo";
@@ -33,10 +34,9 @@ import type {
   MatchType,
   ArmyCounts,
   ArmyMission,
-  GameEvent,
   BaseResources,
   ResourceType,
-  Treasure,
+  GameState,
 } from "./game/types";
 
 import "./App.css";
@@ -68,187 +68,6 @@ function getLocationMultiplier(seconds: number) {
   }
 
   return 1;
-}
-
-
-type GameState = {
-  gameSeconds: number;
-
-  matchType: MatchType;
-
-  mapId: string;
-
-  bases: typeof startingBases;
-
-  resourcesByBase:
-    typeof startingResourcesByBase;
-
-  expansionKeysByPlayer:
-    Record<number, number>;
-
-  armyMissions: ArmyMission[];
-  nextMissionId: number;
-
-  gameEvents: GameEvent[];
-  nextGameEventId: number;
-
-  treasures: Treasure[];
-  nextTreasureId: number;
-
-  armiesTrainedByPlayer:
-    Record<number, number>;
-
-  armyResourcesSpentByPlayer:
-    Record<number, number>;
-
-  finalScoreByPlayer:
-    Record<number, number>;
-
-  eliminatedPlayerIds: number[];
-
-  winnerPlayerId: number | null;
-};
-
-
-function createInitialGameState(
-  activePlayerIds: number[] =
-    players.map(
-      (player) => player.id,
-    ),
-
-  matchType: MatchType = "30m",
-  mapId: string = "exile-island",
-): GameState {
-
-  const mapTwoStarts = [
-    { row: 0, col: 1 }, // B1
-    { row: 7, col: 2 }, // C8
-  ];
-
-  const initialBases =
-    startingBases
-      .filter((base) =>
-        activePlayerIds.includes(base.playerId),
-      )
-      .map((base, index) => {
-        if (mapId !== "map-two") {
-          return base;
-        }
-
-        const start =
-          mapTwoStarts[index];
-
-        return {
-          ...base,
-          row: start.row,
-          col: start.col,
-        };
-      });
-
-  return {
-    gameSeconds: 0,
-
-    matchType,
-
-    mapId,
-
-    /*
-     * Fresh copies so a reset cannot accidentally
-     * reuse mutated live-game objects.
-     */
-    bases:
-      initialBases.map((base) => ({
-        ...base,
-
-        armies: {
-          ...base.armies,
-        },
-
-        armiesBuilt: {
-          ...base.armiesBuilt,
-        },
-
-        training:
-          base.training
-            ? { ...base.training }
-            : null,
-      })),
-
-    resourcesByBase:
-      Object.fromEntries(
-        Object.entries(
-          startingResourcesByBase,
-        )
-          .filter(([baseId]) => {
-            const base =
-              initialBases.find(
-                (base) =>
-                  base.id ===
-                  Number(baseId),
-              );
-
-            return (
-              base !== undefined &&
-              activePlayerIds.includes(
-                base.playerId,
-              )
-            );
-          })
-          .map(
-            ([baseId, resources]) => [
-              Number(baseId),
-              {
-                ...resources,
-              },
-            ],
-          ),
-      ),
-
-    expansionKeysByPlayer:
-      Object.fromEntries(
-        activePlayerIds.map(
-          (playerId) => [
-            playerId,
-            1,
-          ],
-        ),
-      ),
-
-    armiesTrainedByPlayer:
-      Object.fromEntries(
-        activePlayerIds.map(
-          (playerId) => [
-            playerId,
-            0,
-          ],
-        ),
-      ),
-
-    armyResourcesSpentByPlayer:
-      Object.fromEntries(
-        activePlayerIds.map(
-          (playerId) => [
-            playerId,
-            0,
-          ],
-        ),
-      ),
-
-    finalScoreByPlayer: {},
-
-    armyMissions: [],
-    nextMissionId: 1,
-
-    gameEvents: [],
-    nextGameEventId: 1,
-
-    treasures: [],
-    nextTreasureId: 1,
-
-    eliminatedPlayerIds: [],
-
-    winnerPlayerId: null,
-  };
 }
 
 function createLobbySlots(
@@ -366,20 +185,8 @@ function App() {
         if (
           message.type === "game-started"
         ) {
-          const activePlayerIds =
-            message.players.map(
-              (player: {
-                playerId: number;
-              }) =>
-                player.playerId,
-            );
-
-          const newGameState =
-            createInitialGameState(
-              activePlayerIds,
-              message.matchConfig.matchType,
-              message.matchConfig.mapId,
-            );
+          const newGameState: GameState =
+            message.gameState;
 
           setGameState(
             newGameState,

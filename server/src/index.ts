@@ -1,3 +1,5 @@
+import { createInitialGameState } from "../../src/game/createInitialGameState";
+
 import {
   WebSocket,
   WebSocketServer,
@@ -42,6 +44,8 @@ let matchConfig = {
   mapId: "exile-island",
   matchType: "30m",
 };
+
+let gameState = null;
 
 function getNextAvailableSlot() {
   const usedSlots =
@@ -307,11 +311,25 @@ server.on(
             return;
           }
 
+          const activePlayerIds =
+            players.map(
+              (player) =>
+                player.playerId,
+            );
+
+          gameState =
+            createInitialGameState(
+              activePlayerIds,
+              matchConfig.matchType,
+              matchConfig.mapId,
+            );
+
           const gameStartedMessage =
             JSON.stringify({
               type: "game-started",
               players,
               matchConfig,
+              gameState,
             });
 
           for (
