@@ -1,5 +1,13 @@
 import { createInitialGameState } from "../../src/game/createInitialGameState";
 
+import { getArmyCost } from "../../src/game/rules";
+
+import type {
+  GameState,
+  MatchType,
+  ResourceType,
+} from "../../src/game/types";
+
 import {
   WebSocket,
   WebSocketServer,
@@ -46,6 +54,10 @@ let matchConfig = {
 };
 
 let gameState = null;
+
+let gameTimer:
+  NodeJS.Timeout | null =
+  null;
 
 function getNextAvailableSlot() {
   const usedSlots =
@@ -324,6 +336,46 @@ server.on(
               matchConfig.mapId,
             );
 
+          if (gameTimer) {
+            clearInterval(
+              gameTimer,
+            );
+          }
+
+          gameTimer =
+            setInterval(() => {
+              if (!gameState) {
+                return;
+              }
+
+              gameState = {
+                ...gameState,
+                gameSeconds:
+                  gameState.gameSeconds + 1,
+              };
+
+              console.log(
+                "SERVER CLOCK:",
+                gameState.gameSeconds,
+              );
+
+              const clockMessage =
+                JSON.stringify({
+                  type: "game-clock",
+                  gameSeconds:
+                    gameState.gameSeconds,
+                });
+
+              for (
+                const socket
+                of connectedClients.values()
+              ) {
+                socket.send(
+                  clockMessage,
+                );
+              }
+            }, 1000);
+
           const gameStartedMessage =
             JSON.stringify({
               type: "game-started",
@@ -344,6 +396,184 @@ server.on(
           console.log(
             `Client ${clientId} started the game`,
           );
+        }
+
+        if (
+          message.type ===
+          "train-army"
+        ) {
+          console.log(
+            "TRAIN REQUEST:",
+            clientId,
+            message,
+          );
+
+          if (!gameState) {
+            console.log(
+              "TRAIN REJECTED: no gameState",
+            );
+            return;
+          }
+
+          const player =
+            lobbyPlayers.get(
+              clientId,
+            );
+
+          if (!player) {
+            return;
+          }
+
+          const baseId =
+            Number(
+              message.baseId,
+            );
+
+          const resource =
+            message.resource as ResourceType;
+
+          const base =
+            gameState.bases.find(
+              (base) =>
+               base.id === baseId,
+            );
+
+          console.log(
+            "TRAIN BASE:",
+            base,
+          );
+
+          console.log(
+          "TRAIN PLAYER:",
+          player,
+        );
+
+        console.log(
+          "TRAIN RESOURCES:",
+          gameState.resourcesByBase[
+            baseId
+          ],
+        );
+
+        console.log(
+          "TRAIN OWNERSHIP:",
+          {
+            basePlayerId:
+              base.playerId,
+            requestingPlayerId:
+              player.playerId,
+          },
+        );
+
+          if (!base) {
+            return;
+          }
+
+          /*
+           * A player may only train
+           * at one of their own bases.
+           */
+          if (
+            base.playerId !==
+            player.playerId
+          ) {
+            return;
+          }
+
+          /*
+           * A base can only train
+           * one army at a time.
+           */
+          if (base.training) {
+            return;
+          }
+
+          const resources =
+            gameState.resourcesByBase[
+              baseId
+            ];
+
+          if (!resources) {
+            return;
+          }
+
+          const cost =
+            getArmyCost(
+              base.armiesBuilt[
+                resource
+              ],
+            );
+
+          if (
+            resources[resource] <
+            cost
+          ) {
+            return;
+          }
+
+          const updatedBases =
+            gameState.bases.map(
+              (currentBase) => {
+                if (
+                  currentBase.id !==
+                  baseId
+                ) {
+                  return currentBase;
+                }
+
+                return {
+                  ...currentBase,
+
+                  training: {
+                    resource,
+                    secondsRemaining: 10,
+                  },
+                };
+              },
+            );
+
+          const updatedResources = {
+            ...gameState.resourcesByBase,
+
+            [baseId]: {
+              ...resources,
+
+              [resource]:
+                resources[resource] -
+                cost,
+            },
+          };
+
+          console.log(
+            "TRAIN APPROVED:",
+            {
+              baseId,
+              resource,
+              cost,
+            },
+          );
+
+          gameState = {
+            ...gameState,
+            bases: updatedBases,
+            resourcesByBase:
+              updatedResources,
+          };
+
+          const gameStateMessage =
+            JSON.stringify({
+              type: "game-state",
+              gameState,
+            });
+
+          for (
+            const socket
+            of connectedClients.values()
+          ) {
+            socket.send(
+              gameStateMessage,
+            );
+          }
         }
 
         if (

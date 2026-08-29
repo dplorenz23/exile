@@ -226,6 +226,32 @@ function App() {
           setIsGameStarted(true);
         }
 
+        if (
+          message.type === "game-state"
+        ) {
+          console.log(
+            "Received game state:",
+            message.gameState,
+          );
+
+          setGameState(
+            message.gameState,
+          );
+        }
+
+        if (
+          message.type ===
+          "game-clock"
+        ) {
+          setGameState(
+            (current) => ({
+              ...current,
+              gameSeconds:
+                message.gameSeconds,
+            }),
+          );
+        }
+
       };
 
       socket.onclose = () => {
@@ -1340,101 +1366,13 @@ function App() {
   function handleTrainArmy(
     resource: ResourceType,
   ) {
-    setGameState((current) => {
-      const base =
-        current.bases.find(
-          (base) =>
-            base.id === selectedBaseId,
-        );
-
-      if (!base) {
-        return current;
-      }
-
-      /*
-       * A base can only train one
-       * army at a time.
-       */
-      if (base.training) {
-        return current;
-      }
-
-      const resources =
-        current.resourcesByBase[
-          selectedBaseId
-        ];
-
-      if (!resources) {
-        return current;
-      }
-
-      /*
-       * Army price increases by 50
-       * after every army ever built here.
-       */
-      const cost =
-        getArmyCost(
-          base.armiesBuilt[resource],
-        );
-
-      /*
-       * Army cost must be paid using
-       * the matching resource.
-       */
-      if (
-        resources[resource] < cost
-      ) {
-        return current;
-      }
-
-      /*
-       * Start the training timer.
-       */
-      const updatedBases =
-        current.bases.map(
-          (currentBase) => {
-            if (
-              currentBase.id !==
-              selectedBaseId
-            ) {
-              return currentBase;
-            }
-
-            return {
-              ...currentBase,
-
-              training: {
-                resource,
-                secondsRemaining: 10,
-              },
-            };
-          },
-        );
-
-      /*
-       * Deduct the cost immediately.
-       */
-      const updatedResources = {
-        ...current.resourcesByBase,
-
-        [selectedBaseId]: {
-          ...resources,
-
-          [resource]:
-            resources[resource] -
-            cost,
-        },
-      };
-
-      return {
-        ...current,
-
-        bases: updatedBases,
-
-        resourcesByBase:
-          updatedResources,
-      };
-    });
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "train-army",
+        baseId: selectedBaseId,
+        resource,
+      }),
+    );
   }
   /*
   * ==========================================================
@@ -4023,10 +3961,7 @@ function App() {
             ...current,
 
             gameSeconds:
-              timedMatchEnded &&
-              matchDurationSeconds !== null
-                ? matchDurationSeconds
-                : nextGameSeconds,
+              current.gameSeconds,
 
             bases:
               updatedBases,
