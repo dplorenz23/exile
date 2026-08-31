@@ -43,6 +43,58 @@ export function createInitialGameState(
         };
       });
 
+    /*
+     * ==================================================
+     * TEMPORARY TRANSFER TEST BASE
+     * ==================================================
+     *
+     * Gives Player 1 a second base so Transfer can be
+     * tested before Expansion is server-authoritative.
+     *
+     * REMOVE AFTER TRANSFER TESTING.
+     */
+    const playerOneBase =
+      initialBases.find(
+        (base) =>
+          base.playerId === 1,
+      );
+
+    if (
+      playerOneBase &&
+      mapId === "exile-island"
+    ) {
+      initialBases.push({
+        ...playerOneBase,
+
+        id: 99,
+
+        baseSlot: 2,
+
+        row:
+          playerOneBase.row + 1,
+
+        col:
+          playerOneBase.col,
+
+        timeInLocationSeconds: 0,
+
+        armies: {
+          water: 0,
+          fire: 0,
+          grass: 0,
+        },
+
+        armiesBuilt: {
+          water: 0,
+          fire: 0,
+          grass: 0,
+        },
+
+        training: null,
+      });
+    }
+
+
   return {
     gameSeconds: 0,
 
@@ -74,32 +126,26 @@ export function createInitialGameState(
 
     resourcesByBase:
       Object.fromEntries(
-        Object.entries(
-          startingResourcesByBase,
-        )
-          .filter(([baseId]) => {
-            const base =
-              initialBases.find(
-                (base) =>
-                  base.id ===
-                  Number(baseId),
-              );
+        initialBases.map((base) => {
+          const startingResources =
+            startingResourcesByBase[
+              base.id
+            ];
 
-            return (
-              base !== undefined &&
-              activePlayerIds.includes(
-                base.playerId,
-              )
-            );
-          })
-          .map(
-            ([baseId, resources]) => [
-              Number(baseId),
-              {
-                ...resources,
-              },
-            ],
-          ),
+          return [
+            base.id,
+
+            startingResources
+              ? {
+                  ...startingResources,
+                }
+              : {
+                  water: 50,
+                  fire: 50,
+                  grass: 50,
+                },
+          ];
+        }),
       ),
 
     expansionKeysByPlayer:

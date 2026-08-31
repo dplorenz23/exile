@@ -7,6 +7,9 @@ import {
 } from "../../src/game/rules";
 
 import type {
+  ArmyCounts,
+  ArmyMission,
+  BaseResources,
   GameState,
   MatchType,
   ResourceType,
@@ -237,7 +240,7 @@ function runGameTick() {
     ...gameState.armyResourcesSpentByPlayer,
   };
 
-  const updatedBases =
+  let updatedBases =
     gameState.bases.map(
       (base) => {
         /*
@@ -339,6 +342,10 @@ function runGameTick() {
       },
     );
 
+  const updatedResources = {
+    ...gameState.resourcesByBase,
+  };
+
   /*
    * ==================================================
    * STEP 2:
@@ -361,6 +368,300 @@ function runGameTick() {
    * When ready, paste the matching App.tsx block here
    * and migrate it carefully rather than rewriting it.
    */
+
+  const updatedArmyMissions: ArmyMission[] = [];
+
+    gameState.armyMissions.forEach(
+      (mission) => {
+        /*
+         * For now, only Transfer is
+         * server-authoritative.
+         *
+         * Leave every other mission untouched
+         * until we migrate it.
+         */
+        if (
+          mission.type !==
+          "transfer"
+        ) {
+          updatedArmyMissions.push(
+            mission,
+          );
+
+          return;
+        }
+
+        /*
+         * Mission is still traveling.
+         */
+        if (
+          mission.secondsRemaining > 1
+        ) {
+          updatedArmyMissions.push({
+            ...mission,
+
+            secondsRemaining:
+              mission.secondsRemaining - 1,
+          });
+
+          return;
+        }
+
+        /*
+         * ==================================================
+         * TRANSFER ARRIVAL
+         * ==================================================
+         */
+        if (
+          mission.phase ===
+          "outbound"
+        ) {
+          const originBase =
+            updatedBases.find(
+              (base) =>
+                base.id ===
+                mission.originBaseId,
+            );
+
+          /*
+           * Origin was destroyed while traveling.
+           * Mission is lost.
+           */
+          if (!originBase) {
+            return;
+          }
+
+          const destinationBase =
+            updatedBases.find(
+              (base) =>
+                base.id ===
+                mission.destinationBaseId,
+            );
+
+          /*
+           * Destination was destroyed.
+           * Turn around and return home.
+           */
+          if (!destinationBase) {
+            if (
+              mission.destinationRow ===
+                undefined ||
+              mission.destinationCol ===
+                undefined
+            ) {
+              return;
+            }
+
+            const distance =
+              Math.abs(
+                originBase.row -
+                  mission.destinationRow,
+              ) +
+              Math.abs(
+                originBase.col -
+                  mission.destinationCol,
+              );
+
+            updatedArmyMissions.push({
+              ...mission,
+
+              phase:
+                "returning",
+
+              secondsRemaining:
+                distance * 5,
+            });
+
+            return;
+          }
+
+          /*
+           * Add armies to destination.
+           */
+          updatedBases =
+            updatedBases.map(
+              (base) => {
+                if (
+                  base.id !==
+                  destinationBase.id
+                ) {
+                  return base;
+                }
+
+                return {
+                  ...base,
+
+                  armies: {
+                    water:
+                      base.armies.water +
+                      mission.armies.water,
+
+                    fire:
+                      base.armies.fire +
+                      mission.armies.fire,
+
+                    grass:
+                      base.armies.grass +
+                      mission.armies.grass,
+                  },
+                };
+              },
+            );
+
+          /*
+           * Add cargo to destination.
+           */
+          const destinationResources =
+            updatedResources[
+              destinationBase.id
+            ];
+
+          if (
+            destinationResources
+          ) {
+            updatedResources[
+              destinationBase.id
+            ] = {
+              water:
+                destinationResources.water +
+                mission.resources.water,
+
+              fire:
+                destinationResources.fire +
+                mission.resources.fire,
+
+              grass:
+                destinationResources.grass +
+                mission.resources.grass,
+            };
+          }
+
+          /*
+           * Add Transfer to the public game log.
+           */
+          gameState.gameEvents.push({
+            id:
+              gameState.nextGameEventId,
+
+            type: "transfer",
+
+            gameSeconds:
+              gameState.gameSeconds + 1,
+
+            playerId:
+              destinationBase.playerId,
+
+            fromBaseName:
+              `Base ${originBase.baseSlot}`,
+
+            toBaseName:
+              `Base ${destinationBase.baseSlot}`,
+
+            armies: {
+              ...mission.armies,
+            },
+
+            resources: {
+              ...mission.resources,
+            },
+          });
+
+          gameState.nextGameEventId += 1;
+
+          /*
+           * Do NOT push the mission back into
+           * updatedArmyMissions.
+           *
+           * It has completed and disappears.
+           */
+          return;
+        }
+
+        /*
+         * ==================================================
+         * RETURNING TRANSFER ARRIVAL
+         * ==================================================
+         */
+        if (
+          mission.phase ===
+          "returning"
+        ) {
+          const originBase =
+            updatedBases.find(
+              (base) =>
+                base.id ===
+                mission.originBaseId,
+            );
+
+          /*
+           * Origin was destroyed during return.
+           * Mission is lost.
+           */
+          if (!originBase) {
+            return;
+          }
+
+          updatedBases =
+            updatedBases.map(
+              (base) => {
+                if (
+                  base.id !==
+                  originBase.id
+                ) {
+                  return base;
+                }
+
+                return {
+                  ...base,
+
+                  armies: {
+                    water:
+                      base.armies.water +
+                      mission.armies.water,
+
+                    fire:
+                      base.armies.fire +
+                      mission.armies.fire,
+
+                    grass:
+                      base.armies.grass +
+                      mission.armies.grass,
+                  },
+                };
+              },
+            );
+
+          const originResources =
+            updatedResources[
+              originBase.id
+            ];
+
+          if (originResources) {
+            updatedResources[
+              originBase.id
+            ] = {
+              water:
+                originResources.water +
+                mission.resources.water,
+
+              fire:
+                originResources.fire +
+                mission.resources.fire,
+
+              grass:
+                originResources.grass +
+                mission.resources.grass,
+            };
+          }
+
+          /*
+           * Mission completes here too,
+           * so don't push it back.
+           */
+          return;
+        }
+      },
+    );
 
   /*
    * ==================================================
@@ -386,11 +687,6 @@ function runGameTick() {
    *
    * MIGRATED FROM App.tsx.
    */
-
-  const updatedResources = {
-    ...gameState.resourcesByBase,
-  };
-
   updatedBases.forEach(
     (base) => {
       if (base.isRelocating) {
@@ -472,6 +768,9 @@ function runGameTick() {
 
     resourcesByBase:
       updatedResources,
+
+    armyMissions:
+      updatedArmyMissions,
 
     armiesTrainedByPlayer:
       updatedArmiesTrainedByPlayer,
@@ -954,15 +1253,286 @@ server.on(
          * modifying gameState.
          */
 
-        /*
         if (
           message.type ===
-          "send-army"
+          "transfer-army"
         ) {
-          // TODO: paste / migrate validation and
-          // mission-creation logic from App.tsx.
+          if (!gameState) {
+            return;
+          }
+
+          const player =
+            lobbyPlayers.get(
+              clientId,
+            );
+
+          if (!player) {
+            return;
+          }
+
+          const originBaseId =
+            Number(
+              message.originBaseId,
+            );
+
+          const destinationBaseId =
+            Number(
+              message.destinationBaseId,
+            );
+
+          const armies =
+            message.armies as ArmyCounts;
+
+          const transferredResources =
+            message.resources as BaseResources;
+
+          const originBase =
+            gameState.bases.find(
+              (base) =>
+                base.id ===
+                originBaseId,
+            );
+
+          const destinationBase =
+            gameState.bases.find(
+              (base) =>
+                base.id ===
+                destinationBaseId,
+            );
+
+          if (
+            !originBase ||
+            !destinationBase
+          ) {
+            return;
+          }
+
+          /*
+           * Both bases must belong
+           * to the requesting player.
+           */
+          if (
+            originBase.playerId !==
+              player.playerId ||
+            destinationBase.playerId !==
+              player.playerId
+          ) {
+            return;
+          }
+
+          /*
+           * Validate army quantities.
+           */
+          if (
+            armies.water < 0 ||
+            armies.fire < 0 ||
+            armies.grass < 0
+          ) {
+            return;
+          }
+
+          if (
+            armies.water >
+              originBase.armies.water ||
+            armies.fire >
+              originBase.armies.fire ||
+            armies.grass >
+              originBase.armies.grass
+          ) {
+            return;
+          }
+
+          const totalArmies =
+            armies.water +
+            armies.fire +
+            armies.grass;
+
+          if (
+            totalArmies === 0
+          ) {
+            return;
+          }
+
+          const resources =
+            gameState.resourcesByBase[
+              originBase.id
+            ];
+
+          if (!resources) {
+            return;
+          }
+
+          const cargoCapacity =
+            totalArmies * 200;
+
+          const totalCargo =
+            transferredResources.water +
+            transferredResources.fire +
+            transferredResources.grass;
+
+          if (
+            transferredResources.water < 0 ||
+            transferredResources.fire < 0 ||
+            transferredResources.grass < 0
+          ) {
+            return;
+          }
+
+          if (
+            totalCargo >
+            cargoCapacity
+          ) {
+            return;
+          }
+
+          if (
+            transferredResources.water >
+              resources.water ||
+            transferredResources.fire >
+              resources.fire ||
+            transferredResources.grass >
+              resources.grass
+          ) {
+            return;
+          }
+
+          const distance =
+            Math.abs(
+              originBase.row -
+                destinationBase.row,
+            ) +
+            Math.abs(
+              originBase.col -
+                destinationBase.col,
+            );
+
+          const travelTime =
+            distance * 5;
+
+          /*
+           * Remove armies from origin.
+           */
+          const updatedBases =
+            gameState.bases.map(
+              (base) => {
+                if (
+                  base.id !==
+                  originBase.id
+                ) {
+                  return base;
+                }
+
+                return {
+                  ...base,
+
+                  armies: {
+                    water:
+                      base.armies.water -
+                      armies.water,
+
+                    fire:
+                      base.armies.fire -
+                      armies.fire,
+
+                    grass:
+                      base.armies.grass -
+                      armies.grass,
+                  },
+                };
+              },
+            );
+
+          /*
+           * Remove cargo from origin.
+           */
+          const updatedResources = {
+            ...gameState.resourcesByBase,
+
+            [originBase.id]: {
+              water:
+                resources.water -
+                transferredResources.water,
+
+              fire:
+                resources.fire -
+                transferredResources.fire,
+
+              grass:
+                resources.grass -
+                transferredResources.grass,
+            },
+          };
+
+          /*
+           * Create server-owned mission.
+           */
+          const newMission: ArmyMission = {
+            id:
+              gameState.nextMissionId,
+
+            playerId:
+              originBase.playerId,
+
+            type: "transfer",
+            phase: "outbound",
+
+            originBaseId:
+              originBase.id,
+
+            destinationBaseId:
+              destinationBase.id,
+
+            armies: {
+              ...armies,
+            },
+
+            resources: {
+              ...transferredResources,
+            },
+
+            expansionKeys: 0,
+
+            secondsRemaining:
+              travelTime,
+
+            destinationRow:
+              destinationBase.row,
+
+            destinationCol:
+              destinationBase.col,
+          };
+
+          gameState = {
+            ...gameState,
+
+            bases:
+              updatedBases,
+
+            resourcesByBase:
+              updatedResources,
+
+            armyMissions: [
+              ...gameState.armyMissions,
+              newMission,
+            ],
+
+            nextMissionId:
+              gameState.nextMissionId + 1,
+          };
+
+          console.log(
+            "TRANSFER LAUNCHED:",
+            {
+              playerId:
+                player.playerId,
+              originBaseId,
+              destinationBaseId,
+              travelTime,
+            },
+          );
+
+          broadcastGameState();
         }
-        */
 
         /*
          * ==============================================

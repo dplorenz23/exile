@@ -23,7 +23,6 @@ import { mapTwo } from "./game/maps/mapTwo";
 
 import {
   calculateLoot,
-  getArmyCost,
   resolveCombat,
   calculatePlayerScore,
 } from "./game/rules";
@@ -966,32 +965,35 @@ function App() {
 
         const travelTime = distance * 5;
 
-        /*
-         * Armies leave the origin immediately.
-         */
-        const updatedBases = current.bases.map((base) => {
-          if (base.id !== originBase.id) {
-            return base;
-          }
+        const updatedBases =
+          current.bases.map(
+            (base) => {
+              if (
+                base.id !==
+                originBase.id
+              ) {
+                return base;
+              }
 
-          return {
-            ...base,
+              return {
+                ...base,
 
-            armies: {
-              water:
-                base.armies.water -
-                armiesToSend.water,
+                armies: {
+                  water:
+                    base.armies.water -
+                    armiesToSend.water,
 
-              fire:
-                base.armies.fire -
-                armiesToSend.fire,
+                  fire:
+                    base.armies.fire -
+                    armiesToSend.fire,
 
-              grass:
-                base.armies.grass -
-                armiesToSend.grass,
+                  grass:
+                    base.armies.grass -
+                    armiesToSend.grass,
+                },
+              };
             },
-          };
-        });
+          );
 
         /*
          * Create the outbound Loot mission.
@@ -1099,229 +1101,17 @@ function App() {
     armies: ArmyCounts,
     transferredResources: BaseResources,
   ) {
-    setGameState((current) => {
-      const originBase =
-        current.bases.find(
-          (base) =>
-            base.id === selectedBaseId,
-        );
-
-      const destinationBase =
-        current.bases.find(
-          (base) =>
-            base.id ===
-            destinationBaseId,
-        );
-
-      if (
-        !originBase ||
-        !destinationBase
-      ) {
-        return current;
-      }
-
-      /*
-       * Transfers may only occur between
-       * bases belonging to us.
-       */
-      if (
-        originBase.playerId !==
-          yourPlayerId ||
-        destinationBase.playerId !==
-          yourPlayerId
-      ) {
-        return current;
-      }
-
-      /*
-       * Verify the armies exist.
-       */
-      if (
-        armies.water >
-          originBase.armies.water ||
-        armies.fire >
-          originBase.armies.fire ||
-        armies.grass >
-          originBase.armies.grass
-      ) {
-        return current;
-      }
-
-      const totalArmies =
-        armies.water +
-        armies.fire +
-        armies.grass;
-
-      if (totalArmies === 0) {
-        return current;
-      }
-
-      /*
-       * Get the resource bank
-       * at the originating base.
-       */
-      const resources =
-        current.resourcesByBase[
-          originBase.id
-        ];
-
-      if (!resources) {
-        return current;
-      }
-
-      /*
-       * Every army can carry
-       * up to 200 resources.
-       */
-      const cargoCapacity =
-        totalArmies * 200;
-
-      const totalCargo =
-        transferredResources.water +
-        transferredResources.fire +
-        transferredResources.grass;
-
-      /*
-       * Cannot exceed carrying capacity.
-       */
-      if (
-        totalCargo > cargoCapacity
-      ) {
-        return current;
-      }
-
-      /*
-       * Cannot transfer resources
-       * the originating base does not own.
-       */
-      if (
-        transferredResources.water >
-          resources.water ||
-        transferredResources.fire >
-          resources.fire ||
-        transferredResources.grass >
-          resources.grass
-      ) {
-        return current;
-      }
-
-      const distance =
-        Math.abs(
-          originBase.row -
-            destinationBase.row,
-        ) +
-        Math.abs(
-          originBase.col -
-            destinationBase.col,
-        );
-
-      const travelTime =
-        distance * 5;
-
-      /*
-       * Remove armies immediately.
-       */
-      const updatedBases =
-        current.bases.map((base) => {
-          if (
-            base.id !== originBase.id
-          ) {
-            return base;
-          }
-
-          return {
-            ...base,
-
-            armies: {
-              water:
-                base.armies.water -
-                armies.water,
-
-              fire:
-                base.armies.fire -
-                armies.fire,
-
-              grass:
-                base.armies.grass -
-                armies.grass,
-            },
-          };
-        });
-
-      /*
-       * Remove cargo immediately.
-       */
-      const updatedResources = {
-        ...current.resourcesByBase,
-
-        [originBase.id]: {
-          water:
-            resources.water -
-            transferredResources.water,
-
-          fire:
-            resources.fire -
-            transferredResources.fire,
-
-          grass:
-            resources.grass -
-            transferredResources.grass,
-        },
-      };
-
-      /*
-       * Create outbound Transfer mission.
-       */
-      const newMission: ArmyMission = {
-        id: current.nextMissionId,
-        playerId: originBase.playerId,
-
-        type: "transfer",
-        phase: "outbound",
-
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "transfer-army",
         originBaseId:
-          originBase.id,
-
-        destinationBaseId:
-          destinationBase.id,
-
-        armies: {
-          ...armies,
-        },
-
-        resources: {
-          ...transferredResources,
-        },
-
-        expansionKeys: 0,
-
-        secondsRemaining:
-          travelTime,
-
-        destinationRow:
-          destinationBase.row,
-
-        destinationCol:
-          destinationBase.col,
-      };
-
-      return {
-        ...current,
-
-        bases: updatedBases,
-
-        resourcesByBase:
-          updatedResources,
-
-        armyMissions: [
-          ...current.armyMissions,
-          newMission,
-        ],
-
-        nextMissionId:
-          current.nextMissionId + 1,
-      };
-    });
+          selectedBaseId,
+        destinationBaseId,
+        armies,
+        resources:
+          transferredResources,
+      }),
+    );
   }
 
 
@@ -1859,121 +1649,18 @@ function App() {
 
           /*
            * ==================================================
-           * STEP 1:
-           * AGE BASES AND PROCESS TRAINING
+           * BASE WORKING COPY
            * ==================================================
+           *
+           * Base aging and training are now processed
+           * server-side.
+           *
+           * The remaining client-side tick still uses
+           * updatedBases while those systems are migrated.
            */
-          let updatedBases =
-            current.bases.map((base) => {
-
-              /*
-               * A relocating base still exists, but it does not
-               * age, train armies, or otherwise operate while moving.
-               */
-              if (base.isRelocating) {
-                return base;
-              }
-
-              let updatedArmies =
-                base.armies;
-
-              let updatedTraining =
-                base.training;
-
-              let updatedArmiesBuilt =
-                base.armiesBuilt;
-
-              /*
-               * If this base is training,
-               * reduce its timer by one second.
-               */
-              if (base.training) {
-                const secondsRemaining =
-                  base.training
-                    .secondsRemaining - 1;
-
-                /*
-                 * Training completed.
-                 */
-                if (
-                  secondsRemaining <= 0
-                ) {
-                  const resource =
-                    base.training.resource;
-
-                  updatedArmies = {
-                    ...base.armies,
-
-                    [resource]:
-                      base.armies[
-                        resource
-                      ] + 1,
-                  };
-
-                  updatedArmiesBuilt = {
-                    ...base.armiesBuilt,
-
-                    [resource]:
-                      base.armiesBuilt[resource] + 1,
-                  };
-
-                  const completedArmyCost =
-                    getArmyCost(
-                      base.armiesBuilt[resource],
-                    );
-
-                  updatedArmiesTrainedByPlayer[
-                    base.playerId
-                  ] =
-                    (
-                      updatedArmiesTrainedByPlayer[
-                        base.playerId
-                     ] ?? 0
-                    ) + 1;
-
-                  updatedArmyResourcesSpentByPlayer[
-                    base.playerId
-                  ] =
-                    (
-                      updatedArmyResourcesSpentByPlayer[
-                        base.playerId
-                      ] ?? 0
-                    ) +
-                    completedArmyCost;
-
-                  updatedTraining = null;
-                } else {
-                  /*
-                   * Still training.
-                   */
-                  updatedTraining = {
-                    ...base.training,
-
-                    secondsRemaining,
-                  };
-                }
-              }
-
-              return {
-                ...base,
-
-                /*
-                 * Base ages by one second.
-                 */
-                timeInLocationSeconds:
-                  base.timeInLocationSeconds +
-                  1,
-
-                armies:
-                  updatedArmies,
-
-                armiesBuilt:
-                  updatedArmiesBuilt,
-
-                training:
-                  updatedTraining,
-              };
-            });
+          let updatedBases = [
+            ...current.bases,
+          ];
 
           /*
            * ==================================================
@@ -2030,6 +1717,22 @@ function App() {
            */
           current.armyMissions.forEach(
             (mission) => {
+              /*
+               * Transfer missions are now fully
+               * server-authoritative.
+               *
+               * The client must not tick or resolve them.
+               */
+              if (
+                mission.type === "transfer"
+              ) {
+                updatedArmyMissions.push(
+                  mission,
+               );
+
+                return;
+              }
+
               /*
                * Mission has NOT arrived yet.
                *
@@ -3552,241 +3255,6 @@ function App() {
 
                 return;
               }
-
-              /*
-               * =================================================
-               * MISSION ARRIVAL:
-               * TRANSFER
-               * =================================================
-               *
-               * Transfer armies and cargo arrive
-               * at another friendly base.
-               */
-              if (
-                mission.type === "transfer" &&
-                mission.phase === "outbound"
-              ) {
-
-                const destinationBase =
-                  updatedBases.find(
-                    (base) =>
-                      base.id === mission.destinationBaseId,
-                  );
-
-                const originBase =
-                  updatedBases.find(
-                    (base) =>
-                      base.id === mission.originBaseId,
-                  );
-
-                /*
-                 * If the origin base no longer exists,
-                 * the transfer mission is lost.
-                 */
-                if (!originBase) {
-                  return;
-                }
-                /*
-                 * If the destination base was destroyed while
-                 * the transfer was traveling, turn around.
-                 */
-                if (!destinationBase) {
-                  const distance =
-                    Math.abs(
-                      originBase.row -
-                        mission.destinationRow!,
-                    ) +
-                    Math.abs(
-                      originBase.col -
-                        mission.destinationCol!,
-                    );
-
-                  updatedArmyMissions.push({
-                    ...mission,
-                    phase: "returning",
-                    secondsRemaining: distance * 5,
-                  });
-
-                  return;
-                }
-
-                /*
-                 * Add armies.
-                 */
-                updatedBases =
-                  updatedBases.map((base) => {
-                    if (
-                      base.id !==
-                      mission.destinationBaseId
-                    ) {
-                      return base;
-                    }
-
-                    return {
-                      ...base,
-
-                      armies: {
-                        water:
-                          base.armies.water +
-                          mission.armies.water,
-
-                        fire:
-                          base.armies.fire +
-                          mission.armies.fire,
-
-                        grass:
-                          base.armies.grass +
-                          mission.armies.grass,
-                      },
-                    };
-                  });
-
-
-                /*
-                 * Add cargo.
-                 */
-                const destinationResources =
-                  updatedResources[
-                    mission.destinationBaseId
-                  ];
-
-                if (
-                  destinationResources
-                ) {
-                  updatedResources[
-                    mission.destinationBaseId
-                  ] = {
-                    water:
-                      destinationResources.water +
-                      mission.resources.water,
-
-                    fire:
-                      destinationResources.fire +
-                      mission.resources.fire,
-
-                    grass:
-                      destinationResources.grass +
-                      mission.resources.grass,
-                  };
-                }
-
-                updatedGameEvents.push({
-                  type: "transfer",
-
-                  id: nextGameEventId,
-
-                  gameSeconds:
-                    current.gameSeconds + 1,
-
-                  playerId:
-                    destinationBase.playerId,
-
-                  fromBaseName:
-                    getBaseName(
-                      originBase.playerId,
-                      originBase.baseSlot,
-                    ),
-
-                  toBaseName:
-                    getBaseName(
-                      destinationBase.playerId,
-                      destinationBase.baseSlot,
-                    ),
-
-                  armies: {
-                    ...mission.armies,
-                  },
-
-                  resources: {
-                    ...mission.resources,
-                  },
-                });
-
-                nextGameEventId += 1;
-
-                return;
-              }
-
-              /*
-               * =================================================
-               * MISSION ARRIVAL:
-               * RETURNING TRANSFER
-               * =================================================
-               *
-               * A transfer whose destination was destroyed
-               * returns its armies and cargo to the origin base.
-               */
-              if (
-                mission.type === "transfer" &&
-                mission.phase === "returning"
-              ) {
-                const originBase =
-                  updatedBases.find(
-                    (base) =>
-                      base.id === mission.originBaseId,
-                  );
-
-                /*
-                 * If the origin was destroyed while the transfer
-                 * was returning, everything is lost.
-                 */
-                if (!originBase) {
-                  return;
-                }
-
-                updatedBases =
-                  updatedBases.map((base) => {
-                    if (
-                      base.id !== mission.originBaseId
-                    ) {
-                      return base;
-                    }
-
-                    return {
-                      ...base,
-
-                      armies: {
-                        water:
-                          base.armies.water +
-                          mission.armies.water,
-
-                        fire:
-                          base.armies.fire +
-                          mission.armies.fire,
-
-                        grass:
-                          base.armies.grass +
-                          mission.armies.grass,
-                      },
-                    };
-                  });
-
-                const originResources =
-                  updatedResources[
-                    mission.originBaseId
-                  ];
-
-                if (originResources) {
-                  updatedResources[
-                    mission.originBaseId
-                  ] = {
-                    water:
-                      originResources.water +
-                      mission.resources.water,
-
-                    fire:
-                      originResources.fire +
-                      mission.resources.fire,
-
-                    grass:
-                      originResources.grass +
-                      mission.resources.grass,
-                  };
-                }
-
-                return;
-              }
-
             },
           );
 
