@@ -1,6 +1,10 @@
 import { createInitialGameState } from "../../src/game/createInitialGameState";
-
-import { getArmyCost } from "../../src/game/rules";
+import { mapOne } from "../../src/game/maps/mapOne";
+import { mapTwo } from "../../src/game/maps/mapTwo";
+import {
+  getArmyCost,
+  getLocationMultiplier,
+} from "../../src/game/rules";
 
 import type {
   GameState,
@@ -12,6 +16,12 @@ import {
   WebSocket,
   WebSocketServer,
 } from "ws";
+
+/*
+ * ==================================================
+ * SERVER CONFIGURATION
+ * ==================================================
+ */
 
 const PORT = 8080;
 
@@ -25,14 +35,18 @@ const mapConfigs = {
     minPlayers: 2,
     maxPlayers: 4,
   },
+
   "map-two": {
     minPlayers: 2,
     maxPlayers: 2,
   },
 };
 
-let nextClientId = 1;
-let hostClientId: number | null = null;
+/*
+ * ==================================================
+ * SERVER TYPES
+ * ==================================================
+ */
 
 type LobbyPlayer = {
   clientId: number;
@@ -42,29 +56,50 @@ type LobbyPlayer = {
   isHost: boolean;
 };
 
+/*
+ * ==================================================
+ * SERVER STATE
+ * ==================================================
+ */
+
+let nextClientId = 1;
+
+let hostClientId:
+  number | null = null;
+
 const connectedClients =
   new Map<number, WebSocket>();
 
 const lobbyPlayers =
   new Map<number, LobbyPlayer>();
 
-let matchConfig = {
+let matchConfig: {
+  mapId: string;
+  matchType: MatchType;
+} = {
   mapId: "exile-island",
   matchType: "30m",
 };
 
-let gameState = null;
+let gameState:
+  GameState | null = null;
 
 let gameTimer:
-  NodeJS.Timeout | null =
-  null;
+  NodeJS.Timeout | null = null;
+
+/*
+ * ==================================================
+ * LOBBY HELPERS
+ * ==================================================
+ */
 
 function getNextAvailableSlot() {
   const usedSlots =
     Array.from(
       lobbyPlayers.values(),
     ).map(
-      (player) => player.slotId,
+      (player) =>
+        player.slotId,
     );
 
   for (
@@ -73,7 +108,9 @@ function getNextAvailableSlot() {
     slotId++
   ) {
     if (
-      !usedSlots.includes(slotId)
+      !usedSlots.includes(
+        slotId,
+      )
     ) {
       return slotId;
     }
@@ -87,7 +124,8 @@ function getNextAvailablePlayerId() {
     Array.from(
       lobbyPlayers.values(),
     ).map(
-      (player) => player.playerId,
+      (player) =>
+        player.playerId,
     );
 
   for (
@@ -96,7 +134,9 @@ function getNextAvailablePlayerId() {
     playerId++
   ) {
     if (
-      !usedPlayerIds.includes(playerId)
+      !usedPlayerIds.includes(
+        playerId,
+      )
     ) {
       return playerId;
     }
@@ -125,9 +165,334 @@ function broadcastLobby() {
     const socket
     of connectedClients.values()
   ) {
-    socket.send(message);
+    socket.send(
+      message,
+    );
   }
 }
+
+/*
+ * ==================================================
+ * GAME-STATE HELPERS
+ * ==================================================
+ */
+
+function broadcastGameState() {
+  if (!gameState) {
+    return;
+  }
+
+  const message =
+    JSON.stringify({
+      type: "game-state",
+      gameState,
+    });
+
+  for (
+    const socket
+    of connectedClients.values()
+  ) {
+    socket.send(
+      message,
+    );
+  }
+}
+
+/*
+ * ==================================================
+ * SERVER GAME TICK
+ * ==================================================
+ *
+ * This is the main migration target from App.tsx.
+ *
+ * As gameplay becomes server-authoritative, the
+ * client-side interval logic from App.tsx should move
+ * into the numbered sections below.
+ *
+ * IMPORTANT:
+ * After moving a section here and testing it, disable
+ * the matching client-side section so both sides do
+ * not process the same game logic.
+ */
+
+function runGameTick() {
+  if (!gameState) {
+    return;
+  }
+
+  /*
+   * ==================================================
+   * STEP 1:
+   * AGE BASES AND PROCESS TRAINING
+   * ==================================================
+   *
+   * MIGRATED FROM App.tsx.
+   */
+
+  const updatedArmiesTrainedByPlayer = {
+    ...gameState.armiesTrainedByPlayer,
+  };
+
+  const updatedArmyResourcesSpentByPlayer = {
+    ...gameState.armyResourcesSpentByPlayer,
+  };
+
+  const updatedBases =
+    gameState.bases.map(
+      (base) => {
+        /*
+         * A relocating base still exists, but it does
+         * not age or train while moving.
+         */
+        if (base.isRelocating) {
+          return base;
+        }
+
+        let updatedArmies =
+          base.armies;
+
+        let updatedTraining =
+          base.training;
+
+        let updatedArmiesBuilt =
+          base.armiesBuilt;
+
+        if (base.training) {
+          const secondsRemaining =
+            base.training
+              .secondsRemaining - 1;
+
+          if (
+            secondsRemaining <= 0
+          ) {
+            const resource =
+              base.training.resource;
+
+            updatedArmies = {
+              ...base.armies,
+
+              [resource]:
+                base.armies[
+                  resource
+                ] + 1,
+            };
+
+            updatedArmiesBuilt = {
+              ...base.armiesBuilt,
+
+              [resource]:
+                base.armiesBuilt[
+                  resource
+                ] + 1,
+            };
+
+            const completedArmyCost =
+              getArmyCost(
+                base.armiesBuilt[
+                  resource
+                ],
+              );
+
+            updatedArmiesTrainedByPlayer[
+              base.playerId
+            ] =
+              (
+                updatedArmiesTrainedByPlayer[
+                  base.playerId
+                ] ?? 0
+              ) + 1;
+
+            updatedArmyResourcesSpentByPlayer[
+              base.playerId
+            ] =
+              (
+                updatedArmyResourcesSpentByPlayer[
+                  base.playerId
+                ] ?? 0
+              ) +
+              completedArmyCost;
+
+            updatedTraining = null;
+          } else {
+            updatedTraining = {
+              ...base.training,
+              secondsRemaining,
+            };
+          }
+        }
+
+        return {
+          ...base,
+
+          timeInLocationSeconds:
+            base.timeInLocationSeconds + 1,
+
+          armies:
+            updatedArmies,
+
+          armiesBuilt:
+            updatedArmiesBuilt,
+
+          training:
+            updatedTraining,
+        };
+      },
+    );
+
+  /*
+   * ==================================================
+   * STEP 2:
+   * PROCESS ARMY / SETTLER / RELOCATION MISSIONS
+   * ==================================================
+   *
+   * TODO — MIGRATE FROM App.tsx
+   *
+   * Expected contents:
+   * - decrement mission secondsRemaining
+   * - process outbound arrivals
+   * - process returning arrivals
+   * - transfer cargo
+   * - loot treasure
+   * - resolve attacks
+   * - resolve expansion arrivals / collisions
+   * - resolve relocation arrivals / collisions
+   * - remove completed/lost missions
+   *
+   * When ready, paste the matching App.tsx block here
+   * and migrate it carefully rather than rewriting it.
+   */
+
+  /*
+   * ==================================================
+   * STEP 3:
+   * ELIMINATION / SCORING / VICTORY
+   * ==================================================
+   *
+   * TODO — MIGRATE FROM App.tsx
+   *
+   * Expected contents:
+   * - detect players with zero surviving bases
+   * - freeze eliminated-player scores
+   * - calculate live scores
+   * - detect Sudden Death winner
+   * - detect timed-match winner
+   */
+
+  /*
+   * ==================================================
+   * STEP 4:
+   * RESOURCE PRODUCTION
+   * ==================================================
+   *
+   * MIGRATED FROM App.tsx.
+   */
+
+  const updatedResources = {
+    ...gameState.resourcesByBase,
+  };
+
+  updatedBases.forEach(
+    (base) => {
+      if (base.isRelocating) {
+        return;
+      }
+
+      const activeMapTiles =
+        gameState!.mapId ===
+        "map-two"
+          ? mapTwo
+          : mapOne;
+
+      const tile =
+        activeMapTiles.find(
+          (tile) =>
+            tile.row ===
+              base.row &&
+            tile.col ===
+              base.col,
+        );
+
+      if (!tile) {
+        return;
+      }
+
+      const currentResources =
+        updatedResources[
+          base.id
+        ];
+
+      if (!currentResources) {
+        return;
+      }
+
+      const locationMultiplier =
+        getLocationMultiplier(
+          base.timeInLocationSeconds,
+        );
+
+      const productionAmount =
+        locationMultiplier *
+        tile.multiplier;
+
+      const resource =
+        tile.resource;
+
+      updatedResources[
+        base.id
+      ] = {
+        ...currentResources,
+
+        [resource]:
+          currentResources[
+            resource
+          ] +
+          productionAmount,
+      };
+    },
+  );
+
+  /*
+   * ==================================================
+   * STEP 5:
+   * COMMIT THIS TICK'S SERVER STATE
+   * ==================================================
+   *
+   * As more App.tsx tick sections move to the server,
+   * add their updated values to THIS assignment.
+   */
+
+  gameState = {
+    ...gameState,
+
+    gameSeconds:
+      gameState.gameSeconds + 1,
+
+    bases:
+      updatedBases,
+
+    resourcesByBase:
+      updatedResources,
+
+    armiesTrainedByPlayer:
+      updatedArmiesTrainedByPlayer,
+
+    armyResourcesSpentByPlayer:
+      updatedArmyResourcesSpentByPlayer,
+  };
+
+  console.log(
+    "SERVER CLOCK:",
+    gameState.gameSeconds,
+  );
+
+  broadcastGameState();
+}
+
+/*
+ * ==================================================
+ * CONNECTION HANDLING
+ * ==================================================
+ */
 
 server.on(
   "connection",
@@ -160,7 +525,8 @@ server.on(
     if (
       hostClientId === null
     ) {
-      hostClientId = clientId;
+      hostClientId =
+        clientId;
     }
 
     const lobbyPlayer:
@@ -169,8 +535,10 @@ server.on(
       slotId,
       playerId,
       isReady: false,
+
       isHost:
-        clientId === hostClientId,
+        clientId ===
+        hostClientId,
     };
 
     connectedClients.set(
@@ -191,12 +559,27 @@ server.on(
       JSON.stringify({
         type: "connected",
         clientId,
+
         message:
           "Connected to EXiLE server",
       }),
     );
 
     broadcastLobby();
+
+    /*
+     * ==================================================
+     * CLIENT MESSAGE HANDLING
+     * ==================================================
+     *
+     * Each player action should eventually follow this
+     * pattern:
+     *
+     * 1. Client sends REQUEST.
+     * 2. Server validates REQUEST.
+     * 3. Server changes gameState.
+     * 4. Server broadcasts authoritative gameState.
+     */
 
     socket.on(
       "message",
@@ -205,6 +588,12 @@ server.on(
           JSON.parse(
             data.toString(),
           );
+
+        /*
+         * ==============================================
+         * LOBBY ACTION: READY
+         * ==============================================
+         */
 
         if (
           message.type ===
@@ -231,6 +620,12 @@ server.on(
           broadcastLobby();
         }
 
+        /*
+         * ==============================================
+         * LOBBY ACTION: LEAVE
+         * ==============================================
+         */
+
         if (
           message.type ===
           "leave-lobby"
@@ -240,7 +635,8 @@ server.on(
           );
 
           if (
-            clientId === hostClientId
+            clientId ===
+            hostClientId
           ) {
             const nextHost =
               lobbyPlayers
@@ -250,10 +646,13 @@ server.on(
             hostClientId =
               nextHost.done
                 ? null
-                : nextHost.value.clientId;
+                : nextHost
+                    .value
+                    .clientId;
 
             if (
-              hostClientId !== null
+              hostClientId !==
+              null
             ) {
               const newHost =
                 lobbyPlayers.get(
@@ -261,7 +660,8 @@ server.on(
                 );
 
               if (newHost) {
-                newHost.isHost = true;
+                newHost.isHost =
+                  true;
               }
             }
           }
@@ -273,12 +673,19 @@ server.on(
           broadcastLobby();
         }
 
+        /*
+         * ==============================================
+         * LOBBY ACTION: START GAME
+         * ==============================================
+         */
+
         if (
           message.type ===
           "start-game"
         ) {
           if (
-            clientId !== hostClientId
+            clientId !==
+            hostClientId
           ) {
             return;
           }
@@ -343,38 +750,10 @@ server.on(
           }
 
           gameTimer =
-            setInterval(() => {
-              if (!gameState) {
-                return;
-              }
-
-              gameState = {
-                ...gameState,
-                gameSeconds:
-                  gameState.gameSeconds + 1,
-              };
-
-              console.log(
-                "SERVER CLOCK:",
-                gameState.gameSeconds,
-              );
-
-              const clockMessage =
-                JSON.stringify({
-                  type: "game-clock",
-                  gameSeconds:
-                    gameState.gameSeconds,
-                });
-
-              for (
-                const socket
-                of connectedClients.values()
-              ) {
-                socket.send(
-                  clockMessage,
-                );
-              }
-            }, 1000);
+            setInterval(
+              runGameTick,
+              1000,
+            );
 
           const gameStartedMessage =
             JSON.stringify({
@@ -398,20 +777,26 @@ server.on(
           );
         }
 
+        /*
+         * ==============================================
+         * GAME ACTION: TRAIN ARMY
+         * ==============================================
+         *
+         * SERVER-AUTHORITATIVE.
+         *
+         * Client only requests:
+         * - baseId
+         * - resource
+         *
+         * Server validates ownership, cost and whether
+         * the base is already training.
+         */
+
         if (
           message.type ===
           "train-army"
         ) {
-          console.log(
-            "TRAIN REQUEST:",
-            clientId,
-            message,
-          );
-
           if (!gameState) {
-            console.log(
-              "TRAIN REJECTED: no gameState",
-            );
             return;
           }
 
@@ -430,48 +815,22 @@ server.on(
             );
 
           const resource =
-            message.resource as ResourceType;
+            message.resource as
+              ResourceType;
 
           const base =
             gameState.bases.find(
               (base) =>
-               base.id === baseId,
+                base.id ===
+                baseId,
             );
-
-          console.log(
-            "TRAIN BASE:",
-            base,
-          );
-
-          console.log(
-          "TRAIN PLAYER:",
-          player,
-        );
-
-        console.log(
-          "TRAIN RESOURCES:",
-          gameState.resourcesByBase[
-            baseId
-          ],
-        );
-
-        console.log(
-          "TRAIN OWNERSHIP:",
-          {
-            basePlayerId:
-              base.playerId,
-            requestingPlayerId:
-              player.playerId,
-          },
-        );
 
           if (!base) {
             return;
           }
 
           /*
-           * A player may only train
-           * at one of their own bases.
+           * Player may only train at their own base.
            */
           if (
             base.playerId !==
@@ -481,8 +840,7 @@ server.on(
           }
 
           /*
-           * A base can only train
-           * one army at a time.
+           * Base can only train one army at a time.
            */
           if (base.training) {
             return;
@@ -526,22 +884,36 @@ server.on(
 
                   training: {
                     resource,
-                    secondsRemaining: 10,
+                    secondsRemaining:
+                      10,
                   },
                 };
               },
             );
 
           const updatedResources = {
-            ...gameState.resourcesByBase,
+            ...gameState
+              .resourcesByBase,
 
             [baseId]: {
               ...resources,
 
               [resource]:
-                resources[resource] -
+                resources[
+                  resource
+                ] -
                 cost,
             },
+          };
+
+          gameState = {
+            ...gameState,
+
+            bases:
+              updatedBases,
+
+            resourcesByBase:
+              updatedResources,
           };
 
           console.log(
@@ -553,64 +925,151 @@ server.on(
             },
           );
 
-          gameState = {
-            ...gameState,
-            bases: updatedBases,
-            resourcesByBase:
-              updatedResources,
-          };
-
-          const gameStateMessage =
-            JSON.stringify({
-              type: "game-state",
-              gameState,
-            });
-
-          for (
-            const socket
-            of connectedClients.values()
-          ) {
-            socket.send(
-              gameStateMessage,
-            );
-          }
+          broadcastGameState();
         }
 
+        /*
+         * ==============================================
+         * GAME ACTION TEMPLATE: SEND ARMY
+         * ==============================================
+         *
+         * TODO — MIGRATE FROM App.tsx
+         *
+         * Future client request should contain only the
+         * choices the player is allowed to make.
+         *
+         * Example:
+         *
+         * {
+         *   type: "send-army",
+         *   originBaseId,
+         *   missionType,
+         *   armies,
+         *   resources,
+         *   destination...
+         * }
+         *
+         * Server must validate ownership, army counts,
+         * cargo, destination and mission legality before
+         * modifying gameState.
+         */
+
+        /*
         if (
-          message.type === "set-map"
+          message.type ===
+          "send-army"
+        ) {
+          // TODO: paste / migrate validation and
+          // mission-creation logic from App.tsx.
+        }
+        */
+
+        /*
+         * ==============================================
+         * GAME ACTION TEMPLATE: EXPAND
+         * ==============================================
+         *
+         * TODO — MIGRATE FROM App.tsx
+         *
+         * Expected server validation:
+         * - player owns origin base
+         * - player has room for another base
+         * - player has expansion key
+         * - origin has selected 500 resources
+         * - destination is legal when mission is sent
+         */
+
+        /*
+        if (
+          message.type ===
+          "expand"
+        ) {
+          // TODO: migrate expansion request logic.
+        }
+        */
+
+        /*
+         * ==============================================
+         * GAME ACTION TEMPLATE: RELOCATE
+         * ==============================================
+         *
+         * TODO — MIGRATE FROM App.tsx
+         *
+         * Expected server validation:
+         * - player owns base
+         * - base is not already relocating
+         * - payment is valid
+         * - destination is legal when mission is sent
+         * - packing / travel state starts server-side
+         */
+
+        /*
+        if (
+          message.type ===
+          "relocate"
+        ) {
+          // TODO: migrate relocation request logic.
+        }
+        */
+
+        /*
+         * ==============================================
+         * LOBBY ACTION: SET MAP
+         * ==============================================
+         */
+
+        if (
+          message.type ===
+          "set-map"
         ) {
           if (
-            clientId !== hostClientId
+            clientId !==
+            hostClientId
           ) {
             return;
           }
 
           matchConfig = {
             ...matchConfig,
-            mapId: message.mapId,
+            mapId:
+              message.mapId,
           };
 
           broadcastLobby();
         }
+
+        /*
+         * ==============================================
+         * LOBBY ACTION: SET MATCH TYPE
+         * ==============================================
+         */
 
         if (
           message.type ===
           "set-match-type"
         ) {
           if (
-            clientId !== hostClientId
+            clientId !==
+            hostClientId
           ) {
             return;
           }
 
           matchConfig = {
             ...matchConfig,
+
             matchType:
               message.matchType,
           };
 
           broadcastLobby();
         }
+
+        /*
+         * ==============================================
+         * LOBBY ACTION: CHANGE CHARACTER
+         * ==============================================
+         */
 
         if (
           message.type ===
@@ -655,7 +1114,8 @@ server.on(
           player.playerId =
             requestedPlayerId;
 
-          player.isReady = false;
+          player.isReady =
+            false;
 
           console.log(
             `Client ${clientId} changed to player ${requestedPlayerId}`,
@@ -663,9 +1123,14 @@ server.on(
 
           broadcastLobby();
         }
-
       },
     );
+
+    /*
+     * ==================================================
+     * DISCONNECT HANDLING
+     * ==================================================
+     */
 
     socket.on(
       "close",
@@ -683,7 +1148,8 @@ server.on(
         );
 
         if (
-          clientId === hostClientId
+          clientId ===
+          hostClientId
         ) {
           const nextHost =
             lobbyPlayers
@@ -693,10 +1159,13 @@ server.on(
           hostClientId =
             nextHost.done
               ? null
-              : nextHost.value.clientId;
+              : nextHost
+                  .value
+                  .clientId;
 
           if (
-            hostClientId !== null
+            hostClientId !==
+            null
           ) {
             const newHost =
               lobbyPlayers.get(
@@ -704,7 +1173,8 @@ server.on(
               );
 
             if (newHost) {
-              newHost.isHost = true;
+              newHost.isHost =
+                true;
             }
 
             console.log(

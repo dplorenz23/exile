@@ -54,22 +54,6 @@ import "./App.css";
  * 5–10 minutes  = 3x
  * 10+ minutes   = 4x
  */
-function getLocationMultiplier(seconds: number) {
-  if (seconds >= 600) {
-    return 4;
-  }
-
-  if (seconds >= 300) {
-    return 3;
-  }
-
-  if (seconds >= 120) {
-    return 2;
-  }
-
-  return 1;
-}
-
 function createLobbySlots(
   playerCount: number,
 ): LobbySlot[] {
@@ -238,20 +222,6 @@ function App() {
             message.gameState,
           );
         }
-
-        if (
-          message.type ===
-          "game-clock"
-        ) {
-          setGameState(
-            (current) => ({
-              ...current,
-              gameSeconds:
-                message.gameSeconds,
-            }),
-          );
-        }
-
       };
 
       socket.onclose = () => {
@@ -3820,78 +3790,79 @@ function App() {
             },
           );
 
+//           /*
+//            * ==================================================
+//            * STEP 4:
+//            * RESOURCE PRODUCTION
+//            * ==================================================
+//            *
+//            * Every surviving base produces independently.
+//            *
+//            * Production =
+//            *
+//            * location multiplier
+//            * ×
+//            * tile multiplier
+//            */
+//
+//           updatedBases.forEach((base) => {
+//
+//             if (base.isRelocating) {
+//               return;
+//             }
+//
+//             const activeMapTiles =
+//               current.mapId === "map-two"
+//                 ? mapTwo
+//                 : mapOne;
+//
+//             const tile =
+//               activeMapTiles.find(
+//                 (tile) =>
+//                   tile.row === base.row &&
+//                   tile.col === base.col,
+//               );
+//
+//             if (!tile) {
+//               return;
+//             }
+//
+//             const currentResources =
+//               updatedResources[
+//                 base.id
+//               ];
+//
+//             /*
+//              * Every legitimate base should
+//              * have a resource bank.
+//              */
+//             if (!currentResources) {
+//               return;
+//             }
+//
+//             const locationMultiplier =
+//               getLocationMultiplier(
+//                 base.timeInLocationSeconds,
+//               );
+//
+//             const productionAmount =
+//               locationMultiplier *
+//               tile.multiplier;
+//
+//             const resource =
+//               tile.resource;
+//
+//             updatedResources[base.id] = {
+//               ...currentResources,
+//
+//               [resource]:
+//                 currentResources[
+//                   resource
+//                 ] +
+//                 productionAmount,
+//             };
+//           });
 
-          /*
-           * ==================================================
-           * STEP 4:
-           * RESOURCE PRODUCTION
-           * ==================================================
-           *
-           * Every surviving base produces independently.
-           *
-           * Production =
-           *
-           * location multiplier
-           * ×
-           * tile multiplier
-           */
-          updatedBases.forEach((base) => {
-
-            if (base.isRelocating) {
-              return;
-            }
-
-            const activeMapTiles =
-              current.mapId === "map-two"
-                ? mapTwo
-                : mapOne;
-
-            const tile =
-              activeMapTiles.find(
-                (tile) =>
-                  tile.row === base.row &&
-                  tile.col === base.col,
-              );
-
-            if (!tile) {
-              return;
-            }
-
-            const currentResources =
-              updatedResources[
-                base.id
-              ];
-
-            /*
-             * Every legitimate base should
-             * have a resource bank.
-             */
-            if (!currentResources) {
-              return;
-            }
-
-            const locationMultiplier =
-              getLocationMultiplier(
-                base.timeInLocationSeconds,
-              );
-
-            const productionAmount =
-              locationMultiplier *
-              tile.multiplier;
-
-            const resource =
-              tile.resource;
-
-            updatedResources[base.id] = {
-              ...currentResources,
-
-              [resource]:
-                currentResources[
-                  resource
-                ] +
-                productionAmount,
-            };
-          });
 
           /*
            * ==================================================

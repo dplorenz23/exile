@@ -9,6 +9,23 @@ import type {
   PlayerScore,
 } from "./types";
 
+
+export function getLocationMultiplier(seconds: number) {
+  if (seconds >= 600) {
+    return 4;
+  }
+
+  if (seconds >= 300) {
+    return 3;
+  }
+
+  if (seconds >= 120) {
+    return 2;
+  }
+
+  return 1;
+}
+
 export function getArmyCost(armiesBuilt: number) {
   return 100 + armiesBuilt * 50;
 }
