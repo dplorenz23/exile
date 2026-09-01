@@ -21,11 +21,7 @@ import { createInitialGameState } from "./game/createInitialGameState";
 import { mapOne } from "./game/maps/mapOne";
 import { mapTwo } from "./game/maps/mapTwo";
 
-import {
-  calculateLoot,
-  resolveCombat,
-  calculatePlayerScore,
-} from "./game/rules";
+import { calculateLoot, calculatePlayerScore } from "./game/rules";
 
 import type {
   LobbySlot,
@@ -517,140 +513,14 @@ function App() {
    * Combat occurs later when the mission timer reaches zero.
    */
   function handleAttackArmies(destinationBaseId: number, armies: ArmyCounts) {
-    setGameState((current) => {
-      const originBase = current.bases.find(
-        (base) => base.id === selectedBaseId,
-      );
-
-      const destinationBase = current.bases.find(
-        (base) => base.id === destinationBaseId,
-      );
-
-      /*
-       * Both bases must still exist.
-       */
-      if (!originBase || !destinationBase) {
-        return current;
-      }
-
-      /*
-       * We may only attack:
-       *
-       * - FROM one of our bases
-       * - TO an enemy base
-       */
-      if (
-        originBase.playerId !== yourPlayerId ||
-        destinationBase.playerId === yourPlayerId
-      ) {
-        return current;
-      }
-
-      /*
-       * Verify the requested armies
-       * actually exist at the base.
-       */
-      if (
-        armies.water > originBase.armies.water ||
-        armies.fire > originBase.armies.fire ||
-        armies.grass > originBase.armies.grass
-      ) {
-        return current;
-      }
-
-      const totalArmies = armies.water + armies.fire + armies.grass;
-
-      /*
-       * Cannot send an empty mission.
-       */
-      if (totalArmies === 0) {
-        return current;
-      }
-
-      /*
-       * Manhattan distance:
-       *
-       * horizontal tiles
-       * +
-       * vertical tiles
-       */
-      const distance =
-        Math.abs(originBase.row - destinationBase.row) +
-        Math.abs(originBase.col - destinationBase.col);
-
-      const travelTime = distance * 5;
-
-      /*
-       * Remove armies from the origin
-       * immediately when they depart.
-       */
-      const updatedBases = current.bases.map((base) => {
-        if (base.id !== originBase.id) {
-          return base;
-        }
-
-        return {
-          ...base,
-
-          armies: {
-            water: base.armies.water - armies.water,
-
-            fire: base.armies.fire - armies.fire,
-
-            grass: base.armies.grass - armies.grass,
-          },
-        };
-      });
-
-      /*
-       * Create the outbound Attack mission.
-       */
-      const newMission: ArmyMission = {
-        id: current.nextMissionId,
-        playerId: originBase.playerId,
-
-        type: "attack",
-        phase: "outbound",
-
-        originBaseId: originBase.id,
-
-        destinationBaseId: destinationBase.id,
-
-        destinationRow: destinationBase.row,
-
-        destinationCol: destinationBase.col,
-
-        armies: {
-          ...armies,
-        },
-
-        /*
-         * Attacking armies carry nothing
-         * on the outbound trip.
-         *
-         * Loot may be added after victory.
-         */
-        resources: {
-          water: 0,
-          fire: 0,
-          grass: 0,
-        },
-
-        expansionKeys: 0,
-
-        secondsRemaining: travelTime,
-      };
-
-      return {
-        ...current,
-
-        bases: updatedBases,
-
-        armyMissions: [...current.armyMissions, newMission],
-
-        nextMissionId: current.nextMissionId + 1,
-      };
-    });
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "attack-army",
+        originBaseId: selectedBaseId,
+        destinationBaseId,
+        armies,
+      }),
+    );
   }
 
   /*
@@ -1345,7 +1215,7 @@ function App() {
            *
            * The client must not tick or resolve them.
            */
-          if (mission.type === "transfer") {
+          if (mission.type === "transfer" || mission.type === "attack") {
             updatedArmyMissions.push(mission);
 
             return;
@@ -1367,485 +1237,485 @@ function App() {
             return;
           }
 
-          /*
-           * =================================================
-           * MISSION ARRIVAL:
-           * OUTBOUND ATTACK
-           * =================================================
-           */
-          if (mission.type === "attack" && mission.phase === "outbound") {
-            const defendingBase = updatedBases.find(
-              (base) => base.id === mission.destinationBaseId,
-            );
-
-            const originBase = updatedBases.find(
-              (base) => base.id === mission.originBaseId,
-            );
-
-            /*
-             * If the origin base is gone,
-             * the mission has nowhere to return.
-             */
-            if (!originBase) {
-              return;
-            }
-
-            /*
-             * If the target base was destroyed before
-             * this army arrived, turn around and go home.
-             */
-            if (!defendingBase) {
-              const distance =
-                Math.abs(originBase.row - mission.destinationRow!) +
-                Math.abs(originBase.col - mission.destinationCol!);
-
-              updatedArmyMissions.push({
-                ...mission,
-
-                phase: "returning",
-
-                secondsRemaining: distance * 5,
-              });
-
-              return;
-            }
-
-            /*
-             * -----------------------------------------------
-             * COMBAT
-             * -----------------------------------------------
-             */
-            const combatResult = resolveCombat(
-              mission.armies,
-              defendingBase.armies,
-            );
-
-            /*
-             * -----------------------------------------------
-             * RESOURCE RESULT DEFAULTS
-             * -----------------------------------------------
-             *
-             * If the defense succeeds:
-             *
-             * - nothing is looted
-             * - all resources remain at the base
-             */
-            let resourcesLooted = {
-              water: 0,
-              fire: 0,
-              grass: 0,
-            };
-
-            let resourcesRemaining = {
-              ...(updatedResources[defendingBase.id] ?? {
-                water: 0,
-                fire: 0,
-                grass: 0,
-              }),
-            };
-
-            /*
-             * -----------------------------------------------
-             * UPDATE DEFENDER SURVIVORS
-             * -----------------------------------------------
-             */
-            updatedBases = updatedBases.map((base) => {
-              if (base.id !== defendingBase.id) {
-                return base;
-              }
-
-              return {
-                ...base,
-
-                armies: combatResult.defenderSurvivors,
-              };
-            });
-
-            const defenderScoreBeforeDestruction = calculatePlayerScore(
-              defendingBase.playerId,
-              updatedBases,
-              updatedResources,
-              updatedArmyMissions,
-              updatedArmiesTrainedByPlayer[defendingBase.playerId] ?? 0,
-              updatedArmyResourcesSpentByPlayer[defendingBase.playerId] ?? 0,
-            ).totalScore;
-
-            /*
-             * -----------------------------------------------
-             * DESTROY THE BASE IF ATTACKER WON
-             * -----------------------------------------------
-             */
-
-            let eliminatedPlayerId: number | undefined;
-
-            if (combatResult.baseDestroyed) {
-              /*
-               * Remove the destroyed base.
-               */
-              updatedBases = updatedBases.filter(
-                (base) => base.id !== defendingBase.id,
-              );
-
-              /*
-               * Check whether the defender still owns
-               * any other bases anywhere on the map.
-               */
-              const defenderStillHasBase = updatedBases.some(
-                (base) => base.playerId === defendingBase.playerId,
-              );
-
-              /*
-               * Zero bases = immediate elimination.
-               *
-               * Armies, settlers, loot, keys, etc. that are
-               * still traveling do NOT keep the player alive.
-               */
-              if (
-                !defenderStillHasBase &&
-                !updatedEliminatedPlayerIds.includes(defendingBase.playerId)
-              ) {
-                updatedEliminatedPlayerIds.push(defendingBase.playerId);
-
-                updatedFinalScoreByPlayer[defendingBase.playerId] =
-                  defenderScoreBeforeDestruction;
-
-                updatedGameEvents.push({
-                  type: "elimination",
-
-                  id: nextGameEventId,
-
-                  gameSeconds: current.gameSeconds + 1,
-
-                  eliminatedPlayerId: defendingBase.playerId,
-
-                  eliminatedByPlayerId: originBase.playerId,
-                });
-
-                nextGameEventId += 1;
-
-                /*
-                 * Save this so the Battle Report can announce
-                 * who was eliminated.
-                 */
-                eliminatedPlayerId = defendingBase.playerId;
-
-                const activePlayerIds = Object.keys(
-                  updatedArmiesTrainedByPlayer,
-                ).map(Number);
-
-                const remainingPlayers = players.filter(
-                  (player) =>
-                    activePlayerIds.includes(player.id) &&
-                    !updatedEliminatedPlayerIds.includes(player.id),
-                );
-
-                if (remainingPlayers.length === 1) {
-                  updatedWinnerPlayerId = remainingPlayers[0].id;
-
-                  updatedGameEvents.push({
-                    type: "victory",
-
-                    id: nextGameEventId,
-
-                    gameSeconds: current.gameSeconds + 1,
-
-                    winnerPlayerId: remainingPlayers[0].id,
-                  });
-
-                  nextGameEventId += 1;
-                }
-              }
-            }
-
-            /*
-             * -----------------------------------------------
-             * COUNT SURVIVING ATTACKERS
-             * -----------------------------------------------
-             */
-            const survivingAttackers = combatResult.attackerSurvivors;
-
-            const totalSurvivors =
-              survivingAttackers.water +
-              survivingAttackers.fire +
-              survivingAttackers.grass;
-
-            const returningExpansionKeys =
-              combatResult.baseDestroyed && totalSurvivors > 0 ? 1 : 0;
-
-            /*
-             * Returning attackers normally
-             * carry nothing.
-             *
-             * A successful raid can fill this
-             * with captured resources.
-             */
-            let returningResources = {
-              water: 0,
-              fire: 0,
-              grass: 0,
-            };
-
-            /*
-             * -----------------------------------------------
-             * RAID LOOT
-             * -----------------------------------------------
-             *
-             * Only occurs if:
-             *
-             * - the base was destroyed
-             * - at least one attacker survived
-             */
-            if (combatResult.baseDestroyed && totalSurvivors > 0) {
-              const defeatedResources = updatedResources[defendingBase.id] ?? {
-                water: 0,
-                fire: 0,
-                grass: 0,
-              };
-
-              /*
-               * Each survivor carries
-               * up to 200 resources.
-               */
-              const lootCapacity = totalSurvivors * 200;
-
-              const lootResult = calculateLoot(defeatedResources, lootCapacity);
-
-              /*
-               * Save final resource results
-               * for the Battle Report.
-               */
-              resourcesLooted = {
-                ...lootResult.loot,
-              };
-
-              resourcesRemaining = {
-                ...lootResult.remaining,
-              };
-
-              /*
-               * The attackers carry the loot
-               * home on their return mission.
-               */
-              returningResources = {
-                ...lootResult.loot,
-              };
-
-              /*
-               * The destroyed base no longer
-               * owns a resource bank.
-               */
-              delete updatedResources[defendingBase.id];
-
-              /*
-               * ---------------------------------------------
-               * TREASURE CHEST
-               * ---------------------------------------------
-               *
-               * Anything that surviving attackers
-               * cannot carry stays on the tile.
-               */
-              const treasureRemaining =
-                lootResult.remaining.water +
-                lootResult.remaining.fire +
-                lootResult.remaining.grass;
-
-              if (treasureRemaining > 0) {
-                updatedTreasures.push({
-                  id: nextTreasureId,
-
-                  row: defendingBase.row,
-
-                  col: defendingBase.col,
-
-                  resources: {
-                    ...lootResult.remaining,
-                  },
-                });
-
-                nextTreasureId += 1;
-              }
-            }
-
-            /*
-             * -----------------------------------------------
-             * BATTLE REPORT
-             * -----------------------------------------------
-             *
-             * IMPORTANT:
-             *
-             * The report is created AFTER both combat
-             * and loot have been resolved.
-             *
-             * That lets the public report show:
-             *
-             * - armies involved
-             * - survivors
-             * - resources looted
-             * - resources remaining
-             * - final battle result
-             */
-            updatedGameEvents.push({
-              type: "battle",
-
-              report: {
-                id: nextGameEventId,
-
-                gameSeconds: current.gameSeconds + 1,
-
-                attackerPlayerId: originBase.playerId,
-
-                defenderPlayerId: defendingBase.playerId,
-
-                row: defendingBase.row,
-
-                col: defendingBase.col,
-
-                attackerBaseName: getBaseName(
-                  originBase.playerId,
-                  originBase.baseSlot,
-                ),
-
-                defenderBaseName: getBaseName(
-                  defendingBase.playerId,
-                  defendingBase.baseSlot,
-                ),
-
-                attackerArmies: {
-                  ...mission.armies,
-                },
-
-                defenderArmies: {
-                  ...defendingBase.armies,
-                },
-
-                attackerSurvivors: {
-                  ...combatResult.attackerSurvivors,
-                },
-
-                defenderSurvivors: {
-                  ...combatResult.defenderSurvivors,
-                },
-
-                resourcesLooted: {
-                  ...resourcesLooted,
-                },
-
-                resourcesRemaining: {
-                  ...resourcesRemaining,
-                },
-
-                militiaSurvived: combatResult.militiaSurvived,
-
-                baseDestroyed: combatResult.baseDestroyed,
-
-                eliminatedPlayerId,
-              },
-            });
-
-            nextGameEventId += 1;
-
-            /*
-             * -----------------------------------------------
-             * START RETURN TRIP
-             * -----------------------------------------------
-             *
-             * Only surviving attackers return.
-             */
-            if (totalSurvivors > 0) {
-              const distance =
-                Math.abs(originBase.row - defendingBase.row) +
-                Math.abs(originBase.col - defendingBase.col);
-
-              const returnTravelTime = distance * 5;
-
-              updatedArmyMissions.push({
-                ...mission,
-
-                phase: "returning",
-
-                armies: {
-                  ...survivingAttackers,
-                },
-
-                resources: {
-                  ...returningResources,
-                },
-
-                expansionKeys: returningExpansionKeys,
-
-                secondsRemaining: returnTravelTime,
-              });
-            }
-
-            /*
-             * Attack arrival is fully resolved.
-             */
-            return;
-          }
-
-          /*
-           * =================================================
-           * MISSION ARRIVAL:
-           * RETURNING ATTACK
-           * =================================================
-           *
-           * Surviving attackers return to their
-           * original base with any raid loot.
-           */
-          if (mission.type === "attack" && mission.phase === "returning") {
-            /*
-             * Return armies to origin.
-             */
-            updatedBases = updatedBases.map((base) => {
-              if (base.id !== mission.originBaseId) {
-                return base;
-              }
-
-              return {
-                ...base,
-
-                armies: {
-                  water: base.armies.water + mission.armies.water,
-
-                  fire: base.armies.fire + mission.armies.fire,
-
-                  grass: base.armies.grass + mission.armies.grass,
-                },
-              };
-            });
-
-            /*
-             * Deposit raid loot at origin.
-             */
-            const originResources = updatedResources[mission.originBaseId];
-
-            if (originResources) {
-              updatedResources[mission.originBaseId] = {
-                water: originResources.water + mission.resources.water,
-
-                fire: originResources.fire + mission.resources.fire,
-
-                grass: originResources.grass + mission.resources.grass,
-              };
-            }
-
-            /*
-             * Find the base the victorious army returned to.
-             * We use its playerId to credit the global Expansion Key.
-             */
-            const returningOriginBase = updatedBases.find(
-              (base) => base.id === mission.originBaseId,
-            );
-
-            if (returningOriginBase && mission.expansionKeys > 0) {
-              const playerId = returningOriginBase.playerId;
-
-              updatedExpansionKeysByPlayer[playerId] =
-                (updatedExpansionKeysByPlayer[playerId] ?? 0) +
-                mission.expansionKeys;
-            }
-            return;
-          }
+          // /*
+          //  * =================================================
+          //  * MISSION ARRIVAL:
+          //  * OUTBOUND ATTACK
+          //  * =================================================
+          //  */
+          // if (mission.type === "attack" && mission.phase === "outbound") {
+          //   const defendingBase = updatedBases.find(
+          //     (base) => base.id === mission.destinationBaseId,
+          //   );
+
+          //   const originBase = updatedBases.find(
+          //     (base) => base.id === mission.originBaseId,
+          //   );
+
+          //   /*
+          //    * If the origin base is gone,
+          //    * the mission has nowhere to return.
+          //    */
+          //   if (!originBase) {
+          //     return;
+          //   }
+
+          //   /*
+          //    * If the target base was destroyed before
+          //    * this army arrived, turn around and go home.
+          //    */
+          //   if (!defendingBase) {
+          //     const distance =
+          //       Math.abs(originBase.row - mission.destinationRow!) +
+          //       Math.abs(originBase.col - mission.destinationCol!);
+
+          //     updatedArmyMissions.push({
+          //       ...mission,
+
+          //       phase: "returning",
+
+          //       secondsRemaining: distance * 5,
+          //     });
+
+          //     return;
+          //   }
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * COMBAT
+          //    * -----------------------------------------------
+          //    */
+          //   const combatResult = resolveCombat(
+          //     mission.armies,
+          //     defendingBase.armies,
+          //   );
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * RESOURCE RESULT DEFAULTS
+          //    * -----------------------------------------------
+          //    *
+          //    * If the defense succeeds:
+          //    *
+          //    * - nothing is looted
+          //    * - all resources remain at the base
+          //    */
+          //   let resourcesLooted = {
+          //     water: 0,
+          //     fire: 0,
+          //     grass: 0,
+          //   };
+
+          //   let resourcesRemaining = {
+          //     ...(updatedResources[defendingBase.id] ?? {
+          //       water: 0,
+          //       fire: 0,
+          //       grass: 0,
+          //     }),
+          //   };
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * UPDATE DEFENDER SURVIVORS
+          //    * -----------------------------------------------
+          //    */
+          //   updatedBases = updatedBases.map((base) => {
+          //     if (base.id !== defendingBase.id) {
+          //       return base;
+          //     }
+
+          //     return {
+          //       ...base,
+
+          //       armies: combatResult.defenderSurvivors,
+          //     };
+          //   });
+
+          //   const defenderScoreBeforeDestruction = calculatePlayerScore(
+          //     defendingBase.playerId,
+          //     updatedBases,
+          //     updatedResources,
+          //     updatedArmyMissions,
+          //     updatedArmiesTrainedByPlayer[defendingBase.playerId] ?? 0,
+          //     updatedArmyResourcesSpentByPlayer[defendingBase.playerId] ?? 0,
+          //   ).totalScore;
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * DESTROY THE BASE IF ATTACKER WON
+          //    * -----------------------------------------------
+          //    */
+
+          //   let eliminatedPlayerId: number | undefined;
+
+          //   if (combatResult.baseDestroyed) {
+          //     /*
+          //      * Remove the destroyed base.
+          //      */
+          //     updatedBases = updatedBases.filter(
+          //       (base) => base.id !== defendingBase.id,
+          //     );
+
+          //     /*
+          //      * Check whether the defender still owns
+          //      * any other bases anywhere on the map.
+          //      */
+          //     const defenderStillHasBase = updatedBases.some(
+          //       (base) => base.playerId === defendingBase.playerId,
+          //     );
+
+          //     /*
+          //      * Zero bases = immediate elimination.
+          //      *
+          //      * Armies, settlers, loot, keys, etc. that are
+          //      * still traveling do NOT keep the player alive.
+          //      */
+          //     if (
+          //       !defenderStillHasBase &&
+          //       !updatedEliminatedPlayerIds.includes(defendingBase.playerId)
+          //     ) {
+          //       updatedEliminatedPlayerIds.push(defendingBase.playerId);
+
+          //       updatedFinalScoreByPlayer[defendingBase.playerId] =
+          //         defenderScoreBeforeDestruction;
+
+          //       updatedGameEvents.push({
+          //         type: "elimination",
+
+          //         id: nextGameEventId,
+
+          //         gameSeconds: current.gameSeconds + 1,
+
+          //         eliminatedPlayerId: defendingBase.playerId,
+
+          //         eliminatedByPlayerId: originBase.playerId,
+          //       });
+
+          //       nextGameEventId += 1;
+
+          //       /*
+          //        * Save this so the Battle Report can announce
+          //        * who was eliminated.
+          //        */
+          //       eliminatedPlayerId = defendingBase.playerId;
+
+          //       const activePlayerIds = Object.keys(
+          //         updatedArmiesTrainedByPlayer,
+          //       ).map(Number);
+
+          //       const remainingPlayers = players.filter(
+          //         (player) =>
+          //           activePlayerIds.includes(player.id) &&
+          //           !updatedEliminatedPlayerIds.includes(player.id),
+          //       );
+
+          //       if (remainingPlayers.length === 1) {
+          //         updatedWinnerPlayerId = remainingPlayers[0].id;
+
+          //         updatedGameEvents.push({
+          //           type: "victory",
+
+          //           id: nextGameEventId,
+
+          //           gameSeconds: current.gameSeconds + 1,
+
+          //           winnerPlayerId: remainingPlayers[0].id,
+          //         });
+
+          //         nextGameEventId += 1;
+          //       }
+          //     }
+          //   }
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * COUNT SURVIVING ATTACKERS
+          //    * -----------------------------------------------
+          //    */
+          //   const survivingAttackers = combatResult.attackerSurvivors;
+
+          //   const totalSurvivors =
+          //     survivingAttackers.water +
+          //     survivingAttackers.fire +
+          //     survivingAttackers.grass;
+
+          //   const returningExpansionKeys =
+          //     combatResult.baseDestroyed && totalSurvivors > 0 ? 1 : 0;
+
+          //   /*
+          //    * Returning attackers normally
+          //    * carry nothing.
+          //    *
+          //    * A successful raid can fill this
+          //    * with captured resources.
+          //    */
+          //   let returningResources = {
+          //     water: 0,
+          //     fire: 0,
+          //     grass: 0,
+          //   };
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * RAID LOOT
+          //    * -----------------------------------------------
+          //    *
+          //    * Only occurs if:
+          //    *
+          //    * - the base was destroyed
+          //    * - at least one attacker survived
+          //    */
+          //   if (combatResult.baseDestroyed && totalSurvivors > 0) {
+          //     const defeatedResources = updatedResources[defendingBase.id] ?? {
+          //       water: 0,
+          //       fire: 0,
+          //       grass: 0,
+          //     };
+
+          //     /*
+          //      * Each survivor carries
+          //      * up to 200 resources.
+          //      */
+          //     const lootCapacity = totalSurvivors * 200;
+
+          //     const lootResult = calculateLoot(defeatedResources, lootCapacity);
+
+          //     /*
+          //      * Save final resource results
+          //      * for the Battle Report.
+          //      */
+          //     resourcesLooted = {
+          //       ...lootResult.loot,
+          //     };
+
+          //     resourcesRemaining = {
+          //       ...lootResult.remaining,
+          //     };
+
+          //     /*
+          //      * The attackers carry the loot
+          //      * home on their return mission.
+          //      */
+          //     returningResources = {
+          //       ...lootResult.loot,
+          //     };
+
+          //     /*
+          //      * The destroyed base no longer
+          //      * owns a resource bank.
+          //      */
+          //     delete updatedResources[defendingBase.id];
+
+          //     /*
+          //      * ---------------------------------------------
+          //      * TREASURE CHEST
+          //      * ---------------------------------------------
+          //      *
+          //      * Anything that surviving attackers
+          //      * cannot carry stays on the tile.
+          //      */
+          //     const treasureRemaining =
+          //       lootResult.remaining.water +
+          //       lootResult.remaining.fire +
+          //       lootResult.remaining.grass;
+
+          //     if (treasureRemaining > 0) {
+          //       updatedTreasures.push({
+          //         id: nextTreasureId,
+
+          //         row: defendingBase.row,
+
+          //         col: defendingBase.col,
+
+          //         resources: {
+          //           ...lootResult.remaining,
+          //         },
+          //       });
+
+          //       nextTreasureId += 1;
+          //     }
+          //   }
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * BATTLE REPORT
+          //    * -----------------------------------------------
+          //    *
+          //    * IMPORTANT:
+          //    *
+          //    * The report is created AFTER both combat
+          //    * and loot have been resolved.
+          //    *
+          //    * That lets the public report show:
+          //    *
+          //    * - armies involved
+          //    * - survivors
+          //    * - resources looted
+          //    * - resources remaining
+          //    * - final battle result
+          //    */
+          //   updatedGameEvents.push({
+          //     type: "battle",
+
+          //     report: {
+          //       id: nextGameEventId,
+
+          //       gameSeconds: current.gameSeconds + 1,
+
+          //       attackerPlayerId: originBase.playerId,
+
+          //       defenderPlayerId: defendingBase.playerId,
+
+          //       row: defendingBase.row,
+
+          //       col: defendingBase.col,
+
+          //       attackerBaseName: getBaseName(
+          //         originBase.playerId,
+          //         originBase.baseSlot,
+          //       ),
+
+          //       defenderBaseName: getBaseName(
+          //         defendingBase.playerId,
+          //         defendingBase.baseSlot,
+          //       ),
+
+          //       attackerArmies: {
+          //         ...mission.armies,
+          //       },
+
+          //       defenderArmies: {
+          //         ...defendingBase.armies,
+          //       },
+
+          //       attackerSurvivors: {
+          //         ...combatResult.attackerSurvivors,
+          //       },
+
+          //       defenderSurvivors: {
+          //         ...combatResult.defenderSurvivors,
+          //       },
+
+          //       resourcesLooted: {
+          //         ...resourcesLooted,
+          //       },
+
+          //       resourcesRemaining: {
+          //         ...resourcesRemaining,
+          //       },
+
+          //       militiaSurvived: combatResult.militiaSurvived,
+
+          //       baseDestroyed: combatResult.baseDestroyed,
+
+          //       eliminatedPlayerId,
+          //     },
+          //   });
+
+          //   nextGameEventId += 1;
+
+          //   /*
+          //    * -----------------------------------------------
+          //    * START RETURN TRIP
+          //    * -----------------------------------------------
+          //    *
+          //    * Only surviving attackers return.
+          //    */
+          //   if (totalSurvivors > 0) {
+          //     const distance =
+          //       Math.abs(originBase.row - defendingBase.row) +
+          //       Math.abs(originBase.col - defendingBase.col);
+
+          //     const returnTravelTime = distance * 5;
+
+          //     updatedArmyMissions.push({
+          //       ...mission,
+
+          //       phase: "returning",
+
+          //       armies: {
+          //         ...survivingAttackers,
+          //       },
+
+          //       resources: {
+          //         ...returningResources,
+          //       },
+
+          //       expansionKeys: returningExpansionKeys,
+
+          //       secondsRemaining: returnTravelTime,
+          //     });
+          //   }
+
+          //   /*
+          //    * Attack arrival is fully resolved.
+          //    */
+          //   return;
+          // }
+
+          // /*
+          //  * =================================================
+          //  * MISSION ARRIVAL:
+          //  * RETURNING ATTACK
+          //  * =================================================
+          //  *
+          //  * Surviving attackers return to their
+          //  * original base with any raid loot.
+          //  */
+          // if (mission.type === "attack" && mission.phase === "returning") {
+          //   /*
+          //    * Return armies to origin.
+          //    */
+          //   updatedBases = updatedBases.map((base) => {
+          //     if (base.id !== mission.originBaseId) {
+          //       return base;
+          //     }
+
+          //     return {
+          //       ...base,
+
+          //       armies: {
+          //         water: base.armies.water + mission.armies.water,
+
+          //         fire: base.armies.fire + mission.armies.fire,
+
+          //         grass: base.armies.grass + mission.armies.grass,
+          //       },
+          //     };
+          //   });
+
+          //   /*
+          //    * Deposit raid loot at origin.
+          //    */
+          //   const originResources = updatedResources[mission.originBaseId];
+
+          //   if (originResources) {
+          //     updatedResources[mission.originBaseId] = {
+          //       water: originResources.water + mission.resources.water,
+
+          //       fire: originResources.fire + mission.resources.fire,
+
+          //       grass: originResources.grass + mission.resources.grass,
+          //     };
+          //   }
+
+          //   /*
+          //    * Find the base the victorious army returned to.
+          //    * We use its playerId to credit the global Expansion Key.
+          //    */
+          //   const returningOriginBase = updatedBases.find(
+          //     (base) => base.id === mission.originBaseId,
+          //   );
+
+          //   if (returningOriginBase && mission.expansionKeys > 0) {
+          //     const playerId = returningOriginBase.playerId;
+
+          //     updatedExpansionKeysByPlayer[playerId] =
+          //       (updatedExpansionKeysByPlayer[playerId] ?? 0) +
+          //       mission.expansionKeys;
+          //   }
+          //   return;
+          // }
 
           /*
            * =================================================
