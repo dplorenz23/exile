@@ -326,10 +326,10 @@ function runGameTick() {
     if (
       mission.type !== "transfer" &&
       mission.type !== "attack" &&
-      mission.type !== "loot"
+      mission.type !== "loot" &&
+      mission.type !== "expand"
     ) {
       updatedArmyMissions.push(mission);
-
       return;
     }
 
@@ -825,6 +825,144 @@ function runGameTick() {
           grass: originResources.grass + mission.resources.grass,
         };
       }
+
+      return;
+    }
+
+    /*
+     * =================================================
+     * EXPANSION ARRIVAL
+     * =================================================
+     */
+    if (mission.type === "expand" && mission.phase === "outbound") {
+      const originBase = updatedBases.find(
+        (base) => base.id === mission.originBaseId,
+      );
+
+      if (
+        !originBase ||
+        mission.destinationRow === undefined ||
+        mission.destinationCol === undefined
+      ) {
+        return;
+      }
+
+      const destinationOccupied = updatedBases.some(
+        (base) =>
+          base.row === mission.destinationRow &&
+          base.col === mission.destinationCol,
+      );
+
+      const destinationHasTreasure = updatedTreasures.some(
+        (treasure) =>
+          treasure.row === mission.destinationRow &&
+          treasure.col === mission.destinationCol,
+      );
+
+      /*
+       * Destination became unavailable.
+       * Return payment + key to origin.
+       */
+      if (destinationOccupied || destinationHasTreasure) {
+        const distance =
+          Math.abs(originBase.row - mission.destinationRow) +
+          Math.abs(originBase.col - mission.destinationCol);
+
+        updatedArmyMissions.push({
+          ...mission,
+          phase: "returning",
+          secondsRemaining: distance * 5,
+        });
+
+        return;
+      }
+
+      /*
+       * Find an unused base slot.
+       */
+      const usedBaseSlots = updatedBases
+        .filter((base) => base.playerId === originBase.playerId)
+        .map((base) => base.baseSlot);
+
+      const newBaseSlot = ([1, 2, 3] as const).find(
+        (slot) => !usedBaseSlots.includes(slot),
+      );
+
+      if (newBaseSlot === undefined) {
+        return;
+      }
+
+      /*
+       * Generate the next base ID.
+       */
+      const newBaseId =
+        updatedBases.reduce(
+          (highestId, base) => Math.max(highestId, base.id),
+          0,
+        ) + 1;
+
+      updatedBases.push({
+        id: newBaseId,
+
+        playerId: originBase.playerId,
+
+        baseSlot: newBaseSlot,
+
+        row: mission.destinationRow,
+
+        col: mission.destinationCol,
+
+        timeInLocationSeconds: 0,
+
+        isRelocating: false,
+
+        armies: {
+          water: 0,
+          fire: 0,
+          grass: 0,
+        },
+
+        armiesBuilt: {
+          water: 0,
+          fire: 0,
+          grass: 0,
+        },
+
+        training: null,
+
+        relocations: 0,
+      });
+
+      /*
+       * New bases start with 50/50/50.
+       */
+      updatedResources[newBaseId] = {
+        water: 50,
+        fire: 50,
+        grass: 50,
+      };
+
+      updatedGameEvents.push({
+        type: "expansion",
+
+        id: nextGameEventId,
+
+        gameSeconds: gameState.gameSeconds + 1,
+
+        playerId: originBase.playerId,
+
+        /*
+         * Temporary server-side name.
+         * We can share getBaseName later.
+         */
+        baseName: `Base ${newBaseSlot}`,
+
+        row: mission.destinationRow,
+
+        col: mission.destinationCol,
+      });
+
+      nextGameEventId += 1;
 
       return;
     }
@@ -1886,6 +2024,192 @@ server.on("connection", (socket) => {
         ...gameState,
 
         bases: updatedBases,
+
+        armyMissions: [...gameState.armyMissions, newMission],
+
+        nextMissionId: gameState.nextMissionId + 1,
+      };
+
+      broadcastGameState();
+    }
+
+    if (message.type === "expand") {
+      if (!gameState) {
+        return;
+      }
+
+      const player = lobbyPlayers.get(clientId);
+
+      if (!player) {
+        return;
+      }
+
+      const originBaseId = Number(message.originBaseId);
+
+      const destinationRow = Number(message.destinationRow);
+
+      const destinationCol = Number(message.destinationCol);
+
+      const payment = message.payment as BaseResources;
+
+      const originBase = gameState.bases.find(
+        (base) => base.id === originBaseId,
+      );
+
+      if (!originBase) {
+        return;
+      }
+
+      /*
+       * Requester must own the origin base.
+       */
+      if (originBase.playerId !== player.playerId) {
+        return;
+      }
+
+      /*
+       * Player may own at most 3 bases.
+       */
+      const playerBaseCount = gameState.bases.filter(
+        (base) => base.playerId === player.playerId,
+      ).length;
+
+      if (playerBaseCount >= 3) {
+        return;
+      }
+
+      /*
+       * Destination must still be empty.
+       */
+      const destinationOccupied = gameState.bases.some(
+        (base) => base.row === destinationRow && base.col === destinationCol,
+      );
+
+      const destinationHasTreasure = gameState.treasures.some(
+        (treasure) =>
+          treasure.row === destinationRow && treasure.col === destinationCol,
+      );
+
+      if (destinationOccupied || destinationHasTreasure) {
+        return;
+      }
+
+      /*
+       * Player must have an Expansion Key.
+       */
+      const currentKeys = gameState.expansionKeysByPlayer[player.playerId] ?? 0;
+
+      if (currentKeys < 1) {
+        return;
+      }
+
+      /*
+       * Validate the 500-resource payment.
+       */
+      if (
+        !payment ||
+        payment.water < 0 ||
+        payment.fire < 0 ||
+        payment.grass < 0
+      ) {
+        return;
+      }
+
+      const paymentTotal = payment.water + payment.fire + payment.grass;
+
+      if (paymentTotal !== 500) {
+        return;
+      }
+
+      const baseResources = gameState.resourcesByBase[originBase.id];
+
+      if (!baseResources) {
+        return;
+      }
+
+      if (
+        payment.water > baseResources.water ||
+        payment.fire > baseResources.fire ||
+        payment.grass > baseResources.grass
+      ) {
+        return;
+      }
+
+      /*
+       * Pay resources immediately.
+       */
+      const updatedResources = {
+        ...gameState.resourcesByBase,
+
+        [originBase.id]: {
+          water: baseResources.water - payment.water,
+
+          fire: baseResources.fire - payment.fire,
+
+          grass: baseResources.grass - payment.grass,
+        },
+      };
+
+      /*
+       * Spend one global Expansion Key.
+       */
+      const updatedExpansionKeysByPlayer = {
+        ...gameState.expansionKeysByPlayer,
+
+        [player.playerId]: currentKeys - 1,
+      };
+
+      /*
+       * Travel = 5 seconds per tile.
+       */
+      const distance =
+        Math.abs(originBase.row - destinationRow) +
+        Math.abs(originBase.col - destinationCol);
+
+      const travelTime = distance * 5;
+
+      const newMission: ArmyMission = {
+        id: gameState.nextMissionId,
+
+        playerId: originBase.playerId,
+
+        type: "expand",
+
+        phase: "outbound",
+
+        originBaseId: originBase.id,
+
+        destinationBaseId: 0,
+
+        destinationRow,
+        destinationCol,
+
+        armies: {
+          water: 0,
+          fire: 0,
+          grass: 0,
+        },
+
+        /*
+         * Expansion payment travels
+         * with the settlers so it can
+         * be refunded on failure.
+         */
+        resources: {
+          ...payment,
+        },
+
+        expansionKeys: 1,
+
+        secondsRemaining: travelTime,
+      };
+
+      gameState = {
+        ...gameState,
+
+        resourcesByBase: updatedResources,
+
+        expansionKeysByPlayer: updatedExpansionKeysByPlayer,
 
         armyMissions: [...gameState.armyMissions, newMission],
 

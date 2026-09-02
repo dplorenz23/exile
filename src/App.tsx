@@ -9,12 +9,7 @@ import GameMap from "./components/GameMap";
 import ResourceBar from "./components/ResourceBar";
 import Leaderboard from "./components/Leaderboard";
 
-import {
-  bases as startingBases,
-  players,
-  getBaseName,
-  matchTypes,
-} from "./game/gameState";
+import { players, getBaseName, matchTypes } from "./game/gameState";
 
 import { createInitialGameState } from "./game/createInitialGameState";
 
@@ -653,9 +648,9 @@ function App() {
    * Expand to an open location on the map
    *
    */
-  function getNextBaseId(bases: typeof startingBases) {
-    return Math.max(0, ...bases.map((base) => base.id)) + 1;
-  }
+  // function getNextBaseId(bases: typeof startingBases) {
+  //   return Math.max(0, ...bases.map((base) => base.id)) + 1;
+  // }
 
   function handleStartExpandTargeting(payment: BaseResources) {
     setPendingExpansionPayment({
@@ -670,156 +665,17 @@ function App() {
       return;
     }
 
-    setGameState((current) => {
-      const originBase = current.bases.find(
-        (base) => base.id === selectedBaseId,
-      );
-
-      if (!originBase) {
-        return current;
-      }
-
-      /*
-       * Must still have room for another base.
-       */
-      const playerBaseCount = current.bases.filter(
-        (base) => base.playerId === yourPlayerId,
-      ).length;
-
-      if (playerBaseCount >= 3) {
-        return current;
-      }
-
-      /*
-       * Destination must still be empty.
-       */
-      const destinationOccupied = current.bases.some(
-        (base) => base.row === row && base.col === col,
-      );
-
-      const destinationHasTreasure = current.treasures.some(
-        (treasure) => treasure.row === row && treasure.col === col,
-      );
-
-      if (destinationOccupied || destinationHasTreasure) {
-        return current;
-      }
-
-      /*
-       * Player must still own an Expansion Key.
-       */
-      const currentKeys = current.expansionKeysByPlayer[yourPlayerId] ?? 0;
-
-      if (currentKeys < 1) {
-        return current;
-      }
-
-      /*
-       * The selected base must still be able
-       * to afford the exact chosen payment.
-       */
-      const baseResources = current.resourcesByBase[originBase.id];
-
-      if (!baseResources) {
-        return current;
-      }
-
-      const paymentTotal =
-        pendingExpansionPayment.water +
-        pendingExpansionPayment.fire +
-        pendingExpansionPayment.grass;
-
-      if (paymentTotal !== 500) {
-        return current;
-      }
-
-      if (
-        pendingExpansionPayment.water > baseResources.water ||
-        pendingExpansionPayment.fire > baseResources.fire ||
-        pendingExpansionPayment.grass > baseResources.grass
-      ) {
-        return current;
-      }
-
-      /*
-       * Pay the 500 resources immediately.
-       */
-      const updatedResources = {
-        ...current.resourcesByBase,
-
-        [originBase.id]: {
-          water: baseResources.water - pendingExpansionPayment.water,
-
-          fire: baseResources.fire - pendingExpansionPayment.fire,
-
-          grass: baseResources.grass - pendingExpansionPayment.grass,
-        },
-      };
-
-      /*
-       * Spend one global Expansion Key.
-       */
-      const updatedExpansionKeysByPlayer = {
-        ...current.expansionKeysByPlayer,
-
-        [yourPlayerId]: currentKeys - 1,
-      };
-
-      /*
-       * Settler travel uses the normal
-       * 5-seconds-per-tile movement rate for now.
-       */
-      const distance =
-        Math.abs(originBase.row - row) + Math.abs(originBase.col - col);
-
-      const travelTime = distance * 5;
-
-      const newMission: ArmyMission = {
-        id: current.nextMissionId,
-        playerId: originBase.playerId,
-
+    socketRef.current?.send(
+      JSON.stringify({
         type: "expand",
-        phase: "outbound",
-
-        originBaseId: originBase.id,
-
-        /*
-         * This field is still named destinationBaseId,
-         * but for Expansion we temporarily store 0.
-         * The real destination is held below by row/col.
-         */
-        destinationBaseId: 0,
-
-        armies: {
-          water: 0,
-          fire: 0,
-          grass: 0,
-        },
-
-        resources: {
-          ...pendingExpansionPayment,
-        },
-
-        expansionKeys: 1,
-
+        originBaseId: selectedBaseId,
         destinationRow: row,
         destinationCol: col,
-
-        secondsRemaining: travelTime,
-      };
-
-      return {
-        ...current,
-
-        resourcesByBase: updatedResources,
-
-        expansionKeysByPlayer: updatedExpansionKeysByPlayer,
-
-        armyMissions: [...current.armyMissions, newMission],
-
-        nextMissionId: current.nextMissionId + 1,
-      };
-    });
+        payment: {
+          ...pendingExpansionPayment,
+        },
+      }),
+    );
 
     setPendingExpansionPayment(null);
     setTargetingMode(null);
@@ -1121,7 +977,8 @@ function App() {
           if (
             mission.type === "transfer" ||
             mission.type === "attack" ||
-            mission.type === "loot"
+            mission.type === "loot" ||
+            mission.type === "expand"
           ) {
             updatedArmyMissions.push(mission);
             return;
@@ -1784,197 +1641,197 @@ function App() {
           //   return;
           // }
 
-          /*
-           * =================================================
-           * MISSION ARRIVAL:
-           * EXPANSION
-           * =================================================
-           *
-           * Settlers arrive at the chosen tile and establish
-           * a new base if the location is still available.
-           */
-          if (mission.type === "expand" && mission.phase === "outbound") {
-            const originBase = updatedBases.find(
-              (base) => base.id === mission.originBaseId,
-            );
+          // /*
+          //  * =================================================
+          //  * MISSION ARRIVAL:
+          //  * EXPANSION
+          //  * =================================================
+          //  *
+          //  * Settlers arrive at the chosen tile and establish
+          //  * a new base if the location is still available.
+          //  */
+          // if (mission.type === "expand" && mission.phase === "outbound") {
+          //   const originBase = updatedBases.find(
+          //     (base) => base.id === mission.originBaseId,
+          //   );
 
-            /*
-             * Expansion missions must have destination
-             * coordinates.
-             */
-            if (
-              !originBase ||
-              mission.destinationRow === undefined ||
-              mission.destinationCol === undefined
-            ) {
-              return;
-            }
+          //   /*
+          //    * Expansion missions must have destination
+          //    * coordinates.
+          //    */
+          //   if (
+          //     !originBase ||
+          //     mission.destinationRow === undefined ||
+          //     mission.destinationCol === undefined
+          //   ) {
+          //     return;
+          //   }
 
-            const destinationOccupied = updatedBases.some(
-              (base) =>
-                base.row === mission.destinationRow &&
-                base.col === mission.destinationCol,
-            );
+          //   const destinationOccupied = updatedBases.some(
+          //     (base) =>
+          //       base.row === mission.destinationRow &&
+          //       base.col === mission.destinationCol,
+          //   );
 
-            const destinationHasTreasure = updatedTreasures.some(
-              (treasure) =>
-                treasure.row === mission.destinationRow &&
-                treasure.col === mission.destinationCol,
-            );
+          //   const destinationHasTreasure = updatedTreasures.some(
+          //     (treasure) =>
+          //       treasure.row === mission.destinationRow &&
+          //       treasure.col === mission.destinationCol,
+          //   );
 
-            /*
-             * If someone got there first or treasure is still
-             * present, expansion fails for now.
-             *
-             * We will add return/refund behavior later.
-             */
-            if (destinationOccupied || destinationHasTreasure) {
-              /*
-               * Someone beat us to the destination.
-               *
-               * Settlers turn around and carry the original
-               * Expansion Key + 500-resource payment home.
-               */
-              const distance =
-                Math.abs(originBase.row - mission.destinationRow) +
-                Math.abs(originBase.col - mission.destinationCol);
+          //   /*
+          //    * If someone got there first or treasure is still
+          //    * present, expansion fails for now.
+          //    *
+          //    * We will add return/refund behavior later.
+          //    */
+          //   if (destinationOccupied || destinationHasTreasure) {
+          //     /*
+          //      * Someone beat us to the destination.
+          //      *
+          //      * Settlers turn around and carry the original
+          //      * Expansion Key + 500-resource payment home.
+          //      */
+          //     const distance =
+          //       Math.abs(originBase.row - mission.destinationRow) +
+          //       Math.abs(originBase.col - mission.destinationCol);
 
-              const returnTravelTime = distance * 5;
+          //     const returnTravelTime = distance * 5;
 
-              updatedArmyMissions.push({
-                ...mission,
+          //     updatedArmyMissions.push({
+          //       ...mission,
 
-                phase: "returning",
+          //       phase: "returning",
 
-                secondsRemaining: returnTravelTime,
-              });
+          //       secondsRemaining: returnTravelTime,
+          //     });
 
-              return;
-            }
+          //     return;
+          //   }
 
-            /*
-             * Create the new base.
-             */
-            const newBaseId = getNextBaseId(updatedBases);
+          //   /*
+          //    * Create the new base.
+          //    */
+          //   const newBaseId = getNextBaseId(updatedBases);
 
-            const usedBaseSlots = updatedBases
-              .filter((base) => base.playerId === originBase.playerId)
-              .map((base) => base.baseSlot);
+          //   const usedBaseSlots = updatedBases
+          //     .filter((base) => base.playerId === originBase.playerId)
+          //     .map((base) => base.baseSlot);
 
-            const newBaseSlot = ([1, 2, 3] as const).find(
-              (slot) => !usedBaseSlots.includes(slot),
-            );
+          //   const newBaseSlot = ([1, 2, 3] as const).find(
+          //     (slot) => !usedBaseSlots.includes(slot),
+          //   );
 
-            if (newBaseSlot === undefined) {
-              return;
-            }
+          //   if (newBaseSlot === undefined) {
+          //     return;
+          //   }
 
-            updatedBases.push({
-              id: newBaseId,
+          //   updatedBases.push({
+          //     id: newBaseId,
 
-              playerId: originBase.playerId,
-              baseSlot: newBaseSlot,
+          //     playerId: originBase.playerId,
+          //     baseSlot: newBaseSlot,
 
-              row: mission.destinationRow,
-              col: mission.destinationCol,
+          //     row: mission.destinationRow,
+          //     col: mission.destinationCol,
 
-              timeInLocationSeconds: 0,
-              isRelocating: false,
+          //     timeInLocationSeconds: 0,
+          //     isRelocating: false,
 
-              armies: {
-                water: 0,
-                fire: 0,
-                grass: 0,
-              },
+          //     armies: {
+          //       water: 0,
+          //       fire: 0,
+          //       grass: 0,
+          //     },
 
-              armiesBuilt: {
-                water: 0,
-                fire: 0,
-                grass: 0,
-              },
-              training: null,
-              relocations: 0,
-            });
+          //     armiesBuilt: {
+          //       water: 0,
+          //       fire: 0,
+          //       grass: 0,
+          //     },
+          //     training: null,
+          //     relocations: 0,
+          //   });
 
-            /*
-             * New bases begin with the same starting resources
-             * as all other bases.
-             */
-            updatedResources[newBaseId] = {
-              water: 50,
-              fire: 50,
-              grass: 50,
-            };
+          //   /*
+          //    * New bases begin with the same starting resources
+          //    * as all other bases.
+          //    */
+          //   updatedResources[newBaseId] = {
+          //     water: 50,
+          //     fire: 50,
+          //     grass: 50,
+          //   };
 
-            updatedGameEvents.push({
-              type: "expansion",
+          //   updatedGameEvents.push({
+          //     type: "expansion",
 
-              id: nextGameEventId,
+          //     id: nextGameEventId,
 
-              gameSeconds: current.gameSeconds + 1,
+          //     gameSeconds: current.gameSeconds + 1,
 
-              playerId: originBase.playerId,
+          //     playerId: originBase.playerId,
 
-              baseName: getBaseName(originBase.playerId, newBaseSlot),
+          //     baseName: getBaseName(originBase.playerId, newBaseSlot),
 
-              row: mission.destinationRow,
+          //     row: mission.destinationRow,
 
-              col: mission.destinationCol,
-            });
+          //     col: mission.destinationCol,
+          //   });
 
-            nextGameEventId += 1;
+          //   nextGameEventId += 1;
 
-            return;
-          }
+          //   return;
+          // }
 
-          /*
-           * =================================================
-           * MISSION ARRIVAL:
-           * RETURNING EXPANSION
-           * =================================================
-           *
-           * Failed settlers return their Expansion Key
-           * and 500-resource payment to the origin base.
-           */
-          if (mission.type === "expand" && mission.phase === "returning") {
-            const originBase = updatedBases.find(
-              (base) => base.id === mission.originBaseId,
-            );
+          // /*
+          //  * =================================================
+          //  * MISSION ARRIVAL:
+          //  * RETURNING EXPANSION
+          //  * =================================================
+          //  *
+          //  * Failed settlers return their Expansion Key
+          //  * and 500-resource payment to the origin base.
+          //  */
+          // if (mission.type === "expand" && mission.phase === "returning") {
+          //   const originBase = updatedBases.find(
+          //     (base) => base.id === mission.originBaseId,
+          //   );
 
-            /*
-             * If the origin base was destroyed while the
-             * settlers were away, everything is lost.
-             */
-            if (!originBase) {
-              return;
-            }
+          //   /*
+          //    * If the origin base was destroyed while the
+          //    * settlers were away, everything is lost.
+          //    */
+          //   if (!originBase) {
+          //     return;
+          //   }
 
-            /*
-             * Refund the 500-resource payment.
-             */
-            const originResources = updatedResources[mission.originBaseId];
+          //   /*
+          //    * Refund the 500-resource payment.
+          //    */
+          //   const originResources = updatedResources[mission.originBaseId];
 
-            if (originResources) {
-              updatedResources[mission.originBaseId] = {
-                water: originResources.water + mission.resources.water,
+          //   if (originResources) {
+          //     updatedResources[mission.originBaseId] = {
+          //       water: originResources.water + mission.resources.water,
 
-                fire: originResources.fire + mission.resources.fire,
+          //       fire: originResources.fire + mission.resources.fire,
 
-                grass: originResources.grass + mission.resources.grass,
-              };
-            }
+          //       grass: originResources.grass + mission.resources.grass,
+          //     };
+          //   }
 
-            /*
-             * Refund the global Expansion Key.
-             */
-            const playerId = originBase.playerId;
+          //   /*
+          //    * Refund the global Expansion Key.
+          //    */
+          //   const playerId = originBase.playerId;
 
-            updatedExpansionKeysByPlayer[playerId] =
-              (updatedExpansionKeysByPlayer[playerId] ?? 0) +
-              mission.expansionKeys;
+          //   updatedExpansionKeysByPlayer[playerId] =
+          //     (updatedExpansionKeysByPlayer[playerId] ?? 0) +
+          //     mission.expansionKeys;
 
-            return;
-          }
+          //   return;
+          // }
 
           /*
            * =================================================
