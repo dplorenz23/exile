@@ -21,7 +21,7 @@ import { createInitialGameState } from "./game/createInitialGameState";
 import { mapOne } from "./game/maps/mapOne";
 import { mapTwo } from "./game/maps/mapTwo";
 
-import { calculateLoot, calculatePlayerScore } from "./game/rules";
+import { calculatePlayerScore } from "./game/rules";
 
 import type {
   LobbySlot,
@@ -555,114 +555,17 @@ function App() {
       return;
     }
 
-    const armiesToSend = {
-      ...pendingLootArmies,
-    };
-
-    setGameState((current) => {
-      const originBase = current.bases.find(
-        (base) => base.id === selectedBaseId,
-      );
-
-      const treasure = current.treasures.find(
-        (treasure) => treasure.id === treasureId,
-      );
-
-      if (!originBase || !treasure) {
-        return current;
-      }
-
-      /*
-       * Make sure the armies are still available.
-       */
-      if (
-        armiesToSend.water > originBase.armies.water ||
-        armiesToSend.fire > originBase.armies.fire ||
-        armiesToSend.grass > originBase.armies.grass
-      ) {
-        return current;
-      }
-
-      const totalArmies =
-        armiesToSend.water + armiesToSend.fire + armiesToSend.grass;
-
-      if (totalArmies === 0) {
-        return current;
-      }
-
-      /*
-       * Travel time is 5 seconds per tile.
-       */
-      const distance =
-        Math.abs(originBase.row - treasure.row) +
-        Math.abs(originBase.col - treasure.col);
-
-      const travelTime = distance * 5;
-
-      const updatedBases = current.bases.map((base) => {
-        if (base.id !== originBase.id) {
-          return base;
-        }
-
-        return {
-          ...base,
-
-          armies: {
-            water: base.armies.water - armiesToSend.water,
-
-            fire: base.armies.fire - armiesToSend.fire,
-
-            grass: base.armies.grass - armiesToSend.grass,
-          },
-        };
-      });
-
-      /*
-       * Create the outbound Loot mission.
-       *
-       * destinationBaseId is not meaningful for treasure,
-       * so we use the treasure ID here temporarily.
-       * We'll clean this model up later if needed.
-       */
-      const newMission: ArmyMission = {
-        id: current.nextMissionId,
-        playerId: originBase.playerId,
-
-        type: "loot",
-        phase: "outbound",
-
-        originBaseId: originBase.id,
-        destinationBaseId: treasure.id,
-
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "loot-army",
+        originBaseId: selectedBaseId,
+        treasureId,
         armies: {
-          ...armiesToSend,
+          ...pendingLootArmies,
         },
+      }),
+    );
 
-        resources: {
-          water: 0,
-          fire: 0,
-          grass: 0,
-        },
-
-        expansionKeys: 0,
-
-        secondsRemaining: travelTime,
-      };
-
-      return {
-        ...current,
-
-        bases: updatedBases,
-
-        armyMissions: [...current.armyMissions, newMission],
-
-        nextMissionId: current.nextMissionId + 1,
-      };
-    });
-
-    /*
-     * Leave targeting mode once the mission launches.
-     */
     setPendingLootArmies(null);
     setTargetingMode(null);
   }
@@ -1215,9 +1118,12 @@ function App() {
            *
            * The client must not tick or resolve them.
            */
-          if (mission.type === "transfer" || mission.type === "attack") {
+          if (
+            mission.type === "transfer" ||
+            mission.type === "attack" ||
+            mission.type === "loot"
+          ) {
             updatedArmyMissions.push(mission);
-
             return;
           }
 
@@ -1717,166 +1623,167 @@ function App() {
           //   return;
           // }
 
-          /*
-           * =================================================
-           * MISSION ARRIVAL:
-           * OUTBOUND LOOT
-           * =================================================
-           *
-           * Looting armies arrive at a treasure chest,
-           * take as much as they can carry, then return home.
-           */
-          if (mission.type === "loot" && mission.phase === "outbound") {
-            const originBase = updatedBases.find(
-              (base) => base.id === mission.originBaseId,
-            );
+          // /*
+          //  * =================================================
+          //  * MISSION ARRIVAL:
+          //  * OUTBOUND LOOT
+          //  * =================================================
+          //  *
+          //  * Looting armies arrive at a treasure chest,
+          //  * take as much as they can carry, then return home.
+          //  */
+          // if (mission.type === "loot" && mission.phase === "outbound") {
+          //   const originBase = updatedBases.find(
+          //     (base) => base.id === mission.originBaseId,
+          //   );
 
-            const treasure = updatedTreasures.find(
-              (treasure) => treasure.id === mission.destinationBaseId,
-            );
+          //   const treasure = updatedTreasures.find(
+          //     (treasure) => treasure.id === mission.destinationBaseId,
+          //   );
 
-            /*
-             * If the origin base or treasure no longer exists,
-             * terminate the mission for now.
-             */
-            if (!originBase || !treasure) {
-              return;
-            }
+          //   /*
+          //    * If the origin base or treasure no longer exists,
+          //    * terminate the mission for now.
+          //    */
+          //   if (!originBase || !treasure) {
+          //     return;
+          //   }
 
-            const totalArmies =
-              mission.armies.water + mission.armies.fire + mission.armies.grass;
+          //   const totalArmies =
+          //     mission.armies.water + mission.armies.fire + mission.armies.grass;
 
-            const lootCapacity = totalArmies * 200;
+          //   const lootCapacity = totalArmies * 200;
 
-            const lootResult = calculateLoot(treasure.resources, lootCapacity);
+          //   const lootResult = calculateLoot(treasure.resources, lootCapacity);
 
-            updatedGameEvents.push({
-              type: "loot",
+          //   updatedGameEvents.push({
+          //     type: "loot",
 
-              id: nextGameEventId,
+          //     id: nextGameEventId,
 
-              gameSeconds: current.gameSeconds + 1,
+          //     gameSeconds: current.gameSeconds + 1,
 
-              playerId: originBase.playerId,
+          //     playerId: originBase.playerId,
 
-              row: treasure.row,
+          //     row: treasure.row,
 
-              col: treasure.col,
+          //     col: treasure.col,
 
-              resourcesLooted: {
-                ...lootResult.loot,
-              },
+          //     resourcesLooted: {
+          //       ...lootResult.loot,
+          //     },
 
-              resourcesRemaining: {
-                ...lootResult.remaining,
-              },
-            });
+          //     resourcesRemaining: {
+          //       ...lootResult.remaining,
+          //     },
+          //   });
 
-            nextGameEventId += 1;
+          //   nextGameEventId += 1;
 
-            /*
-             * Update or remove the treasure chest.
-             */
-            const remainingTotal =
-              lootResult.remaining.water +
-              lootResult.remaining.fire +
-              lootResult.remaining.grass;
+          //   /*
+          //    * Update or remove the treasure chest.
+          //    */
+          //   const remainingTotal =
+          //     lootResult.remaining.water +
+          //     lootResult.remaining.fire +
+          //     lootResult.remaining.grass;
 
-            if (remainingTotal > 0) {
-              const treasureIndex = updatedTreasures.findIndex(
-                (currentTreasure) => currentTreasure.id === treasure.id,
-              );
+          //   if (remainingTotal > 0) {
+          //     const treasureIndex = updatedTreasures.findIndex(
+          //       (currentTreasure) => currentTreasure.id === treasure.id,
+          //     );
 
-              if (treasureIndex >= 0) {
-                updatedTreasures[treasureIndex] = {
-                  ...treasure,
+          //     if (treasureIndex >= 0) {
+          //       updatedTreasures[treasureIndex] = {
+          //         ...treasure,
 
-                  resources: {
-                    ...lootResult.remaining,
-                  },
-                };
-              }
-            } else {
-              const treasureIndex = updatedTreasures.findIndex(
-                (currentTreasure) => currentTreasure.id === treasure.id,
-              );
+          //         resources: {
+          //           ...lootResult.remaining,
+          //         },
+          //       };
+          //     }
+          //   } else {
+          //     const treasureIndex = updatedTreasures.findIndex(
+          //       (currentTreasure) => currentTreasure.id === treasure.id,
+          //     );
 
-              if (treasureIndex >= 0) {
-                updatedTreasures.splice(treasureIndex, 1);
-              }
-            }
+          //     if (treasureIndex >= 0) {
+          //       updatedTreasures.splice(treasureIndex, 1);
+          //     }
+          //   }
 
-            /*
-             * Return travel time uses the same Manhattan distance.
-             */
-            const distance =
-              Math.abs(originBase.row - treasure.row) +
-              Math.abs(originBase.col - treasure.col);
+          //   /*
+          //    * Return travel time uses the same Manhattan distance.
+          //    */
+          //   const distance =
+          //     Math.abs(originBase.row - treasure.row) +
+          //     Math.abs(originBase.col - treasure.col);
 
-            const returnTravelTime = distance * 5;
+          //   const returnTravelTime = distance * 5;
 
-            /*
-             * Turn the outbound Loot mission into a returning mission.
-             *
-             * The mission now carries the captured resources.
-             */
-            updatedArmyMissions.push({
-              ...mission,
+          //   /*
+          //    * Turn the outbound Loot mission into a returning mission.
+          //    *
+          //    * The mission now carries the captured resources.
+          //    */
+          //   updatedArmyMissions.push({
+          //     ...mission,
 
-              phase: "returning",
+          //     phase: "returning",
 
-              resources: {
-                ...lootResult.loot,
-              },
+          //     resources: {
+          //       ...lootResult.loot,
+          //     },
 
-              secondsRemaining: returnTravelTime,
-            });
+          //     secondsRemaining: returnTravelTime,
+          //   });
 
-            return;
-          }
+          //   return;
+          // }
 
-          /*
-           * =================================================
-           * MISSION ARRIVAL:
-           * RETURNING LOOT
-           * =================================================
-           *
-           * Looting armies return home and deposit both
-           * themselves and their captured resources.
-           */
-          if (mission.type === "loot" && mission.phase === "returning") {
-            updatedBases = updatedBases.map((base) => {
-              if (base.id !== mission.originBaseId) {
-                return base;
-              }
+          // /*
+          //  * =================================================
+          //  * MISSION ARRIVAL:
+          //  * RETURNING LOOT
+          //  * =================================================
+          //  *
+          //  * Looting armies return home and deposit both
+          //  * themselves and their captured resources.
+          //  */
+          // if (mission.type === "loot" && mission.phase === "returning") {
+          //   updatedBases = updatedBases.map((base) => {
+          //     if (base.id !== mission.originBaseId) {
+          //       return base;
+          //     }
 
-              return {
-                ...base,
+          //     return {
+          //       ...base,
 
-                armies: {
-                  water: base.armies.water + mission.armies.water,
+          //       armies: {
+          //         water: base.armies.water + mission.armies.water,
 
-                  fire: base.armies.fire + mission.armies.fire,
+          //         fire: base.armies.fire + mission.armies.fire,
 
-                  grass: base.armies.grass + mission.armies.grass,
-                },
-              };
-            });
+          //         grass: base.armies.grass + mission.armies.grass,
+          //       },
+          //     };
+          //   });
 
-            const originResources = updatedResources[mission.originBaseId];
+          //   const originResources = updatedResources[mission.originBaseId];
 
-            if (originResources) {
-              updatedResources[mission.originBaseId] = {
-                water: originResources.water + mission.resources.water,
+          //   if (originResources) {
+          //     updatedResources[mission.originBaseId] = {
+          //       water: originResources.water + mission.resources.water,
 
-                fire: originResources.fire + mission.resources.fire,
+          //       fire: originResources.fire + mission.resources.fire,
 
-                grass: originResources.grass + mission.resources.grass,
-              };
-            }
+          //       grass: originResources.grass + mission.resources.grass,
+          //     };
+          //   }
 
-            return;
-          }
+          //   return;
+          // }
+
           /*
            * =================================================
            * MISSION ARRIVAL:

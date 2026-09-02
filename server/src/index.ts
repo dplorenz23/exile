@@ -323,7 +323,11 @@ function runGameTick() {
      * Leave every other mission untouched
      * until we migrate it.
      */
-    if (mission.type !== "transfer" && mission.type !== "attack") {
+    if (
+      mission.type !== "transfer" &&
+      mission.type !== "attack" &&
+      mission.type !== "loot"
+    ) {
       updatedArmyMissions.push(mission);
 
       return;
@@ -677,6 +681,150 @@ function runGameTick() {
         attackerSurvivors: combatResult.attackerSurvivors,
         defenderSurvivors: combatResult.defenderSurvivors,
       });
+
+      return;
+    }
+
+    /*
+     * ==================================================
+     * LOOT ARRIVAL
+     * ==================================================
+     */
+    if (mission.type === "loot" && mission.phase === "outbound") {
+      const originBase = updatedBases.find(
+        (base) => base.id === mission.originBaseId,
+      );
+
+      const treasure = updatedTreasures.find(
+        (treasure) => treasure.id === mission.destinationBaseId,
+      );
+
+      if (!originBase || !treasure) {
+        return;
+      }
+
+      const totalArmies =
+        mission.armies.water + mission.armies.fire + mission.armies.grass;
+
+      const lootCapacity = totalArmies * 200;
+
+      const lootResult = calculateLoot(treasure.resources, lootCapacity);
+
+      updatedGameEvents.push({
+        type: "loot",
+
+        id: nextGameEventId,
+
+        gameSeconds: gameState.gameSeconds + 1,
+
+        playerId: originBase.playerId,
+
+        row: treasure.row,
+
+        col: treasure.col,
+
+        resourcesLooted: {
+          ...lootResult.loot,
+        },
+
+        resourcesRemaining: {
+          ...lootResult.remaining,
+        },
+      });
+
+      nextGameEventId += 1;
+
+      const remainingTotal =
+        lootResult.remaining.water +
+        lootResult.remaining.fire +
+        lootResult.remaining.grass;
+
+      if (remainingTotal > 0) {
+        const treasureIndex = updatedTreasures.findIndex(
+          (currentTreasure) => currentTreasure.id === treasure.id,
+        );
+
+        if (treasureIndex >= 0) {
+          updatedTreasures[treasureIndex] = {
+            ...treasure,
+
+            resources: {
+              ...lootResult.remaining,
+            },
+          };
+        }
+      } else {
+        const treasureIndex = updatedTreasures.findIndex(
+          (currentTreasure) => currentTreasure.id === treasure.id,
+        );
+
+        if (treasureIndex >= 0) {
+          updatedTreasures.splice(treasureIndex, 1);
+        }
+      }
+
+      const distance =
+        Math.abs(originBase.row - treasure.row) +
+        Math.abs(originBase.col - treasure.col);
+
+      updatedArmyMissions.push({
+        ...mission,
+
+        phase: "returning",
+
+        resources: {
+          ...lootResult.loot,
+        },
+
+        secondsRemaining: distance * 5,
+      });
+
+      return;
+    }
+
+    /*
+     * ==================================================
+     * RETURNING LOOT
+     * ==================================================
+     */
+    if (mission.type === "loot" && mission.phase === "returning") {
+      const originBase = updatedBases.find(
+        (base) => base.id === mission.originBaseId,
+      );
+
+      if (!originBase) {
+        return;
+      }
+
+      updatedBases = updatedBases.map((base) => {
+        if (base.id !== originBase.id) {
+          return base;
+        }
+
+        return {
+          ...base,
+
+          armies: {
+            water: base.armies.water + mission.armies.water,
+
+            fire: base.armies.fire + mission.armies.fire,
+
+            grass: base.armies.grass + mission.armies.grass,
+          },
+        };
+      });
+
+      const originResources = updatedResources[originBase.id];
+
+      if (originResources) {
+        updatedResources[originBase.id] = {
+          water: originResources.water + mission.resources.water,
+
+          fire: originResources.fire + mission.resources.fire,
+
+          grass: originResources.grass + mission.resources.grass,
+        };
+      }
 
       return;
     }
@@ -1619,6 +1767,130 @@ server.on("connection", (socket) => {
         destinationBaseId,
         travelTime,
       });
+
+      broadcastGameState();
+    }
+
+    if (message.type === "loot-army") {
+      if (!gameState) {
+        return;
+      }
+
+      const player = lobbyPlayers.get(clientId);
+
+      if (!player) {
+        return;
+      }
+
+      const originBaseId = Number(message.originBaseId);
+
+      const treasureId = Number(message.treasureId);
+
+      const armies = message.armies as ArmyCounts;
+
+      const originBase = gameState.bases.find(
+        (base) => base.id === originBaseId,
+      );
+
+      const treasure = gameState.treasures.find(
+        (treasure) => treasure.id === treasureId,
+      );
+
+      if (!originBase || !treasure) {
+        return;
+      }
+
+      if (originBase.playerId !== player.playerId) {
+        return;
+      }
+
+      if (armies.water < 0 || armies.fire < 0 || armies.grass < 0) {
+        return;
+      }
+
+      if (
+        armies.water > originBase.armies.water ||
+        armies.fire > originBase.armies.fire ||
+        armies.grass > originBase.armies.grass
+      ) {
+        return;
+      }
+
+      const totalArmies = armies.water + armies.fire + armies.grass;
+
+      if (totalArmies === 0) {
+        return;
+      }
+
+      const distance =
+        Math.abs(originBase.row - treasure.row) +
+        Math.abs(originBase.col - treasure.col);
+
+      const travelTime = distance * 5;
+
+      const updatedBases = gameState.bases.map((base) => {
+        if (base.id !== originBase.id) {
+          return base;
+        }
+
+        return {
+          ...base,
+
+          armies: {
+            water: base.armies.water - armies.water,
+
+            fire: base.armies.fire - armies.fire,
+
+            grass: base.armies.grass - armies.grass,
+          },
+        };
+      });
+
+      const newMission: ArmyMission = {
+        id: gameState.nextMissionId,
+
+        playerId: originBase.playerId,
+
+        type: "loot",
+
+        phase: "outbound",
+
+        originBaseId: originBase.id,
+
+        /*
+         * For Loot, destinationBaseId
+         * temporarily stores treasure ID.
+         */
+        destinationBaseId: treasure.id,
+
+        destinationRow: treasure.row,
+
+        destinationCol: treasure.col,
+
+        armies: {
+          ...armies,
+        },
+
+        resources: {
+          water: 0,
+          fire: 0,
+          grass: 0,
+        },
+
+        expansionKeys: 0,
+
+        secondsRemaining: travelTime,
+      };
+
+      gameState = {
+        ...gameState,
+
+        bases: updatedBases,
+
+        armyMissions: [...gameState.armyMissions, newMission],
+
+        nextMissionId: gameState.nextMissionId + 1,
+      };
 
       broadcastGameState();
     }
