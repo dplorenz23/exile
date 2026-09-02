@@ -327,7 +327,8 @@ function runGameTick() {
       mission.type !== "transfer" &&
       mission.type !== "attack" &&
       mission.type !== "loot" &&
-      mission.type !== "expand"
+      mission.type !== "expand" &&
+      mission.type !== "relocate"
     ) {
       updatedArmyMissions.push(mission);
       return;
@@ -963,6 +964,282 @@ function runGameTick() {
       });
 
       nextGameEventId += 1;
+
+      return;
+    }
+
+    /*
+     * =================================================
+     * RELOCATION ARRIVAL
+     * =================================================
+     */
+    if (mission.type === "relocate" && mission.phase === "outbound") {
+      if (
+        mission.destinationRow === undefined ||
+        mission.destinationCol === undefined
+      ) {
+        return;
+      }
+
+      const relocatingBase = updatedBases.find(
+        (base) => base.id === mission.originBaseId,
+      );
+
+      if (!relocatingBase) {
+        return;
+      }
+
+      const destinationOccupied = updatedBases.some(
+        (base) =>
+          base.id !== relocatingBase.id &&
+          !base.isRelocating &&
+          base.row === mission.destinationRow &&
+          base.col === mission.destinationCol,
+      );
+
+      const destinationHasTreasure = updatedTreasures.some(
+        (treasure) =>
+          treasure.row === mission.destinationRow &&
+          treasure.col === mission.destinationCol,
+      );
+
+      /*
+       * Destination was taken while traveling.
+       * Turn around and head back to the
+       * original location.
+       */
+      if (destinationOccupied || destinationHasTreasure) {
+        const returnDistance =
+          Math.abs(relocatingBase.row - mission.destinationRow) +
+          Math.abs(relocatingBase.col - mission.destinationCol);
+
+        console.log("RELOCATION DESTINATION BLOCKED - RETURNING HOME", {
+          missionId: mission.id,
+          originBaseId: mission.originBaseId,
+          returnDistance,
+          returnSeconds: returnDistance * 15,
+        });
+
+        updatedArmyMissions.push({
+          ...mission,
+
+          phase: "returning",
+
+          secondsRemaining: returnDistance * 15,
+        });
+
+        return;
+      }
+
+      /*
+       * Successful relocation.
+       */
+      updatedBases = updatedBases.map((base) => {
+        if (base.id !== relocatingBase.id) {
+          return base;
+        }
+
+        return {
+          ...base,
+
+          row: mission.destinationRow!,
+          col: mission.destinationCol!,
+
+          isRelocating: false,
+
+          relocations: base.relocations + 1,
+
+          armies: {
+            ...mission.armies,
+          },
+        };
+      });
+
+      /*
+       * Restore the resource bank at
+       * the new location.
+       *
+       * The relocation payment remains spent.
+       */
+      updatedResources[relocatingBase.id] = {
+        ...mission.resources,
+      };
+
+      updatedGameEvents.push({
+        type: "relocation",
+
+        id: nextGameEventId,
+
+        gameSeconds: gameState.gameSeconds + 1,
+
+        playerId: relocatingBase.playerId,
+
+        baseName: `Base ${relocatingBase.baseSlot}`,
+
+        fromRow: relocatingBase.row,
+
+        fromCol: relocatingBase.col,
+
+        toRow: mission.destinationRow,
+
+        toCol: mission.destinationCol,
+      });
+
+      nextGameEventId += 1;
+
+      return;
+    }
+
+    /*
+     * =================================================
+     * RETURNING RELOCATION
+     * =================================================
+     *
+     * Destination was blocked, so the base is
+     * attempting to return to its original tile.
+     */
+    if (mission.type === "relocate" && mission.phase === "returning") {
+      console.log("RETURNING RELOCATION ARRIVED", {
+        missionId: mission.id,
+        secondsRemaining: mission.secondsRemaining,
+      });
+      const relocatingBase = updatedBases.find(
+        (base) => base.id === mission.originBaseId,
+      );
+
+      if (!relocatingBase) {
+        return;
+      }
+
+      /*
+       * Is the original tile now occupied
+       * by another active base?
+       */
+      const originalOccupied = updatedBases.some(
+        (base) =>
+          base.id !== relocatingBase.id &&
+          !base.isRelocating &&
+          base.row === relocatingBase.row &&
+          base.col === relocatingBase.col,
+      );
+
+      const originalHasTreasure = updatedTreasures.some(
+        (treasure) =>
+          treasure.row === relocatingBase.row &&
+          treasure.col === relocatingBase.col,
+      );
+
+      /*
+       * Original tile is blocked too.
+       *
+       * The relocating base and everything
+       * traveling with it are lost.
+       */
+      if (originalOccupied || originalHasTreasure) {
+        updatedBases = updatedBases.filter(
+          (base) => base.id !== relocatingBase.id,
+        );
+
+        delete updatedResources[relocatingBase.id];
+
+        const playerStillHasBase = updatedBases.some(
+          (base) => base.playerId === relocatingBase.playerId,
+        );
+
+        /*
+         * Losing the player's final base
+         * means immediate elimination.
+         */
+        if (
+          !playerStillHasBase &&
+          !updatedEliminatedPlayerIds.includes(relocatingBase.playerId)
+        ) {
+          updatedEliminatedPlayerIds.push(relocatingBase.playerId);
+
+          updatedGameEvents.push({
+            type: "elimination",
+
+            id: nextGameEventId,
+
+            gameSeconds: gameState.gameSeconds + 1,
+
+            eliminatedPlayerId: relocatingBase.playerId,
+          });
+
+          nextGameEventId += 1;
+
+          /*
+           * Determine whether one player remains.
+           */
+          const activePlayerIds = Object.keys(updatedArmiesTrainedByPlayer).map(
+            Number,
+          );
+
+          const remainingPlayers = players.filter(
+            (player) =>
+              activePlayerIds.includes(player.id) &&
+              !updatedEliminatedPlayerIds.includes(player.id),
+          );
+
+          if (remainingPlayers.length === 1) {
+            updatedWinnerPlayerId = remainingPlayers[0].id;
+
+            updatedGameEvents.push({
+              type: "victory",
+
+              id: nextGameEventId,
+
+              gameSeconds: gameState.gameSeconds + 1,
+
+              winnerPlayerId: remainingPlayers[0].id,
+            });
+
+            nextGameEventId += 1;
+          }
+        }
+
+        return;
+      }
+
+      /*
+       * Original tile is still available.
+       * Restore the same base there.
+       */
+      updatedBases = updatedBases.map((base) => {
+        if (base.id !== relocatingBase.id) {
+          return base;
+        }
+
+        return {
+          ...base,
+
+          isRelocating: false,
+
+          armies: {
+            ...mission.armies,
+          },
+        };
+      });
+
+      /*
+       * Failed relocation refunds the payment.
+       *
+       * mission.resources contains the resources
+       * remaining after payment.
+       */
+      const relocationPayment = mission.relocationPayment ?? {
+        water: 0,
+        fire: 0,
+        grass: 0,
+      };
+
+      updatedResources[relocatingBase.id] = {
+        water: mission.resources.water + relocationPayment.water,
+
+        fire: mission.resources.fire + relocationPayment.fire,
+
+        grass: mission.resources.grass + relocationPayment.grass,
+      };
 
       return;
     }
@@ -2210,6 +2487,215 @@ server.on("connection", (socket) => {
         resourcesByBase: updatedResources,
 
         expansionKeysByPlayer: updatedExpansionKeysByPlayer,
+
+        armyMissions: [...gameState.armyMissions, newMission],
+
+        nextMissionId: gameState.nextMissionId + 1,
+      };
+
+      broadcastGameState();
+    }
+
+    if (message.type === "relocate") {
+      if (!gameState) {
+        return;
+      }
+
+      const player = lobbyPlayers.get(clientId);
+
+      if (!player) {
+        return;
+      }
+
+      const originBaseId = Number(message.originBaseId);
+
+      const destinationRow = Number(message.destinationRow);
+
+      const destinationCol = Number(message.destinationCol);
+
+      const payment = message.payment as BaseResources;
+
+      const originBase = gameState.bases.find(
+        (base) => base.id === originBaseId,
+      );
+
+      if (!originBase) {
+        return;
+      }
+
+      /*
+       * Requester must own this base.
+       */
+      if (originBase.playerId !== player.playerId) {
+        return;
+      }
+
+      /*
+       * Cannot relocate a base that
+       * is already relocating.
+       */
+      if (originBase.isRelocating) {
+        return;
+      }
+
+      /*
+       * Destination must be open.
+       */
+      const destinationOccupied = gameState.bases.some(
+        (base) =>
+          !base.isRelocating &&
+          base.row === destinationRow &&
+          base.col === destinationCol,
+      );
+
+      const destinationHasTreasure = gameState.treasures.some(
+        (treasure) =>
+          treasure.row === destinationRow && treasure.col === destinationCol,
+      );
+
+      if (destinationOccupied || destinationHasTreasure) {
+        return;
+      }
+
+      /*
+       * Relocation cost increases
+       * by 250 each time.
+       */
+      const relocationCost = (originBase.relocations + 1) * 250;
+
+      if (
+        !payment ||
+        payment.water < 0 ||
+        payment.fire < 0 ||
+        payment.grass < 0
+      ) {
+        return;
+      }
+
+      const paymentTotal = payment.water + payment.fire + payment.grass;
+
+      if (paymentTotal !== relocationCost) {
+        return;
+      }
+
+      const baseResources = gameState.resourcesByBase[originBase.id];
+
+      if (!baseResources) {
+        return;
+      }
+
+      if (
+        payment.water > baseResources.water ||
+        payment.fire > baseResources.fire ||
+        payment.grass > baseResources.grass
+      ) {
+        return;
+      }
+
+      /*
+       * Pay relocation cost immediately.
+       */
+      const remainingResources = {
+        water: baseResources.water - payment.water,
+
+        fire: baseResources.fire - payment.fire,
+
+        grass: baseResources.grass - payment.grass,
+      };
+
+      /*
+       * Mark the base as relocating.
+       *
+       * It still exists for base-count /
+       * elimination purposes.
+       */
+      const updatedBases = gameState.bases.map((base) => {
+        if (base.id !== originBase.id) {
+          return base;
+        }
+
+        return {
+          ...base,
+
+          isRelocating: true,
+
+          armies: {
+            water: 0,
+            fire: 0,
+            grass: 0,
+          },
+        };
+      });
+
+      /*
+       * Remove its physical resource bank
+       * while the base is traveling.
+       */
+      const updatedResources = {
+        ...gameState.resourcesByBase,
+      };
+
+      delete updatedResources[originBase.id];
+
+      /*
+       * Relocation currently travels
+       * at 15 seconds per tile.
+       */
+      const distance =
+        Math.abs(originBase.row - destinationRow) +
+        Math.abs(originBase.col - destinationCol);
+
+      const travelTime = distance * 15;
+
+      const newMission: ArmyMission = {
+        id: gameState.nextMissionId,
+
+        playerId: originBase.playerId,
+
+        type: "relocate",
+
+        phase: "outbound",
+
+        originBaseId: originBase.id,
+
+        destinationBaseId: 0,
+
+        destinationRow,
+        destinationCol,
+
+        /*
+         * All armies travel with the base.
+         */
+        armies: {
+          ...originBase.armies,
+        },
+
+        /*
+         * Remaining resources travel too.
+         */
+        resources: {
+          ...remainingResources,
+        },
+
+        /*
+         * Keep the payment separate because
+         * failed relocation refunds it.
+         */
+        relocationPayment: {
+          ...payment,
+        },
+
+        expansionKeys: 0,
+
+        secondsRemaining: travelTime,
+      };
+
+      gameState = {
+        ...gameState,
+
+        bases: updatedBases,
+
+        resourcesByBase: updatedResources,
 
         armyMissions: [...gameState.armyMissions, newMission],
 
