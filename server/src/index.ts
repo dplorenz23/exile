@@ -1413,6 +1413,27 @@ function runGameTick() {
           return;
         }
 
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: mission.playerId,
+
+          missionType: "transfer",
+
+          reason: "destination-unavailable",
+
+          baseName: `Base ${originBase.baseSlot}`,
+
+          row: mission.destinationRow,
+          col: mission.destinationCol,
+        });
+
+        nextGameEventId += 1;
+
         const distance =
           Math.abs(originBase.row - mission.destinationRow) +
           Math.abs(originBase.col - mission.destinationCol);
@@ -1467,8 +1488,8 @@ function runGameTick() {
       /*
        * Add Transfer to the public game log.
        */
-      gameState.gameEvents.push({
-        id: gameState.nextGameEventId,
+      updatedGameEvents.push({
+        id: nextGameEventId,
 
         type: "transfer",
 
@@ -1489,7 +1510,7 @@ function runGameTick() {
         },
       });
 
-      gameState.nextGameEventId += 1;
+      nextGameEventId += 1;
 
       /*
        * Do NOT push the mission back into
