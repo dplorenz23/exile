@@ -1,6 +1,4 @@
-export type MatchType =
-  | "30m"
-  | "sudden-death";
+export type MatchType = "30m" | "sudden-death";
 
 export interface LobbySlot {
   slotId: number;
@@ -14,7 +12,6 @@ export interface MatchConfig {
   mapId: string;
 
   matchType: MatchType;
-
 }
 
 export type ResourceType = "water" | "fire" | "grass";
@@ -178,6 +175,10 @@ export interface ArmyMission {
 
   expansionKeys: number;
 
+  originRow?: number;
+  originCol?: number;
+  originBaseSlot?: number;
+
   destinationRow?: number;
   destinationCol?: number;
 
@@ -255,50 +256,69 @@ export type GameEvent =
       toCol: number;
     }
   | {
-    type: "loot";
+      type: "loot";
 
-    id: number;
-    gameSeconds: number;
+      id: number;
+      gameSeconds: number;
 
-    playerId: number;
+      playerId: number;
 
-    row: number;
-    col: number;
+      row: number;
+      col: number;
 
-    resourcesLooted: BaseResources;
-    resourcesRemaining: BaseResources;
-  }
+      resourcesLooted: BaseResources;
+      resourcesRemaining: BaseResources;
+    }
   | {
-    type: "transfer";
+      type: "transfer";
 
-    id: number;
-    gameSeconds: number;
+      id: number;
+      gameSeconds: number;
 
-    playerId: number;
+      playerId: number;
 
-    fromBaseName: string;
-    toBaseName: string;
+      fromBaseName: string;
+      toBaseName: string;
 
-    armies: ArmyCounts;
-    resources: BaseResources;
-  }
+      armies: ArmyCounts;
+      resources: BaseResources;
+    }
   | {
-    type: "elimination";
+      type: "mission-failed";
 
-    id: number;
-    gameSeconds: number;
+      id: number;
+      gameSeconds: number;
 
-    eliminatedPlayerId: number;
-    eliminatedByPlayerId?: number;
-  }
-| {
-    type: "victory";
+      playerId: number;
+      missionType: "transfer" | "attack" | "loot" | "expand" | "relocate";
 
-    id: number;
-    gameSeconds: number;
+      reason:
+        | "destination-unavailable"
+        | "origin-destroyed"
+        | "return-location-blocked";
 
-    winnerPlayerId: number;
-  };
+      baseName?: string;
+
+      row?: number;
+      col?: number;
+    }
+  | {
+      type: "elimination";
+
+      id: number;
+      gameSeconds: number;
+
+      eliminatedPlayerId: number;
+      eliminatedByPlayerId?: number;
+    }
+  | {
+      type: "victory";
+
+      id: number;
+      gameSeconds: number;
+
+      winnerPlayerId: number;
+    };
 
 export interface Treasure {
   id: number;
@@ -328,11 +348,9 @@ export type GameState = {
 
   bases: Base[];
 
-  resourcesByBase:
-    Record<number, BaseResources>;
+  resourcesByBase: Record<number, BaseResources>;
 
-  expansionKeysByPlayer:
-    Record<number, number>;
+  expansionKeysByPlayer: Record<number, number>;
 
   armyMissions: ArmyMission[];
   nextMissionId: number;
@@ -343,14 +361,11 @@ export type GameState = {
   treasures: Treasure[];
   nextTreasureId: number;
 
-  armiesTrainedByPlayer:
-    Record<number, number>;
+  armiesTrainedByPlayer: Record<number, number>;
 
-  armyResourcesSpentByPlayer:
-    Record<number, number>;
+  armyResourcesSpentByPlayer: Record<number, number>;
 
-  finalScoreByPlayer:
-    Record<number, number>;
+  finalScoreByPlayer: Record<number, number>;
 
   eliminatedPlayerIds: number[];
 

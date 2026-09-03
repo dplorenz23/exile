@@ -9,7 +9,7 @@ import GameMap from "./components/GameMap";
 import ResourceBar from "./components/ResourceBar";
 import Leaderboard from "./components/Leaderboard";
 
-import { players, getBaseName, matchTypes } from "./game/gameState";
+import { players, getBaseName } from "./game/gameState";
 
 import { createInitialGameState } from "./game/createInitialGameState";
 
@@ -771,13 +771,6 @@ function App() {
         if (current.winnerPlayerId !== null) {
           return current;
         }
-
-        const currentMatchType = matchTypes[current.matchType];
-
-        const matchDurationSeconds =
-          currentMatchType.durationMinutes !== null
-            ? currentMatchType.durationMinutes * 60
-            : null;
 
         const updatedArmiesTrainedByPlayer = {
           ...current.armiesTrainedByPlayer,
@@ -2119,36 +2112,30 @@ function App() {
          * TIME-LIMIT CHECK
          * ==================================================
          */
-        const nextGameSeconds = current.gameSeconds + 1;
+        // if (timedMatchEnded && updatedWinnerPlayerId === null) {
+        //   const survivingPlayerIds = Object.keys(updatedArmiesTrainedByPlayer)
+        //     .map(Number)
+        //     .filter(
+        //       (playerId) => !updatedEliminatedPlayerIds.includes(playerId),
+        //     );
 
-        const timedMatchEnded =
-          matchDurationSeconds !== null &&
-          nextGameSeconds >= matchDurationSeconds;
+        //   const standings = survivingPlayerIds
+        //     .map((playerId) => ({
+        //       playerId,
 
-        if (timedMatchEnded && updatedWinnerPlayerId === null) {
-          const survivingPlayerIds = Object.keys(updatedArmiesTrainedByPlayer)
-            .map(Number)
-            .filter(
-              (playerId) => !updatedEliminatedPlayerIds.includes(playerId),
-            );
+        //       score: calculatePlayerScore(
+        //         playerId,
+        //         updatedBases,
+        //         updatedResources,
+        //         updatedArmyMissions,
+        //         updatedArmiesTrainedByPlayer[playerId] ?? 0,
+        //         updatedArmyResourcesSpentByPlayer[playerId] ?? 0,
+        //       ).totalScore,
+        //     }))
+        //     .sort((a, b) => b.score - a.score);
 
-          const standings = survivingPlayerIds
-            .map((playerId) => ({
-              playerId,
-
-              score: calculatePlayerScore(
-                playerId,
-                updatedBases,
-                updatedResources,
-                updatedArmyMissions,
-                updatedArmiesTrainedByPlayer[playerId] ?? 0,
-                updatedArmyResourcesSpentByPlayer[playerId] ?? 0,
-              ).totalScore,
-            }))
-            .sort((a, b) => b.score - a.score);
-
-          updatedWinnerPlayerId = standings[0]?.playerId ?? null;
-        }
+        //   updatedWinnerPlayerId = standings[0]?.playerId ?? null;
+        // }
 
         /*
          * ==================================================

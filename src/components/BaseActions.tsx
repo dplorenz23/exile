@@ -17,27 +17,18 @@ interface BaseActionsProps {
 
   onTrainArmy: (resource: ResourceType) => void;
 
-  onStartAttackTargeting: (
-    armies: ArmyCounts,
-  ) => void;
+  onStartAttackTargeting: (armies: ArmyCounts) => void;
 
-  onStartLootTargeting: (
-    armies: ArmyCounts,
-  ) => void;
+  onStartLootTargeting: (armies: ArmyCounts) => void;
 
-  onStartExpandTargeting: (
-    payment: BaseResources,
-  ) => void;
+  onStartExpandTargeting: (payment: BaseResources) => void;
 
   onStartTransferTargeting: (
     armies: ArmyCounts,
     resources: BaseResources,
   ) => void;
 
-  onStartRelocateTargeting: (
-    payment: BaseResources,
-  ) => void;
-
+  onStartRelocateTargeting: (payment: BaseResources) => void;
 }
 
 export default function BaseActions({
@@ -65,38 +56,32 @@ export default function BaseActions({
     | "relocate-payment"
   >("main");
 
-  const [selectedArmies, setSelectedArmies] =
-    useState<ArmyCounts>({
-      water: 0,
-      fire: 0,
-      grass: 0,
-    });
+  const [selectedArmies, setSelectedArmies] = useState<ArmyCounts>({
+    water: 0,
+    fire: 0,
+    grass: 0,
+  });
 
-  const [selectedResources, setSelectedResources] =
-    useState<BaseResources>({
-      water: 0,
-      fire: 0,
-      grass: 0,
-    });
+  const [selectedResources, setSelectedResources] = useState<BaseResources>({
+    water: 0,
+    fire: 0,
+    grass: 0,
+  });
 
-  const [expansionPayment, setExpansionPayment] =
-    useState<BaseResources>({
-      water: 0,
-      fire: 0,
-      grass: 0,
-    });
+  const [expansionPayment, setExpansionPayment] = useState<BaseResources>({
+    water: 0,
+    fire: 0,
+    grass: 0,
+  });
 
-  const [relocationPayment, setRelocationPayment] =
-    useState<BaseResources>({
-      water: 0,
-      fire: 0,
-      grass: 0,
-    });
+  const [relocationPayment, setRelocationPayment] = useState<BaseResources>({
+    water: 0,
+    fire: 0,
+    grass: 0,
+  });
 
   const totalRelocationPayment =
-    relocationPayment.water +
-    relocationPayment.fire +
-    relocationPayment.grass;
+    relocationPayment.water + relocationPayment.fire + relocationPayment.grass;
 
   if (!base) {
     return null;
@@ -105,64 +90,37 @@ export default function BaseActions({
   const currentBase = base;
 
   const armyCosts = {
-    water:
-      getArmyCost(
-        base.armiesBuilt.water,
-      ),
+    water: getArmyCost(base.armiesBuilt.water),
 
-    fire:
-      getArmyCost(
-        base.armiesBuilt.fire,
-      ),
+    fire: getArmyCost(base.armiesBuilt.fire),
 
-    grass:
-      getArmyCost(
-        base.armiesBuilt.grass,
-      ),
+    grass: getArmyCost(base.armiesBuilt.grass),
   };
 
   const isTraining = base.training !== null;
 
   const totalSelected =
-    selectedArmies.water +
-    selectedArmies.fire +
-    selectedArmies.grass;
+    selectedArmies.water + selectedArmies.fire + selectedArmies.grass;
 
   const cargoCapacity = totalSelected * 200;
 
   const totalCargo =
-    selectedResources.water +
-    selectedResources.fire +
-    selectedResources.grass;
+    selectedResources.water + selectedResources.fire + selectedResources.grass;
 
-  const totalResources =
-    resources.water +
-    resources.fire +
-    resources.grass;
+  const totalResources = resources.water + resources.fire + resources.grass;
 
   const canExpand =
-    ownedBases.length < 3 &&
-    expansionKeys > 0 &&
-    totalResources >= 500;
+    ownedBases.length < 3 && expansionKeys > 0 && totalResources >= 500;
 
   const totalExpansionPayment =
-    expansionPayment.water +
-    expansionPayment.fire +
-    expansionPayment.grass;
+    expansionPayment.water + expansionPayment.fire + expansionPayment.grass;
 
-  const relocationCost =
-    base
-      ? (base.relocations + 1) * 250
-      : 250;
+  const relocationCost = base ? (base.relocations + 1) * 250 : 250;
 
-  const canAffordRelocation =
-    totalResources >= relocationCost;
+  const canAffordRelocation = totalResources >= relocationCost;
 
   function canAfford(resource: ResourceType) {
-    return (
-      resources[resource] >=
-      armyCosts[resource]
-    );
+    return resources[resource] >= armyCosts[resource];
   }
 
   function handleTrain(resource: ResourceType) {
@@ -170,19 +128,13 @@ export default function BaseActions({
     setMode("main");
   }
 
-  function changeArmyCount(
-    resource: ResourceType,
-    change: number,
-  ) {
+  function changeArmyCount(resource: ResourceType, change: number) {
     setSelectedArmies((current) => {
       const maximum = currentBase.armies[resource];
 
       const newValue = Math.max(
         0,
-        Math.min(
-          maximum,
-          current[resource] + change,
-        ),
+        Math.min(maximum, current[resource] + change),
       );
 
       return {
@@ -192,10 +144,7 @@ export default function BaseActions({
     });
   }
 
-  function changeResourceCount(
-    resource: ResourceType,
-    change: number,
-  ) {
+  function changeResourceCount(resource: ResourceType, change: number) {
     setSelectedResources((current) => {
       const currentValue = current[resource];
       const newValue = currentValue + change;
@@ -208,13 +157,9 @@ export default function BaseActions({
         return current;
       }
 
-      const currentTotal =
-        current.water +
-        current.fire +
-        current.grass;
+      const currentTotal = current.water + current.fire + current.grass;
 
-      const newTotal =
-        currentTotal - currentValue + newValue;
+      const newTotal = currentTotal - currentValue + newValue;
 
       if (newTotal > cargoCapacity) {
         return current;
@@ -227,13 +172,9 @@ export default function BaseActions({
     });
   }
 
-  function changeExpansionPayment(
-    resource: ResourceType,
-    change: number,
-  ) {
+  function changeExpansionPayment(resource: ResourceType, change: number) {
     setExpansionPayment((current) => {
-      const newValue =
-        current[resource] + change;
+      const newValue = current[resource] + change;
 
       if (newValue < 0) {
         return current;
@@ -243,15 +184,9 @@ export default function BaseActions({
         return current;
       }
 
-      const currentTotal =
-        current.water +
-        current.fire +
-        current.grass;
+      const currentTotal = current.water + current.fire + current.grass;
 
-      const newTotal =
-       currentTotal -
-        current[resource] +
-        newValue;
+      const newTotal = currentTotal - current[resource] + newValue;
 
       if (newTotal > 500) {
         return current;
@@ -264,13 +199,9 @@ export default function BaseActions({
     });
   }
 
-  function changeRelocationPayment(
-    resource: ResourceType,
-    change: number,
-  ) {
+  function changeRelocationPayment(resource: ResourceType, change: number) {
     setRelocationPayment((current) => {
-      const newValue =
-        current[resource] + change;
+      const newValue = current[resource] + change;
 
       if (newValue < 0) {
         return current;
@@ -284,15 +215,9 @@ export default function BaseActions({
         return current;
       }
 
-      const currentTotal =
-        current.water +
-        current.fire +
-        current.grass;
+      const currentTotal = current.water + current.fire + current.grass;
 
-      const newTotal =
-        currentTotal -
-        current[resource] +
-        newValue;
+      const newTotal = currentTotal - current[resource] + newValue;
 
       /*
        * Stop once the exact relocation
@@ -334,16 +259,12 @@ export default function BaseActions({
         <div className="training-status">
           <strong>
             Training{" "}
-            {base.training.resource
-              .charAt(0)
-              .toUpperCase() +
+            {base.training.resource.charAt(0).toUpperCase() +
               base.training.resource.slice(1)}{" "}
             Army
           </strong>
 
-          <span>
-            {base.training.secondsRemaining}s remaining
-          </span>
+          <span>{base.training.secondsRemaining}s remaining</span>
         </div>
       </div>
     );
@@ -355,9 +276,7 @@ export default function BaseActions({
   if (mode === "train") {
     return (
       <div className="base-actions train-menu">
-        <div className="train-menu-title">
-          Train Army
-        </div>
+        <div className="train-menu-title">Train Army</div>
 
         <button
           className="base-action-button"
@@ -383,10 +302,7 @@ export default function BaseActions({
           🌱 Grass Army — {armyCosts.grass}
         </button>
 
-        <button
-          className="base-action-button"
-          onClick={() => setMode("main")}
-        >
+        <button className="base-action-button" onClick={() => setMode("main")}>
           Cancel
         </button>
       </div>
@@ -395,13 +311,11 @@ export default function BaseActions({
 
   /*
    * Choose what the armies are being sent to do.
-  */
+   */
   if (mode === "mission") {
     return (
       <div className="base-actions send-menu">
-        <div className="send-menu-title">
-          What are you sending them to do?
-        </div>
+        <div className="send-menu-title">What are you sending them to do?</div>
 
         <button
           className="base-action-button"
@@ -424,10 +338,7 @@ export default function BaseActions({
           💰 Loot
         </button>
 
-        <button
-          className="base-action-button"
-          onClick={resetSend}
-        >
+        <button className="base-action-button" onClick={resetSend}>
           Cancel
         </button>
       </div>
@@ -435,26 +346,20 @@ export default function BaseActions({
   }
 
   /*
-  * Select armies for a Loot mission.
-  */
+   * Select armies for a Loot mission.
+   */
   if (mode === "loot-armies") {
     return (
       <div className="base-actions send-menu">
-        <div className="send-menu-title">
-          Select Looting Armies
-        </div>
+        <div className="send-menu-title">Select Looting Armies</div>
 
         <ArmySelector
           icon="⚔️💧"
           label="Water"
           available={base.armies.water}
           selected={selectedArmies.water}
-          onDecrease={() =>
-            changeArmyCount("water", -1)
-          }
-          onIncrease={() =>
-            changeArmyCount("water", 1)
-          }
+          onDecrease={() => changeArmyCount("water", -1)}
+          onIncrease={() => changeArmyCount("water", 1)}
         />
 
         <ArmySelector
@@ -462,12 +367,8 @@ export default function BaseActions({
           label="Fire"
           available={base.armies.fire}
           selected={selectedArmies.fire}
-          onDecrease={() =>
-            changeArmyCount("fire", -1)
-          }
-          onIncrease={() =>
-            changeArmyCount("fire", 1)
-          }
+          onDecrease={() => changeArmyCount("fire", -1)}
+          onIncrease={() => changeArmyCount("fire", 1)}
         />
 
         <ArmySelector
@@ -475,28 +376,24 @@ export default function BaseActions({
           label="Grass"
           available={base.armies.grass}
           selected={selectedArmies.grass}
-          onDecrease={() =>
-            changeArmyCount("grass", -1)
-          }
-          onIncrease={() =>
-            changeArmyCount("grass", 1)
-          }
+          onDecrease={() => changeArmyCount("grass", -1)}
+          onIncrease={() => changeArmyCount("grass", 1)}
         />
 
         <button
           className="base-action-button"
           disabled={totalSelected === 0}
           onClick={() => {
-              onStartLootTargeting(selectedArmies);
+            onStartLootTargeting(selectedArmies);
 
-              setSelectedArmies({
-                water: 0,
-                fire: 0,
-                grass: 0,
-              });
+            setSelectedArmies({
+              water: 0,
+              fire: 0,
+              grass: 0,
+            });
 
-              setMode("main");
-            }}
+            setMode("main");
+          }}
         >
           Choose Treasure
         </button>
@@ -508,10 +405,7 @@ export default function BaseActions({
           Back
         </button>
 
-        <button
-          className="base-action-button"
-          onClick={resetSend}
-        >
+        <button className="base-action-button" onClick={resetSend}>
           Cancel
         </button>
       </div>
@@ -524,21 +418,15 @@ export default function BaseActions({
   if (mode === "transfer-armies") {
     return (
       <div className="base-actions send-menu">
-        <div className="send-menu-title">
-          Select Armies
-        </div>
+        <div className="send-menu-title">Select Armies</div>
 
         <ArmySelector
           icon="💧"
           label="Water"
           available={base.armies.water}
           selected={selectedArmies.water}
-          onDecrease={() =>
-            changeArmyCount("water", -1)
-          }
-          onIncrease={() =>
-            changeArmyCount("water", 1)
-          }
+          onDecrease={() => changeArmyCount("water", -1)}
+          onIncrease={() => changeArmyCount("water", 1)}
         />
 
         <ArmySelector
@@ -546,12 +434,8 @@ export default function BaseActions({
           label="Fire"
           available={base.armies.fire}
           selected={selectedArmies.fire}
-          onDecrease={() =>
-            changeArmyCount("fire", -1)
-          }
-          onIncrease={() =>
-            changeArmyCount("fire", 1)
-          }
+          onDecrease={() => changeArmyCount("fire", -1)}
+          onIncrease={() => changeArmyCount("fire", 1)}
         />
 
         <ArmySelector
@@ -559,12 +443,8 @@ export default function BaseActions({
           label="Grass"
           available={base.armies.grass}
           selected={selectedArmies.grass}
-          onDecrease={() =>
-            changeArmyCount("grass", -1)
-          }
-          onIncrease={() =>
-            changeArmyCount("grass", 1)
-          }
+          onDecrease={() => changeArmyCount("grass", -1)}
+          onIncrease={() => changeArmyCount("grass", 1)}
         />
 
         <button
@@ -575,200 +455,156 @@ export default function BaseActions({
           Choose Cargo
         </button>
 
-        <button
-          className="base-action-button"
-          onClick={resetSend}
-        >
+        <button className="base-action-button" onClick={resetSend}>
           Cancel
         </button>
       </div>
     );
   }
   if (mode === "cargo") {
-  return (
-    <div className="base-actions send-menu">
-      <div className="send-menu-title">
-        Select Cargo
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">Select Cargo</div>
+
+        <div className="cargo-capacity">
+          Cargo: {totalCargo} / {cargoCapacity}
+        </div>
+
+        <ResourceSelector
+          icon="💧"
+          label="Water"
+          available={resources.water}
+          selected={selectedResources.water}
+          onDecrease={() => changeResourceCount("water", -50)}
+          onIncrease={() => changeResourceCount("water", 50)}
+        />
+
+        <ResourceSelector
+          icon="🔥"
+          label="Fire"
+          available={resources.fire}
+          selected={selectedResources.fire}
+          onDecrease={() => changeResourceCount("fire", -50)}
+          onIncrease={() => changeResourceCount("fire", 50)}
+        />
+
+        <ResourceSelector
+          icon="🌱"
+          label="Grass"
+          available={resources.grass}
+          selected={selectedResources.grass}
+          onDecrease={() => changeResourceCount("grass", -50)}
+          onIncrease={() => changeResourceCount("grass", 50)}
+        />
+
+        <button
+          className="base-action-button"
+          onClick={() => {
+            onStartTransferTargeting(selectedArmies, selectedResources);
+
+            setSelectedArmies({
+              water: 0,
+              fire: 0,
+              grass: 0,
+            });
+
+            setSelectedResources({
+              water: 0,
+              fire: 0,
+              grass: 0,
+            });
+
+            setMode("main");
+          }}
+        >
+          Choose Destination
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={() => setMode("transfer-armies")}
+        >
+          Back
+        </button>
       </div>
+    );
+  }
+  /*
+   * Select armies for an attack.
+   */
+  if (mode === "attack-armies") {
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">Select Attacking Armies</div>
 
-      <div className="cargo-capacity">
-        Cargo: {totalCargo} / {cargoCapacity}
+        <ArmySelector
+          icon="⚔️💧"
+          label="Water"
+          available={base.armies.water}
+          selected={selectedArmies.water}
+          onDecrease={() => changeArmyCount("water", -1)}
+          onIncrease={() => changeArmyCount("water", 1)}
+        />
+
+        <ArmySelector
+          icon="⚔️🔥"
+          label="Fire"
+          available={base.armies.fire}
+          selected={selectedArmies.fire}
+          onDecrease={() => changeArmyCount("fire", -1)}
+          onIncrease={() => changeArmyCount("fire", 1)}
+        />
+
+        <ArmySelector
+          icon="⚔️🌱"
+          label="Grass"
+          available={base.armies.grass}
+          selected={selectedArmies.grass}
+          onDecrease={() => changeArmyCount("grass", -1)}
+          onIncrease={() => changeArmyCount("grass", 1)}
+        />
+
+        <button
+          className="base-action-button"
+          disabled={totalSelected === 0}
+          onClick={() => {
+            onStartAttackTargeting(selectedArmies);
+
+            setSelectedArmies({
+              water: 0,
+              fire: 0,
+              grass: 0,
+            });
+
+            setMode("main");
+          }}
+        >
+          Choose Target
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={() => setMode("mission")}
+        >
+          Back
+        </button>
+
+        <button className="base-action-button" onClick={resetSend}>
+          Cancel
+        </button>
       </div>
-
-      <ResourceSelector
-        icon="💧"
-        label="Water"
-        available={resources.water}
-        selected={selectedResources.water}
-        onDecrease={() =>
-          changeResourceCount("water", -50)
-        }
-        onIncrease={() =>
-            changeResourceCount("water", 50)
-        }
-      />
-
-      <ResourceSelector
-        icon="🔥"
-        label="Fire"
-        available={resources.fire}
-        selected={selectedResources.fire}
-        onDecrease={() =>
-          changeResourceCount("fire", -50)
-        }
-        onIncrease={() =>
-          changeResourceCount("fire", 50)
-        }
-      />
-
-      <ResourceSelector
-        icon="🌱"
-        label="Grass"
-        available={resources.grass}
-        selected={selectedResources.grass}
-        onDecrease={() =>
-          changeResourceCount("grass", -50)
-        }
-        onIncrease={() =>
-          changeResourceCount("grass", 50)
-        }
-      />
-
-      <button
-        className="base-action-button"
-        onClick={() => {
-          onStartTransferTargeting(
-            selectedArmies,
-            selectedResources,
-          );
-
-          setSelectedArmies({
-            water: 0,
-            fire: 0,
-            grass: 0,
-          });
-
-          setSelectedResources({
-            water: 0,
-            fire: 0,
-            grass: 0,
-          });
-
-          setMode("main");
-        }}
-      >
-        Choose Destination
-      </button>
-
-      <button
-        className="base-action-button"
-        onClick={() => setMode("transfer-armies")}
-      >
-        Back
-      </button>
-    </div>
-  );
-}
-/*
- * Select armies for an attack.
- */
-if (mode === "attack-armies") {
-  return (
-    <div className="base-actions send-menu">
-      <div className="send-menu-title">
-        Select Attacking Armies
-      </div>
-
-      <ArmySelector
-        icon="⚔️💧"
-        label="Water"
-        available={base.armies.water}
-        selected={selectedArmies.water}
-        onDecrease={() =>
-          changeArmyCount("water", -1)
-        }
-        onIncrease={() =>
-          changeArmyCount("water", 1)
-        }
-      />
-
-      <ArmySelector
-        icon="⚔️🔥"
-        label="Fire"
-        available={base.armies.fire}
-        selected={selectedArmies.fire}
-        onDecrease={() =>
-          changeArmyCount("fire", -1)
-        }
-        onIncrease={() =>
-          changeArmyCount("fire", 1)
-        }
-      />
-
-      <ArmySelector
-        icon="⚔️🌱"
-        label="Grass"
-        available={base.armies.grass}
-        selected={selectedArmies.grass}
-        onDecrease={() =>
-          changeArmyCount("grass", -1)
-        }
-        onIncrease={() =>
-          changeArmyCount("grass", 1)
-        }
-      />
-
-      <button
-        className="base-action-button"
-        disabled={totalSelected === 0}
-        onClick={() => {
-          onStartAttackTargeting(selectedArmies);
-
-          setSelectedArmies({
-            water: 0,
-            fire: 0,
-            grass: 0,
-          });
-
-          setMode("main");
-        }}
-      >
-        Choose Target
-      </button>
-
-      <button
-        className="base-action-button"
-        onClick={() => setMode("mission")}
-      >
-        Back
-      </button>
-
-      <button
-        className="base-action-button"
-        onClick={resetSend}
-      >
-        Cancel
-      </button>
-    </div>
-  );
-}
+    );
+  }
 
   if (mode === "expand-payment") {
     return (
       <div className="base-actions send-menu">
-        <div className="send-menu-title">
-          Expand Empire
-        </div>
+        <div className="send-menu-title">Expand Empire</div>
+
+        <div className="send-menu-message">Cost: 🔑1 + 500 resources</div>
 
         <div className="send-menu-message">
-          Cost: 🔑1 + 500 resources
-        </div>
-
-        <div className="send-menu-message">
-          Available:{" "}
-          💧{resources.water}{" "}
-          🔥{resources.fire}{" "}
-          🌱{resources.grass}
+          Available: 💧{resources.water} 🔥{resources.fire} 🌱{resources.grass}
         </div>
 
         <ResourceSelector
@@ -776,12 +612,8 @@ if (mode === "attack-armies") {
           label="Water"
           available={resources.water}
           selected={expansionPayment.water}
-          onDecrease={() =>
-            changeExpansionPayment("water", -50)
-          }
-          onIncrease={() =>
-            changeExpansionPayment("water", 50)
-          }
+          onDecrease={() => changeExpansionPayment("water", -50)}
+          onIncrease={() => changeExpansionPayment("water", 50)}
         />
 
         <ResourceSelector
@@ -789,12 +621,8 @@ if (mode === "attack-armies") {
           label="Fire"
           available={resources.fire}
           selected={expansionPayment.fire}
-          onDecrease={() =>
-            changeExpansionPayment("fire", -50)
-          }
-          onIncrease={() =>
-            changeExpansionPayment("fire", 50)
-          }
+          onDecrease={() => changeExpansionPayment("fire", -50)}
+          onIncrease={() => changeExpansionPayment("fire", 50)}
         />
 
         <ResourceSelector
@@ -802,12 +630,8 @@ if (mode === "attack-armies") {
           label="Grass"
           available={resources.grass}
           selected={expansionPayment.grass}
-          onDecrease={() =>
-            changeExpansionPayment("grass", -50)
-          }
-          onIncrease={() =>
-            changeExpansionPayment("grass", 50)
-          }
+          onDecrease={() => changeExpansionPayment("grass", -50)}
+          onIncrease={() => changeExpansionPayment("grass", 50)}
         />
 
         <div className="send-menu-message">
@@ -818,9 +642,7 @@ if (mode === "attack-armies") {
           className="base-action-button"
           disabled={totalExpansionPayment !== 500}
           onClick={() => {
-            onStartExpandTargeting(
-              expansionPayment,
-            );
+            onStartExpandTargeting(expansionPayment);
 
             setExpansionPayment({
               water: 0,
@@ -834,10 +656,7 @@ if (mode === "attack-armies") {
           Choose Location
         </button>
 
-        <button
-          className="base-action-button"
-          onClick={() => setMode("main")}
-        >
+        <button className="base-action-button" onClick={() => setMode("main")}>
           Back
         </button>
       </div>
@@ -846,117 +665,93 @@ if (mode === "attack-armies") {
 
   if (mode === "relocate-payment") {
     return (
-        <div className="base-actions send-menu">
-          <div className="send-menu-title">
-            📦 Relocate Base
-          </div>
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">📦 Relocate Base</div>
 
-          <div className="send-menu-message">
-            Cost: {relocationCost} resources
-          </div>
-
-          <ResourceSelector
-            icon="💧"
-            label="Water"
-            available={resources.water}
-            selected={relocationPayment.water}
-            onDecrease={() =>
-              changeRelocationPayment("water", -50)
-            }
-            onIncrease={() =>
-              changeRelocationPayment("water", 50)
-            }
-          />
-
-          <ResourceSelector
-            icon="🔥"
-            label="Fire"
-            available={resources.fire}
-            selected={relocationPayment.fire}
-            onDecrease={() =>
-              changeRelocationPayment("fire", -50)
-            }
-            onIncrease={() =>
-              changeRelocationPayment("fire", 50)
-            }
-          />
-
-          <ResourceSelector
-            icon="🌱"
-            label="Grass"
-            available={resources.grass}
-            selected={relocationPayment.grass}
-            onDecrease={() =>
-              changeRelocationPayment("grass", -50)
-            }
-            onIncrease={() =>
-              changeRelocationPayment("grass", 50)
-            }
-          />
-
-          <div className="send-menu-message">
-            Payment: {totalRelocationPayment} / {relocationCost}
-          </div>
-
-          <button
-              className="base-action-button"
-              disabled={
-                totalRelocationPayment !== relocationCost
-              }
-              onClick={() => {
-                onStartRelocateTargeting(
-                  relocationPayment,
-                );
-
-                setRelocationPayment({
-                  water: 0,
-                  fire: 0,
-                  grass: 0,
-                });
-
-                setMode("main");
-              }}
-            >
-              Choose Location
-            </button>
-
-          <button
-            className="base-action-button"
-            onClick={() => {
-              setRelocationPayment({
-                water: 0,
-                fire: 0,
-                grass: 0,
-              });
-
-              setMode("main");
-            }}
-          >
-            Back
-          </button>
+        <div className="send-menu-message">
+          Cost: {relocationCost} resources
         </div>
-      );
-    }
+
+        <ResourceSelector
+          icon="💧"
+          label="Water"
+          available={resources.water}
+          selected={relocationPayment.water}
+          onDecrease={() => changeRelocationPayment("water", -50)}
+          onIncrease={() => changeRelocationPayment("water", 50)}
+        />
+
+        <ResourceSelector
+          icon="🔥"
+          label="Fire"
+          available={resources.fire}
+          selected={relocationPayment.fire}
+          onDecrease={() => changeRelocationPayment("fire", -50)}
+          onIncrease={() => changeRelocationPayment("fire", 50)}
+        />
+
+        <ResourceSelector
+          icon="🌱"
+          label="Grass"
+          available={resources.grass}
+          selected={relocationPayment.grass}
+          onDecrease={() => changeRelocationPayment("grass", -50)}
+          onIncrease={() => changeRelocationPayment("grass", 50)}
+        />
+
+        <div className="send-menu-message">
+          Payment: {totalRelocationPayment} / {relocationCost}
+        </div>
+
+        <button
+          className="base-action-button"
+          disabled={totalRelocationPayment !== relocationCost}
+          onClick={() => {
+            onStartRelocateTargeting(relocationPayment);
+
+            setRelocationPayment({
+              water: 0,
+              fire: 0,
+              grass: 0,
+            });
+
+            setMode("main");
+          }}
+        >
+          Choose Location
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={() => {
+            setRelocationPayment({
+              water: 0,
+              fire: 0,
+              grass: 0,
+            });
+
+            setMode("main");
+          }}
+        >
+          Back
+        </button>
+      </div>
+    );
+  }
 
   /*
    * Main actions.
    */
   return (
     <div className="base-actions">
-      <button
-        className="base-action-button"
-        onClick={() => setMode("train")}
-      >
+      <button className="base-action-button" onClick={() => setMode("train")}>
         ⚔ Train
       </button>
 
       <button
         className="base-action-button"
         disabled={
-          base.armies.water +
-            base.armies.fire +
-            base.armies.grass ===
-          0
+          base.armies.water + base.armies.fire + base.armies.grass === 0
         }
         onClick={() => setMode("mission")}
       >
@@ -968,15 +763,13 @@ if (mode === "attack-armies") {
         disabled={!canExpand}
         onClick={() => setMode("expand-payment")}
       >
-        🔑 Expand
+        🔑 Expand (500+🔑)
       </button>
 
       <button
         className="base-action-button"
         disabled={!canAffordRelocation}
-        onClick={() =>
-          setMode("relocate-payment")
-        }
+        onClick={() => setMode("relocate-payment")}
       >
         📦 Relocate ({relocationCost})
       </button>
@@ -1009,19 +802,13 @@ function ArmySelector({
       </div>
 
       <div className="army-selector-controls">
-        <button
-          disabled={selected <= 0}
-          onClick={onDecrease}
-        >
+        <button disabled={selected <= 0} onClick={onDecrease}>
           −
         </button>
 
         <strong>{selected}</strong>
 
-        <button
-          disabled={selected >= available}
-          onClick={onIncrease}
-        >
+        <button disabled={selected >= available} onClick={onIncrease}>
           +
         </button>
       </div>
@@ -1053,19 +840,13 @@ function ResourceSelector({
       </div>
 
       <div className="army-selector-controls">
-        <button
-          disabled={selected <= 0}
-          onClick={onDecrease}
-        >
+        <button disabled={selected <= 0} onClick={onDecrease}>
           −50
         </button>
 
         <strong>{selected}</strong>
 
-        <button
-          disabled={selected + 50 > available}
-          onClick={onIncrease}
-        >
+        <button disabled={selected + 50 > available} onClick={onIncrease}>
           +50
         </button>
       </div>

@@ -361,11 +361,7 @@ function runGameTick() {
         (base) => base.id === mission.originBaseId,
       );
 
-      /*
-       * If the origin base is gone,
-       * the mission is lost.
-       */
-      if (!originBase) {
+      if (mission.originRow === undefined || mission.originCol === undefined) {
         return;
       }
 
@@ -375,8 +371,32 @@ function runGameTick() {
        */
       if (!defendingBase) {
         const distance =
-          Math.abs(originBase.row - mission.destinationRow!) +
-          Math.abs(originBase.col - mission.destinationCol!);
+          Math.abs(mission.originRow - mission.destinationRow!) +
+          Math.abs(mission.originCol - mission.destinationCol!);
+
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: mission.playerId,
+
+          missionType: "attack",
+
+          reason: "destination-unavailable",
+
+          baseName:
+            mission.originBaseSlot !== undefined
+              ? `Base ${mission.originBaseSlot}`
+              : undefined,
+
+          row: mission.destinationRow,
+          col: mission.destinationCol,
+        });
+
+        nextGameEventId += 1;
 
         updatedArmyMissions.push({
           ...mission,
@@ -488,7 +508,7 @@ function runGameTick() {
 
             eliminatedPlayerId: defendingBase.playerId,
 
-            eliminatedByPlayerId: originBase.playerId,
+            eliminatedByPlayerId: mission.playerId,
           });
 
           nextGameEventId += 1;
@@ -598,7 +618,7 @@ function runGameTick() {
 
           gameSeconds: gameState.gameSeconds + 1,
 
-          attackerPlayerId: originBase.playerId,
+          attackerPlayerId: mission.playerId,
 
           defenderPlayerId: defendingBase.playerId,
 
@@ -610,7 +630,10 @@ function runGameTick() {
            * Temporary server-side names.
            * We can move getBaseName() to shared code later.
            */
-          attackerBaseName: `Base ${originBase.baseSlot}`,
+          attackerBaseName:
+            mission.originBaseSlot !== undefined
+              ? `Base ${mission.originBaseSlot}`
+              : "Unknown Base",
 
           defenderBaseName: `Base ${defendingBase.baseSlot}`,
 
@@ -653,8 +676,8 @@ function runGameTick() {
        */
       if (totalSurvivors > 0) {
         const distance =
-          Math.abs(originBase.row - defendingBase.row) +
-          Math.abs(originBase.col - defendingBase.col);
+          Math.abs(mission.originRow - defendingBase.row) +
+          Math.abs(mission.originCol - defendingBase.col);
 
         updatedArmyMissions.push({
           ...mission,
@@ -676,7 +699,7 @@ function runGameTick() {
       }
 
       console.log("ATTACK RESOLVED:", {
-        attacker: originBase.playerId,
+        attacker: mission.playerId,
         defender: defendingBase.playerId,
         baseDestroyed: combatResult.baseDestroyed,
         attackerSurvivors: combatResult.attackerSurvivors,
@@ -700,7 +723,53 @@ function runGameTick() {
         (treasure) => treasure.id === mission.destinationBaseId,
       );
 
-      if (!originBase || !treasure) {
+      if (!originBase) {
+        return;
+      }
+
+      if (!treasure) {
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: originBase.playerId,
+
+          missionType: "loot",
+
+          reason: "destination-unavailable",
+
+          baseName: `Base ${originBase.baseSlot}`,
+
+          row: mission.destinationRow,
+          col: mission.destinationCol,
+        });
+
+        nextGameEventId += 1;
+
+        const distance =
+          mission.destinationRow !== undefined &&
+          mission.destinationCol !== undefined
+            ? Math.abs(originBase.row - mission.destinationRow) +
+              Math.abs(originBase.col - mission.destinationCol)
+            : 0;
+
+        updatedArmyMissions.push({
+          ...mission,
+
+          phase: "returning",
+
+          resources: {
+            water: 0,
+            fire: 0,
+            grass: 0,
+          },
+
+          secondsRemaining: distance * 5,
+        });
+
         return;
       }
 
@@ -794,6 +863,22 @@ function runGameTick() {
       );
 
       if (!originBase) {
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: mission.playerId,
+
+          missionType: "loot",
+
+          reason: "origin-destroyed",
+        });
+
+        nextGameEventId += 1;
+
         return;
       }
 
@@ -868,6 +953,27 @@ function runGameTick() {
         const distance =
           Math.abs(originBase.row - mission.destinationRow) +
           Math.abs(originBase.col - mission.destinationCol);
+
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: originBase.playerId,
+
+          missionType: "expand",
+
+          reason: "destination-unavailable",
+
+          baseName: `Base ${originBase.baseSlot}`,
+
+          row: mission.destinationRow,
+          col: mission.destinationCol,
+        });
+
+        nextGameEventId += 1;
 
         updatedArmyMissions.push({
           ...mission,
@@ -1013,12 +1119,26 @@ function runGameTick() {
           Math.abs(relocatingBase.row - mission.destinationRow) +
           Math.abs(relocatingBase.col - mission.destinationCol);
 
-        console.log("RELOCATION DESTINATION BLOCKED - RETURNING HOME", {
-          missionId: mission.id,
-          originBaseId: mission.originBaseId,
-          returnDistance,
-          returnSeconds: returnDistance * 15,
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: relocatingBase.playerId,
+
+          missionType: "relocate",
+
+          reason: "destination-unavailable",
+
+          baseName: `Base ${relocatingBase.baseSlot}`,
+
+          row: mission.destinationRow,
+          col: mission.destinationCol,
         });
+
+        nextGameEventId += 1;
 
         updatedArmyMissions.push({
           ...mission,
@@ -1099,10 +1219,6 @@ function runGameTick() {
      * attempting to return to its original tile.
      */
     if (mission.type === "relocate" && mission.phase === "returning") {
-      console.log("RETURNING RELOCATION ARRIVED", {
-        missionId: mission.id,
-        secondsRemaining: mission.secondsRemaining,
-      });
       const relocatingBase = updatedBases.find(
         (base) => base.id === mission.originBaseId,
       );
@@ -1136,6 +1252,27 @@ function runGameTick() {
        * traveling with it are lost.
        */
       if (originalOccupied || originalHasTreasure) {
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: relocatingBase.playerId,
+
+          missionType: "relocate",
+
+          reason: "return-location-blocked",
+
+          baseName: `Base ${relocatingBase.baseSlot}`,
+
+          row: relocatingBase.row,
+          col: relocatingBase.col,
+        });
+
+        nextGameEventId += 1;
+
         updatedBases = updatedBases.filter(
           (base) => base.id !== relocatingBase.id,
         );
@@ -1175,14 +1312,12 @@ function runGameTick() {
             Number,
           );
 
-          const remainingPlayers = players.filter(
-            (player) =>
-              activePlayerIds.includes(player.id) &&
-              !updatedEliminatedPlayerIds.includes(player.id),
+          const remainingPlayerIds = activePlayerIds.filter(
+            (playerId) => !updatedEliminatedPlayerIds.includes(playerId),
           );
 
-          if (remainingPlayers.length === 1) {
-            updatedWinnerPlayerId = remainingPlayers[0].id;
+          if (remainingPlayerIds.length === 1) {
+            updatedWinnerPlayerId = remainingPlayerIds[0];
 
             updatedGameEvents.push({
               type: "victory",
@@ -1191,7 +1326,7 @@ function runGameTick() {
 
               gameSeconds: gameState.gameSeconds + 1,
 
-              winnerPlayerId: remainingPlayers[0].id,
+              winnerPlayerId: remainingPlayerIds[0],
             });
 
             nextGameEventId += 1;
@@ -1380,6 +1515,22 @@ function runGameTick() {
        * Mission is lost.
        */
       if (!originBase) {
+        updatedGameEvents.push({
+          type: "mission-failed",
+
+          id: nextGameEventId,
+
+          gameSeconds: gameState.gameSeconds + 1,
+
+          playerId: mission.playerId,
+
+          missionType: mission.type,
+
+          reason: "origin-destroyed",
+        });
+
+        nextGameEventId += 1;
+
         return;
       }
 
@@ -1439,16 +1590,48 @@ function runGameTick() {
    * STEP 3:
    * ELIMINATION / SCORING / VICTORY
    * ==================================================
-   *
-   * TODO — MIGRATE FROM App.tsx
-   *
-   * Expected contents:
-   * - detect players with zero surviving bases
-   * - freeze eliminated-player scores
-   * - calculate live scores
-   * - detect Sudden Death winner
-   * - detect timed-match winner
    */
+
+  if (
+    gameState.matchType === "30m" &&
+    gameState.gameSeconds + 1 >= 30 * 60 &&
+    updatedWinnerPlayerId === null
+  ) {
+    const survivingPlayerIds = Object.keys(updatedArmiesTrainedByPlayer)
+      .map(Number)
+      .filter((playerId) => !updatedEliminatedPlayerIds.includes(playerId));
+
+    const standings = survivingPlayerIds
+      .map((playerId) => ({
+        playerId,
+
+        score: calculatePlayerScore(
+          playerId,
+          updatedBases,
+          updatedResources,
+          updatedArmyMissions,
+          updatedArmiesTrainedByPlayer[playerId] ?? 0,
+          updatedArmyResourcesSpentByPlayer[playerId] ?? 0,
+        ).totalScore,
+      }))
+      .sort((a, b) => b.score - a.score);
+
+    updatedWinnerPlayerId = standings[0]?.playerId ?? null;
+
+    if (updatedWinnerPlayerId !== null) {
+      updatedGameEvents.push({
+        type: "victory",
+
+        id: nextGameEventId,
+
+        gameSeconds: gameState.gameSeconds + 1,
+
+        winnerPlayerId: updatedWinnerPlayerId,
+      });
+
+      nextGameEventId += 1;
+    }
+  }
 
   /*
    * ==================================================
@@ -2005,7 +2188,13 @@ server.on("connection", (socket) => {
 
         originBaseId: originBase.id,
 
+        originRow: originBase.row,
+        originCol: originBase.col,
+
         destinationBaseId: destinationBase.id,
+
+        destinationRow: destinationBase.row,
+        destinationCol: destinationBase.col,
 
         armies: {
           ...armies,
@@ -2018,10 +2207,6 @@ server.on("connection", (socket) => {
         expansionKeys: 0,
 
         secondsRemaining: travelTime,
-
-        destinationRow: destinationBase.row,
-
-        destinationCol: destinationBase.col,
       };
 
       gameState = {
@@ -2144,6 +2329,10 @@ server.on("connection", (socket) => {
         phase: "outbound",
 
         originBaseId: originBase.id,
+
+        originRow: originBase.row,
+        originCol: originBase.col,
+        originBaseSlot: originBase.baseSlot,
 
         destinationBaseId: destinationBase.id,
 
