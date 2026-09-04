@@ -463,3 +463,166 @@ The lobby performs client-side checks to control the interface, but lobby state
 and authoritative validation are maintained by the server. Player actions such
 as joining, leaving, changing characters, readying up, and starting the match
 are passed upward through callbacks and sent to the server.
+
+### `src/App.tsx`
+
+Acts as the main client-side coordinator for EXiLE.
+
+`App` connects the React interface to the authoritative multiplayer server and
+holds the latest lobby and match state received over WebSockets.
+
+Its primary responsibilities include:
+
+- Connecting to the EXiLE WebSocket server on port 8080.
+- Receiving and storing authoritative lobby and `GameState` updates.
+- Determining which player and bases belong to the current client.
+- Maintaining temporary client-side map-targeting state for attack, loot,
+  transfer, expansion, and relocation workflows.
+- Sending player action requests to the server.
+- Selecting the correct map layout for the current match.
+- Deriving client display data such as the selected base, resources, standings,
+  elimination state, and winner.
+- Rendering the lobby before a match and the main game interface after the
+  server starts the match.
+- Coordinating the Game Map, Game Log, Leaderboard, Base Actions, Resource Bar,
+  Army Movements, Game Clock, and base selector.
+
+`App.tsx` does not run the authoritative game simulation. Training, production,
+mission resolution, combat, resource changes, elimination, scoring, and victory
+are validated and resolved by the server.
+
+The targeting state stored in `App` is temporary UI state only. For example,
+when a player chooses armies for an attack, `App` remembers those armies while
+the player selects a destination on the map. Once the destination is chosen,
+the action is sent to the server for authoritative validation and execution.
+
+The client currently receives full authoritative `GameState` snapshots from the
+server and renders the interface from those snapshots.
+
+### `src/App.css`
+
+Contains the primary visual styling for the EXiLE client.
+
+The stylesheet defines the layout and appearance of the game map, terrain,
+bases, resources, game log, leaderboard, army movements, base actions, lobby,
+targeting indicators, treasure, game-over interface, and base selector.
+
+It also contains desktop-responsive layouts for medium-size displays and
+smaller desktop/laptop screens.
+
+Map terrain and flow-direction classes are used by the map components to render
+Grass, Water, Fire, rivers, lava, map edges, and resource multipliers.
+
+Mission-targeting styles visually distinguish valid attack, loot, transfer,
+expansion, and relocation destinations without controlling whether those
+actions are actually legal. Target validation remains part of the game logic
+and authoritative server.
+
+### `server/src/index.ts`
+
+Runs the authoritative EXiLE multiplayer game server using Node.js and WebSockets.
+
+The server listens on port `8080` and owns both the multiplayer lobby and the
+live match simulation.
+
+#### Lobby responsibilities
+
+The server manages:
+
+- Connected clients and client IDs.
+- Lobby slots and character selection.
+- Ready status.
+- Host assignment and host reassignment when the host leaves or disconnects.
+- Map selection.
+- Match-type selection.
+- Validation that the selected map supports the current player count.
+- Starting a match only when the lobby is valid and all players are ready.
+
+The first connected player becomes the host. If the host leaves or disconnects,
+host control passes to another player in the lobby.
+
+#### Authoritative game state
+
+When a match begins, the server creates the initial `GameState` and advances the
+match once per second.
+
+The server is authoritative for:
+
+- Match time.
+- Base aging.
+- Resource production.
+- Army training and training costs.
+- Army movement.
+- Transfers.
+- Attacks and combat.
+- Looting.
+- Expansion.
+- Relocation.
+- Mission failures and returns.
+- Treasure creation and removal.
+- Expansion Keys.
+- Player elimination.
+- Score calculation.
+- Victory.
+- Public game events.
+
+Clients do not directly modify these systems. They send action requests to the
+server, the server validates those requests, updates the authoritative
+`GameState`, and broadcasts the resulting state to connected clients.
+
+#### Missions
+
+The server currently supports five mission types:
+
+- `transfer`
+- `attack`
+- `loot`
+- `expand`
+- `relocate`
+
+Mission travel and arrival are processed by the server game tick.
+
+Attack, transfer, loot, and expansion travel currently use 5 seconds per map
+tile. Relocation uses 15 seconds per tile.
+
+Missions preserve enough origin and destination information to resolve failures
+and returns even when the map changes while they are traveling.
+
+Examples include:
+
+- An attack returning when its target no longer exists.
+- A transfer returning when its destination is destroyed.
+- A loot mission failing when its treasure has already been taken.
+- A failed expansion returning its resources and Expansion Key.
+- A relocation returning when its destination becomes occupied.
+- A relocating base being lost if both its destination and original location
+  become unavailable.
+
+If a mission's required origin base is destroyed before a return can complete,
+the returning armies, resources, and other carried items are lost.
+
+#### Combat and scoring
+
+Combat, loot distribution, army costs, production multipliers, and player
+scoring use the shared deterministic rules from `src/game/rules.ts`.
+
+This keeps the authoritative server and client display logic based on the same
+rule definitions without duplicating those formulas.
+
+A player is eliminated immediately when they have no surviving bases. Their
+score is frozen at elimination.
+
+In a 30-minute match, the server determines the winner from the surviving
+players' scores when time expires. In Sudden Death, play continues until only
+one player remains.
+
+#### Networking
+
+The server currently broadcasts full authoritative `GameState` snapshots to
+connected clients after state-changing player actions and after each server
+game tick.
+
+The current multiplayer implementation is designed first for LAN play. Features
+such as persistent rooms, reconnect support, internet matchmaking, protocol
+hardening, and runtime validation of incoming WebSocket message payloads are
+future work.
