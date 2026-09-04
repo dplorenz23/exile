@@ -30,8 +30,8 @@ game simulation to be rewritten.
 -   [Game Events](#game-events)
 -   [Current Multiplayer Status](#current-multiplayer-status)
 -   [Known Issues and Deferred Work](#known-issues-and-deferred-work)
--   [Future Ideas & Improvements](#future-ideas-&-improvements)
 -   [Development Status](#development-status)
+-   [Future Ideas and Improvements](#future-ideas-and-improvements)
 -   [Project Structure](#project-structure)
 
 ------------------------------------------------------------------------
@@ -609,7 +609,7 @@ hosting, additional polish, gameplay balancing, and additional content.
 
 ------------------------------------------------------------------------
 
-## Future Ideas & Improvements
+## Future Ideas and Improvements
 
 The following ideas are possible future additions rather than committed
 features. They should generally be evaluated through multiplayer playtesting
