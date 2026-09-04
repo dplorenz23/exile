@@ -78,3 +78,21 @@ Important architectural details represented here include:
 Because these types are shared across the client, shared game logic, and server,
 changes here can affect networking and authoritative state handling across the
 entire project.
+
+### `src/game/gameState.ts`
+
+Contains EXiLE's static game configuration and default starting data.
+
+This file defines:
+
+- Available maps and their supported player counts/dimensions.
+- Match types, including the 30-minute and Sudden Death modes.
+- The four playable characters, including name, color, and avatar.
+- The three possible base names assigned to each player.
+- `getBaseName()`, which resolves a player's base name from its base slot.
+- Default starting bases and starting resources used when initializing a new match.
+
+This file represents configuration rather than live match state. Runtime state such
+as current resources, missions, treasure, eliminations, and the winner is created
+separately in `createInitialGameState.ts` and then maintained by the authoritative
+server.
