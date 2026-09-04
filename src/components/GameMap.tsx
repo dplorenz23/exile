@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 
+import { BALANCE } from "../game/balance";
+
 import { getBaseName, players } from "../game/gameState";
 
 import type { Base, Tile as MapTile, Treasure } from "../game/types";
@@ -139,7 +141,7 @@ export default function GameMap({
                 originBase.col,
                 tile.row,
                 tile.col,
-                15,
+                BALANCE.relocation.travelSecondsPerTile,
               )
             : undefined;
 

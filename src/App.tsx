@@ -206,6 +206,9 @@ function App() {
 
   const yourExpansionKeys = gameState.expansionKeysByPlayer[yourPlayerId] ?? 0;
 
+  const yourExpansionsCompleted =
+    gameState?.expansionsCompletedByPlayer[yourPlayerId] ?? 0;
+
   const youAreEliminated = gameState.eliminatedPlayerIds.includes(yourPlayerId);
 
   const winner =
@@ -553,8 +556,8 @@ function App() {
    * TRAIN ARMY
    * ==========================================================
    *
-   * Starts a 10-second training order
-   * at the selected base.
+   * Starts a training order at the selected base.
+   *
    */
   function handleTrainArmy(resource: ResourceType): void {
     socketRef.current?.send(
@@ -773,6 +776,7 @@ function App() {
         resources={selectedResources}
         ownedBases={yourBases}
         expansionKeys={yourExpansionKeys}
+        expansionsCompleted={yourExpansionsCompleted}
         onTrainArmy={handleTrainArmy}
         onStartAttackTargeting={handleStartAttackTargeting}
         onStartLootTargeting={handleStartLootTargeting}

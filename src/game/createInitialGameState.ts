@@ -95,6 +95,10 @@ export function createInitialGameState(
       activePlayerIds.map((playerId) => [playerId, 1]),
     ),
 
+    expansionsCompletedByPlayer: Object.fromEntries(
+      activePlayerIds.map((playerId) => [playerId, 0]),
+    ),
+
     armiesTrainedByPlayer: Object.fromEntries(
       activePlayerIds.map((playerId) => [playerId, 0]),
     ),

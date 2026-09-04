@@ -1,5 +1,7 @@
 import type { CSSProperties } from "react";
 
+import { BALANCE } from "../game/balance";
+
 import type { Base, Player } from "../game/types";
 
 interface BasePieceProps {
@@ -21,15 +23,15 @@ function formatTime(seconds: number): string {
 }
 
 function getBaseTier(seconds: number): number {
-  if (seconds >= 600) {
+  if (seconds >= BALANCE.production.level4Seconds) {
     return 4;
   }
 
-  if (seconds >= 300) {
+  if (seconds >= BALANCE.production.level3Seconds) {
     return 3;
   }
 
-  if (seconds >= 120) {
+  if (seconds >= BALANCE.production.level2Seconds) {
     return 2;
   }
 

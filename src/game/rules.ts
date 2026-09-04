@@ -1,3 +1,5 @@
+import { BALANCE } from "./balance";
+
 import type {
   ArmyCounts,
   CombatResult,
@@ -18,24 +20,47 @@ import type {
  * UI or networking code.
  */
 
-export function getLocationMultiplier(seconds: number) {
-  if (seconds >= 600) {
-    return 4;
+export function getLocationMultiplier(ageSeconds: number): number {
+  if (ageSeconds >= BALANCE.production.level4Seconds) {
+    return BALANCE.production.primaryByLevel[3];
   }
 
-  if (seconds >= 300) {
-    return 3;
+  if (ageSeconds >= BALANCE.production.level3Seconds) {
+    return BALANCE.production.primaryByLevel[2];
   }
 
-  if (seconds >= 120) {
-    return 2;
+  if (ageSeconds >= BALANCE.production.level2Seconds) {
+    return BALANCE.production.primaryByLevel[1];
   }
 
-  return 1;
+  return BALANCE.production.primaryByLevel[0];
 }
 
-export function getArmyCost(armiesBuilt: number) {
-  return 100 + armiesBuilt * 50;
+export function getArmyCost(armiesBuilt: number): number {
+  return BALANCE.armies.baseCost + armiesBuilt * BALANCE.armies.costIncrease;
+}
+
+export function getSecondaryProduction(ageSeconds: number): number {
+  if (ageSeconds >= BALANCE.production.level4Seconds) {
+    return BALANCE.production.secondaryByLevel[3];
+  }
+
+  if (ageSeconds >= BALANCE.production.level3Seconds) {
+    return BALANCE.production.secondaryByLevel[2];
+  }
+
+  if (ageSeconds >= BALANCE.production.level2Seconds) {
+    return BALANCE.production.secondaryByLevel[1];
+  }
+
+  return BALANCE.production.secondaryByLevel[0];
+}
+
+export function getExpansionCost(expansionsCompleted: number): number {
+  return (
+    BALANCE.expansion.baseCost +
+    expansionsCompleted * BALANCE.expansion.costIncrease
+  );
 }
 
 /*
@@ -395,7 +420,7 @@ export function calculatePlayerScore(
    */
   const playerBases = bases.filter((base) => base.playerId === playerId);
 
-  const baseScore = playerBases.length * 500;
+  const baseScore = playerBases.length * BALANCE.scoring.baseValue;
 
   /*
    * ==================================================

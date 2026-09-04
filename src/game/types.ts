@@ -374,6 +374,8 @@ export type GameState = {
 
   expansionKeysByPlayer: Record<number, number>;
 
+  expansionsCompletedByPlayer: Record<number, number>;
+
   armyMissions: ArmyMission[];
   nextMissionId: number;
 

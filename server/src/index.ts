@@ -1,12 +1,15 @@
+import { BALANCE } from "../../src/game/balance";
 import { createInitialGameState } from "../../src/game/createInitialGameState";
 import { mapOne } from "../../src/game/maps/mapOne";
 import { mapTwo } from "../../src/game/maps/mapTwo";
 import {
   getArmyCost,
   getLocationMultiplier,
+  getSecondaryProduction,
   resolveCombat,
   calculateLoot,
   calculatePlayerScore,
+  getExpansionCost,
 } from "../../src/game/rules";
 
 import type {
@@ -284,6 +287,10 @@ function runGameTick(): void {
     ...gameState.expansionKeysByPlayer,
   };
 
+  const updatedExpansionsCompletedByPlayer = {
+    ...gameState.expansionsCompletedByPlayer,
+  };
+
   const updatedTreasures = [...gameState.treasures];
 
   let nextTreasureId = gameState.nextTreasureId;
@@ -393,7 +400,7 @@ function runGameTick(): void {
 
           phase: "returning",
 
-          secondsRemaining: distance * 5,
+          secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
         });
 
         return;
@@ -548,7 +555,7 @@ function runGameTick(): void {
           grass: 0,
         };
 
-        const lootCapacity = totalSurvivors * 200;
+        const lootCapacity = totalSurvivors * BALANCE.armies.cargoCapacity;
 
         const lootResult = calculateLoot(defeatedResources, lootCapacity);
 
@@ -684,7 +691,7 @@ function runGameTick(): void {
 
           expansionKeys: returningExpansionKeys,
 
-          secondsRemaining: distance * 5,
+          secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
         });
       }
 
@@ -749,7 +756,7 @@ function runGameTick(): void {
             grass: 0,
           },
 
-          secondsRemaining: distance * 5,
+          secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
         });
 
         return;
@@ -758,7 +765,7 @@ function runGameTick(): void {
       const totalArmies =
         mission.armies.water + mission.armies.fire + mission.armies.grass;
 
-      const lootCapacity = totalArmies * 200;
+      const lootCapacity = totalArmies * BALANCE.armies.cargoCapacity;
 
       const lootResult = calculateLoot(treasure.resources, lootCapacity);
 
@@ -828,7 +835,7 @@ function runGameTick(): void {
           ...lootResult.loot,
         },
 
-        secondsRemaining: distance * 5,
+        secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
       });
 
       return;
@@ -960,7 +967,7 @@ function runGameTick(): void {
         updatedArmyMissions.push({
           ...mission,
           phase: "returning",
-          secondsRemaining: distance * 5,
+          secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
         });
 
         return;
@@ -1022,13 +1029,14 @@ function runGameTick(): void {
         relocations: 0,
       });
 
+      updatedExpansionsCompletedByPlayer[originBase.playerId] =
+        (updatedExpansionsCompletedByPlayer[originBase.playerId] ?? 0) + 1;
+
       /*
-       * New bases start with 50/50/50.
+       * Give the newly established base its starting resources.
        */
       updatedResources[newBaseId] = {
-        water: 50,
-        fire: 50,
-        grass: 50,
+        ...BALANCE.expansion.startingResources,
       };
 
       updatedGameEvents.push({
@@ -1127,7 +1135,8 @@ function runGameTick(): void {
 
           phase: "returning",
 
-          secondsRemaining: returnDistance * 15,
+          secondsRemaining:
+            returnDistance * BALANCE.relocation.travelSecondsPerTile,
         });
 
         return;
@@ -1425,7 +1434,7 @@ function runGameTick(): void {
 
           phase: "returning",
 
-          secondsRemaining: distance * 5,
+          secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
         });
 
         return;
@@ -1597,7 +1606,7 @@ function runGameTick(): void {
 
   if (
     gameState.matchType === "30m" &&
-    gameState.gameSeconds + 1 >= 30 * 60 &&
+    gameState.gameSeconds + 1 >= BALANCE.match.timedMatchSeconds &&
     updatedWinnerPlayerId === null
   ) {
     const survivingPlayerIds = Object.keys(updatedArmiesTrainedByPlayer)
@@ -1664,19 +1673,32 @@ function runGameTick(): void {
       return;
     }
 
-    const locationMultiplier = getLocationMultiplier(
+    const primaryProduction =
+      getLocationMultiplier(base.timeInLocationSeconds) * tile.multiplier;
+
+    const secondaryProduction = getSecondaryProduction(
       base.timeInLocationSeconds,
     );
 
-    const productionAmount = locationMultiplier * tile.multiplier;
-
-    const resource = tile.resource;
-
-    updatedResources[base.id] = {
+    const producedResources = {
       ...currentResources,
-
-      [resource]: currentResources[resource] + productionAmount,
     };
+
+    producedResources[tile.resource] += primaryProduction;
+
+    if (secondaryProduction > 0) {
+      const secondaryResources: ResourceType[] = [
+        "water",
+        "fire",
+        "grass",
+      ].filter((resource) => resource !== tile.resource) as ResourceType[];
+
+      secondaryResources.forEach((resource) => {
+        producedResources[resource] += secondaryProduction;
+      });
+    }
+
+    updatedResources[base.id] = producedResources;
   });
 
   /*
@@ -1702,6 +1724,8 @@ function runGameTick(): void {
     armyResourcesSpentByPlayer: updatedArmyResourcesSpentByPlayer,
 
     expansionKeysByPlayer: updatedExpansionKeysByPlayer,
+
+    expansionsCompletedByPlayer: updatedExpansionsCompletedByPlayer,
 
     treasures: updatedTreasures,
 
@@ -1961,7 +1985,7 @@ server.on("connection", (socket) => {
 
           training: {
             resource,
-            secondsRemaining: 10,
+            secondsRemaining: BALANCE.armies.trainingSeconds,
           },
         };
       });
@@ -2062,7 +2086,7 @@ server.on("connection", (socket) => {
         return;
       }
 
-      const cargoCapacity = totalArmies * 200;
+      const cargoCapacity = totalArmies * BALANCE.armies.cargoCapacity;
 
       const totalCargo =
         transferredResources.water +
@@ -2093,7 +2117,7 @@ server.on("connection", (socket) => {
         Math.abs(originBase.row - destinationBase.row) +
         Math.abs(originBase.col - destinationBase.col);
 
-      const travelTime = distance * 5;
+      const travelTime = distance * BALANCE.missions.travelSecondsPerTile;
 
       /*
        * Remove armies from origin.
@@ -2252,7 +2276,7 @@ server.on("connection", (socket) => {
         Math.abs(originBase.row - destinationBase.row) +
         Math.abs(originBase.col - destinationBase.col);
 
-      const travelTime = distance * 5;
+      const travelTime = distance * BALANCE.missions.travelSecondsPerTile;
 
       /*
        * Remove armies from origin immediately.
@@ -2384,7 +2408,7 @@ server.on("connection", (socket) => {
         Math.abs(originBase.row - treasure.row) +
         Math.abs(originBase.col - treasure.col);
 
-      const travelTime = distance * 5;
+      const travelTime = distance * BALANCE.missions.travelSecondsPerTile;
 
       const updatedBases = gameState.bases.map((base) => {
         if (base.id !== originBase.id) {
@@ -2500,7 +2524,7 @@ server.on("connection", (socket) => {
         (base) => base.playerId === player.playerId,
       ).length;
 
-      if (playerBaseCount >= 3) {
+      if (playerBaseCount >= BALANCE.expansion.maxBases) {
         return;
       }
 
@@ -2525,12 +2549,18 @@ server.on("connection", (socket) => {
        */
       const currentKeys = gameState.expansionKeysByPlayer[player.playerId] ?? 0;
 
-      if (currentKeys < 1) {
+      if (currentKeys < BALANCE.expansion.keyCost) {
         return;
       }
 
+      const expansionsCompleted =
+        gameState.expansionsCompletedByPlayer[player.playerId] ?? 0;
+
+      const expansionCost = getExpansionCost(expansionsCompleted);
+
       /*
-       * Validate the 500-resource payment.
+       * Validate the resource payment for this player's
+       * next expansion.
        */
       if (
         !payment ||
@@ -2543,7 +2573,7 @@ server.on("connection", (socket) => {
 
       const paymentTotal = payment.water + payment.fire + payment.grass;
 
-      if (paymentTotal !== 500) {
+      if (paymentTotal !== expansionCost) {
         return;
       }
 
@@ -2582,17 +2612,17 @@ server.on("connection", (socket) => {
       const updatedExpansionKeysByPlayer = {
         ...gameState.expansionKeysByPlayer,
 
-        [player.playerId]: currentKeys - 1,
+        [player.playerId]: currentKeys - BALANCE.expansion.keyCost,
       };
 
       /*
-       * Travel = 5 seconds per tile.
+       * Determine expansion travel time
        */
       const distance =
         Math.abs(originBase.row - destinationRow) +
         Math.abs(originBase.col - destinationCol);
 
-      const travelTime = distance * 5;
+      const travelTime = distance * BALANCE.missions.travelSecondsPerTile;
 
       const newMission: ArmyMission = {
         id: gameState.nextMissionId,
@@ -2625,7 +2655,7 @@ server.on("connection", (socket) => {
           ...payment,
         },
 
-        expansionKeys: 1,
+        expansionKeys: BALANCE.expansion.keyCost,
 
         secondsRemaining: travelTime,
       };
@@ -2713,10 +2743,11 @@ server.on("connection", (socket) => {
       }
 
       /*
-       * Relocation cost increases
-       * by 250 each time.
+       * Calculate Relocation Cost
        */
-      const relocationCost = (originBase.relocations + 1) * 250;
+      const relocationCost =
+        BALANCE.relocation.baseCost +
+        originBase.relocations * BALANCE.relocation.costIncrease;
 
       if (
         !payment ||
@@ -2793,14 +2824,13 @@ server.on("connection", (socket) => {
       delete updatedResources[originBase.id];
 
       /*
-       * Relocation currently travels
-       * at 15 seconds per tile.
+       * Calculate relocation time
        */
       const distance =
         Math.abs(originBase.row - destinationRow) +
         Math.abs(originBase.col - destinationCol);
 
-      const travelTime = distance * 15;
+      const travelTime = distance * BALANCE.relocation.travelSecondsPerTile;
 
       const newMission: ArmyMission = {
         id: gameState.nextMissionId,

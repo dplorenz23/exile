@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { BALANCE } from "../game/balance";
+
 import type {
   ArmyCounts,
   Base,
@@ -7,7 +9,7 @@ import type {
   ResourceType,
 } from "../game/types";
 
-import { getArmyCost } from "../game/rules";
+import { getArmyCost, getExpansionCost } from "../game/rules";
 
 /*
  * Controls the action menus for the currently selected base.
@@ -23,6 +25,7 @@ interface BaseActionsProps {
   resources: BaseResources;
   ownedBases: Base[];
   expansionKeys: number;
+  expansionsCompleted: number;
 
   onTrainArmy: (resource: ResourceType) => void;
 
@@ -45,6 +48,7 @@ export default function BaseActions({
   resources,
   ownedBases,
   expansionKeys,
+  expansionsCompleted,
   onTrainArmy,
   onStartAttackTargeting,
   onStartLootTargeting,
@@ -110,20 +114,26 @@ export default function BaseActions({
   const totalSelected =
     selectedArmies.water + selectedArmies.fire + selectedArmies.grass;
 
-  const cargoCapacity = totalSelected * 200;
+  const cargoCapacity = totalSelected * BALANCE.armies.cargoCapacity;
 
   const totalCargo =
     selectedResources.water + selectedResources.fire + selectedResources.grass;
 
   const totalResources = resources.water + resources.fire + resources.grass;
 
+  const expansionCost = getExpansionCost(expansionsCompleted);
+
   const canExpand =
-    ownedBases.length < 3 && expansionKeys > 0 && totalResources >= 500;
+    ownedBases.length < BALANCE.expansion.maxBases &&
+    expansionKeys >= BALANCE.expansion.keyCost &&
+    totalResources >= expansionCost;
 
   const totalExpansionPayment =
     expansionPayment.water + expansionPayment.fire + expansionPayment.grass;
 
-  const relocationCost = (base.relocations + 1) * 250;
+  const relocationCost =
+    BALANCE.relocation.baseCost +
+    base.relocations * BALANCE.relocation.costIncrease;
 
   const canAffordRelocation = totalResources >= relocationCost;
 
@@ -199,7 +209,7 @@ export default function BaseActions({
 
       const newTotal = currentTotal - current[resource] + newValue;
 
-      if (newTotal > 500) {
+      if (newTotal > expansionCost) {
         return current;
       }
 
@@ -615,7 +625,9 @@ export default function BaseActions({
       <div className="base-actions send-menu">
         <div className="send-menu-title">Expand Empire</div>
 
-        <div className="send-menu-message">Cost: 🔑1 + 500 resources</div>
+        <div className="send-menu-message">
+          Cost: 🔑{BALANCE.expansion.keyCost} + {expansionCost} resources
+        </div>
 
         <div className="send-menu-message">
           Available: 💧{resources.water} 🔥{resources.fire} 🌱{resources.grass}
@@ -649,12 +661,12 @@ export default function BaseActions({
         />
 
         <div className="send-menu-message">
-          Payment: {totalExpansionPayment} / 500
+          Payment: {totalExpansionPayment} / {expansionCost}
         </div>
 
         <button
           className="base-action-button"
-          disabled={totalExpansionPayment !== 500}
+          disabled={totalExpansionPayment !== expansionCost}
           onClick={() => {
             onStartExpandTargeting(expansionPayment);
 
@@ -777,7 +789,7 @@ export default function BaseActions({
         disabled={!canExpand}
         onClick={() => setMode("expand-payment")}
       >
-        🔑 Expand (500+🔑)
+        🔑 Expand ({expansionCost}+🔑)
       </button>
 
       <button
