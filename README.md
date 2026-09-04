@@ -1,3 +1,22 @@
+## Table of Contents
+
+- [Current Game Overview](#current-game-overview)
+- [Local Development Setup](#local-development-setup)
+- [Multiplayer Architecture](#multiplayer-architecture)
+- [Current Maps](#current-maps)
+- [Characters](#characters)
+- [Resource Production](#resource-production)
+- [Army Training](#army-training)
+- [Missions](#missions)
+- [Combat Rules](#combat-rules)
+- [Elimination and Victory](#elimination-and-victory)
+- [Scoring](#scoring)
+- [Game Events](#game-events)
+- [Current Multiplayer Status](#current-multiplayer-status)
+- [Known Issues and Deferred Work](#known-issues-and-deferred-work)
+- [Development Status](#development-status)
+- [Project Structure](#project-structure)
+
 # EXiLE
 
 EXiLE is a fast-paced multiplayer strategy game built around territory,
