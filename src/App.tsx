@@ -30,18 +30,6 @@ import type {
 
 import "./App.css";
 
-/*
- * ============================================================
- * BASE PRODUCTION MULTIPLIER
- * ============================================================
- *
- * Time in location:
- *
- * 0–2 minutes   = 1x
- * 2–5 minutes   = 2x
- * 5–10 minutes  = 3x
- * 10+ minutes   = 4x
- */
 function createLobbySlots(playerCount: number): LobbySlot[] {
   return Array.from({ length: playerCount }, (_, index) => ({
     slotId: index + 1,
@@ -55,11 +43,8 @@ function createLobbySlots(playerCount: number): LobbySlot[] {
 function App() {
   /*
    * ==========================================================
-   * SERVER CONNECTION
+   * CLIENT CONNECTION STATE
    * ==========================================================
-   *
-   * Connect to EXiLE Server
-   *
    */
   const socketRef = useRef<WebSocket | null>(null);
 
@@ -88,7 +73,7 @@ function App() {
     matchType: "30m",
   });
 
-  function handleJoinSlot(slotId: number) {
+  function handleJoinSlot(slotId: number): void {
     setLobbySlots((current) => {
       const claimedPlayerIds = current
         .map((slot) => slot.playerId)
@@ -116,7 +101,7 @@ function App() {
     });
   }
 
-  function handleMatchTypeChange(matchType: MatchType) {
+  function handleMatchTypeChange(matchType: MatchType): void {
     socketRef.current?.send(
       JSON.stringify({
         type: "set-match-type",
@@ -125,7 +110,7 @@ function App() {
     );
   }
 
-  function handleMapChange(mapId: string) {
+  function handleMapChange(mapId: string): void {
     socketRef.current?.send(
       JSON.stringify({
         type: "set-map",
@@ -134,7 +119,7 @@ function App() {
     );
   }
 
-  function handleCharacterChange(slotId: number, playerId: number) {
+  function handleCharacterChange(slotId: number, playerId: number): void {
     const slot = lobbySlots.find((slot) => slot.slotId === slotId);
 
     if (!slot || slot.clientId !== myClientId) {
@@ -149,7 +134,7 @@ function App() {
     );
   }
 
-  function handleLeaveSlot(slotId: number) {
+  function handleLeaveSlot(slotId: number): void {
     const slot = lobbySlots.find((slot) => slot.slotId === slotId);
 
     if (!slot || slot.clientId !== myClientId) {
@@ -163,7 +148,7 @@ function App() {
     );
   }
 
-  function handleToggleReady(slotId: number) {
+  function handleToggleReady(slotId: number): void {
     const slot = lobbySlots.find((slot) => slot.slotId === slotId);
 
     if (!slot || slot.clientId !== myClientId) {
@@ -178,7 +163,7 @@ function App() {
     );
   }
 
-  function handleStartGame() {
+  function handleStartGame(): void {
     const mySlot = lobbySlots.find((slot) => slot.clientId === myClientId);
 
     if (!mySlot?.isHost) {
@@ -197,8 +182,8 @@ function App() {
    * LIVE GAME STATE
    * ==========================================================
    *
-   * Everything that changes while a match is running lives
-   * here.
+   * The latest authoritative GameState received from the server.
+   * App uses this state to derive and render the current match UI.
    */
   const [gameState, setGameState] = useState<GameState>(createInitialGameState);
 
@@ -294,14 +279,10 @@ function App() {
    * MAP TARGETING
    * ==========================================================
    *
-   * When null, the map behaves normally.
+   * Temporary client-side state used while the player is
+   * choosing a map destination for a mission.
    *
-   * Later this can support:
-   * - attack
-   * - transfer
-   * - loot
-   * - expand
-   * - relocate
+   * The server still validates and creates the actual mission.
    */
   const [targetingMode, setTargetingMode] = useState<
     "attack" | "loot" | "expand" | "transfer" | "relocate" | null
@@ -328,8 +309,11 @@ function App() {
 
   /*
    * ==========================================================
-   * SERVER CONNECTION
+   * WEBSOCKET CONNECTION
    * ==========================================================
+   *
+   * Connects to the authoritative EXiLE server and applies
+   * lobby and game-state updates received from it.
    */
   useEffect(() => {
     const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
@@ -342,8 +326,6 @@ function App() {
 
     socket.onmessage = (event) => {
       const message = JSON.parse(event.data);
-
-      console.log("Server message:", message);
 
       if (message.type === "connected") {
         myClientIdRef.current = message.clientId;
@@ -404,8 +386,6 @@ function App() {
       }
 
       if (message.type === "game-state") {
-        console.log("Received game state:", message.gameState);
-
         setGameState(message.gameState);
       }
     };
@@ -420,7 +400,7 @@ function App() {
     };
   }, []);
 
-  function cancelTargeting() {
+  function cancelTargeting(): void {
     setTargetingMode(null);
 
     setPendingAttackArmies(null);
@@ -428,6 +408,7 @@ function App() {
     setPendingExpansionPayment(null);
     setPendingTransferArmies(null);
     setPendingTransferResources(null);
+    setPendingRelocationPayment(null);
   }
 
   /*
@@ -440,7 +421,7 @@ function App() {
    * We remember those armies, then let the player choose
    * the destination directly from the map.
    */
-  function handleStartAttackTargeting(armies: ArmyCounts) {
+  function handleStartAttackTargeting(armies: ArmyCounts): void {
     setPendingAttackArmies({
       ...armies,
     });
@@ -448,7 +429,7 @@ function App() {
     setTargetingMode("attack");
   }
 
-  function handleAttackTargetSelected(destinationBaseId: number) {
+  function handleAttackTargetSelected(destinationBaseId: number): void {
     if (!pendingAttackArmies) {
       return;
     }
@@ -460,20 +441,12 @@ function App() {
   }
 
   /*
-   * ==========================================================
-   * ATTACK
-   * ==========================================================
-   *
-   * Creates an outbound Attack mission.
-   *
-   * Armies:
-   * - immediately leave the originating base
-   * - travel at 5 seconds per Manhattan tile
-   * - carry no resources outbound
-   *
-   * Combat occurs later when the mission timer reaches zero.
+   * Sends an attack request to the authoritative server.
    */
-  function handleAttackArmies(destinationBaseId: number, armies: ArmyCounts) {
+  function handleAttackArmies(
+    destinationBaseId: number,
+    armies: ArmyCounts,
+  ): void {
     socketRef.current?.send(
       JSON.stringify({
         type: "attack-army",
@@ -492,7 +465,7 @@ function App() {
    * Remember which armies were selected, then allow
    * the player to choose a treasure chest on the map.
    */
-  function handleStartLootTargeting(armies: ArmyCounts) {
+  function handleStartLootTargeting(armies: ArmyCounts): void {
     setPendingLootArmies({
       ...armies,
     });
@@ -505,13 +478,10 @@ function App() {
    * LOOT TARGET SELECTED
    * ==========================================================
    *
-   * Called when the player clicks a treasure chest while
-   * the map is in Loot Targeting Mode.
-   *
-   * For now this creates the outbound mission only.
-   * The actual looting will happen when the army arrives.
+   * Sends the selected treasure target and armies to the
+   * authoritative server, then exits targeting mode.
    */
-  function handleLootTargetSelected(treasureId: number) {
+  function handleLootTargetSelected(treasureId: number): void {
     if (!pendingLootArmies) {
       return;
     }
@@ -536,29 +506,20 @@ function App() {
    * TRANSFER TARGET SELECTED
    * ==========================================================
    *
-   * Called when the player clicks one of their other bases
-   * while the map is in Transfer Targeting Mode.
+   * Sends the selected transfer destination, armies, and cargo
+   * to the server, then exits targeting mode.
    */
-  function handleTransferTargetSelected(destinationBaseId: number) {
+  function handleTransferTargetSelected(destinationBaseId: number): void {
     if (!pendingTransferArmies || !pendingTransferResources) {
       return;
     }
 
-    /*
-     * Launch the normal Transfer mission using the
-     * armies and cargo we saved before entering
-     * map targeting.
-     */
     handleTransferArmies(
       destinationBaseId,
       pendingTransferArmies,
       pendingTransferResources,
     );
 
-    /*
-     * Clear targeting state now that the mission
-     * has been launched.
-     */
     setPendingTransferArmies(null);
     setPendingTransferResources(null);
     setTargetingMode(null);
@@ -569,15 +530,13 @@ function App() {
    * TRANSFER
    * ==========================================================
    *
-   * Sends armies and optional cargo between two of our bases.
-   *
-   * Each selected army provides 200 resource capacity.
+   * Sends a transfer request to the authoritative server.
    */
   function handleTransferArmies(
     destinationBaseId: number,
     armies: ArmyCounts,
     transferredResources: BaseResources,
-  ) {
+  ): void {
     socketRef.current?.send(
       JSON.stringify({
         type: "transfer-army",
@@ -597,7 +556,7 @@ function App() {
    * Starts a 10-second training order
    * at the selected base.
    */
-  function handleTrainArmy(resource: ResourceType) {
+  function handleTrainArmy(resource: ResourceType): void {
     socketRef.current?.send(
       JSON.stringify({
         type: "train-army",
@@ -614,7 +573,7 @@ function App() {
    * Expand to an open location on the map
    *
    */
-  function handleStartExpandTargeting(payment: BaseResources) {
+  function handleStartExpandTargeting(payment: BaseResources): void {
     setPendingExpansionPayment({
       ...payment,
     });
@@ -622,7 +581,7 @@ function App() {
     setTargetingMode("expand");
   }
 
-  function handleExpandTargetSelected(row: number, col: number) {
+  function handleExpandTargetSelected(row: number, col: number): void {
     if (!pendingExpansionPayment) {
       return;
     }
@@ -646,7 +605,7 @@ function App() {
   function handleStartTransferTargeting(
     armies: ArmyCounts,
     resources: BaseResources,
-  ) {
+  ): void {
     setPendingTransferArmies({
       ...armies,
     });
@@ -658,12 +617,15 @@ function App() {
     setTargetingMode("transfer");
   }
 
-  function handleStartRelocateTargeting(payment: BaseResources) {
-    setPendingRelocationPayment(payment);
+  function handleStartRelocateTargeting(payment: BaseResources): void {
+    setPendingRelocationPayment({
+      ...payment,
+    });
+
     setTargetingMode("relocate");
   }
 
-  function handleRelocateTargetSelected(row: number, col: number) {
+  function handleRelocateTargetSelected(row: number, col: number): void {
     if (!pendingRelocationPayment) {
       return;
     }
@@ -684,7 +646,7 @@ function App() {
     setTargetingMode(null);
   }
 
-  function handlePlayAgain() {
+  function handlePlayAgain(): void {
     setIsGameStarted(false);
 
     setLobbySlots((currentSlots) =>
@@ -698,6 +660,7 @@ function App() {
 
     setPendingAttackArmies(null);
     setPendingTransferArmies(null);
+    setPendingLootArmies(null);
     setPendingTransferResources(null);
     setPendingExpansionPayment(null);
     setPendingRelocationPayment(null);

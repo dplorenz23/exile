@@ -6,6 +6,14 @@ import type {
   Tile,
 } from "../types";
 
+/*
+ * Editable definition for EXiLE Island, the primary 8x8 map.
+ *
+ * The G/W/F helpers keep the layout compact and readable while the final
+ * export converts the hand-authored grid into the flat Tile[] structure
+ * used by the rest of the game.
+ */
+
 interface MapTile {
   resource: ResourceType;
   terrain: TerrainType;
@@ -229,117 +237,116 @@ const F = (
  */
 
 const mapLayout: MapTile[][] = [
-
   // =========================================================
   // ROW 1
   // =========================================================
   [
-    W("river", 1, "north-south"),     // A1
-    G(),                              // B1
-    G("forest"),                      // C1
-    W("river", 1, "south-east"),      // D1
-    W("river", 1, "east-west"),       // E1
-    W("river", 1, "east-west"),       // F1
-    W("river", 1, "north-west"),      // G1
-    F("lava", 1, "north-south"),      // H1
+    W("river", 1, "north-south"), // A1
+    G(), // B1
+    G("forest"), // C1
+    W("river", 1, "south-east"), // D1
+    W("river", 1, "east-west"), // E1
+    W("river", 1, "east-west"), // F1
+    W("river", 1, "north-west"), // G1
+    F("lava", 1, "north-south"), // H1
   ],
 
   // =========================================================
   // ROW 2
   // =========================================================
   [
-    W("river", 1, "north-south"),     // A2
-    G("forest"),                      // B2
-    G("forest", 2),                   // C2
-    W("river", 1, "north-south"),     // D2
-    G(),                              // E2
-    F("lava", 1, "south-east"),       // F2
-    F("volcano", 2),                  // G2
-    F("lava", 1, "north-west"),       // H2
+    W("river", 1, "north-south"), // A2
+    G("forest"), // B2
+    G("forest", 2), // C2
+    W("river", 1, "north-south"), // D2
+    G(), // E2
+    F("lava", 1, "south-east"), // F2
+    F("volcano", 2), // G2
+    F("lava", 1, "north-west"), // H2
   ],
 
   // =========================================================
   // ROW 3
   // =========================================================
   [
-    W("river", 1, "north-east"),      // A3
-    W("river", 1, "south-west"),      // B3
-    W("lake"),                        // C3
-    W("river", 1, "north-south"),     // D3
-    G(),                              // E3
-    F("lava", 1, "north-south"),      // F3
-    G(),                              // G3
-    G(),                              // H3
+    W("river", 1, "north-east"), // A3
+    W("river", 1, "south-west"), // B3
+    W("lake"), // C3
+    W("river", 1, "north-south"), // D3
+    G(), // E3
+    F("lava", 1, "north-south"), // F3
+    G(), // G3
+    G(), // H3
   ],
 
   // =========================================================
   // ROW 4
   // =========================================================
   [
-    G(),                              // A4
-    W("lake"),                        // B4
-    W("lake", 2),                     // C4
-    W("lake", 3),                     // D4
-    G("forest", 2),                   // E4
-    F("lava", 1, "north-east"),       // F4
-    F("lava", 1, "east-west"),        // G4
-    F("lava", 1, "east-west"),        // H4
+    G(), // A4
+    W("lake"), // B4
+    W("lake", 2), // C4
+    W("lake", 3), // D4
+    G("forest", 2), // E4
+    F("lava", 1, "north-east"), // F4
+    F("lava", 1, "east-west"), // G4
+    F("lava", 1, "east-west"), // H4
   ],
 
   // =========================================================
   // ROW 5
   // =========================================================
   [
-    G(),                              // A5
-    W("river", 1, "north-south"),     // B5
-    W("lake"),                        // C5
-    W("lake"),                        // D5
-    G("forest", 3),                   // E5
-    F("lava", 1, "south-east"),       // F5
-    F("volcano", 2),                  // G5
-    F("lava", 1, "south-west"),       // H5
+    G(), // A5
+    W("river", 1, "north-south"), // B5
+    W("lake"), // C5
+    W("lake"), // D5
+    G("forest", 3), // E5
+    F("lava", 1, "south-east"), // F5
+    F("volcano", 2), // G5
+    F("lava", 1, "south-west"), // H5
   ],
 
   // =========================================================
   // ROW 6
   // =========================================================
   [
-    W("river", 1, "east-west"),       // A6
-    W("river", 1, "north-west"),      // B6
-    W("lake"),                        // C6
-    W("lake", 2),                     // D6
-    F("volcano", 3),                  // E6
-    F("lava", 1, "north-south"),      // F6
-    G("forest"),                      // G6
-    F("lava", 1, "north-south"),      // H6
+    W("river", 1, "east-west"), // A6
+    W("river", 1, "north-west"), // B6
+    W("lake"), // C6
+    W("lake", 2), // D6
+    F("volcano", 3), // E6
+    F("lava", 1, "north-south"), // F6
+    G("forest"), // G6
+    F("lava", 1, "north-south"), // H6
   ],
 
   // =========================================================
   // ROW 7
   // =========================================================
   [
-    G(),                              // A7
-    G("forest", 2),                      // B7
-    F("lava", 1, "south-east"),       // C7
-    F("lava", 1, "east-west"),        // D7
-    F("lava", 1, "north-west"),       // E7
-    F("lava", 1, "north-south"),      // F7
-    G(),                              // G7
-    F("lava", 1, "north-east"),       // H7
+    G(), // A7
+    G("forest", 2), // B7
+    F("lava", 1, "south-east"), // C7
+    F("lava", 1, "east-west"), // D7
+    F("lava", 1, "north-west"), // E7
+    F("lava", 1, "north-south"), // F7
+    G(), // G7
+    F("lava", 1, "north-east"), // H7
   ],
 
   // =========================================================
   // ROW 8
   // =========================================================
   [
-    G(),                              // A8
-    G("forest"),                      // B8
-    F("lava", 1, "north-south"),      // C8
-    G(),                              // D8
-    G(),                              // E8
-    F("lava", 1, "north-south"),      // F8
-    G(),                              // G8
-    G("forest"),                      // H8
+    G(), // A8
+    G("forest"), // B8
+    F("lava", 1, "north-south"), // C8
+    G(), // D8
+    G(), // E8
+    F("lava", 1, "north-south"), // F8
+    G(), // G8
+    G("forest"), // H8
   ],
 ];
 

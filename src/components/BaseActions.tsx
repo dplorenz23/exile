@@ -9,6 +9,15 @@ import type {
 
 import { getArmyCost } from "../game/rules";
 
+/*
+ * Controls the action menus for the currently selected base.
+ *
+ * This component manages temporary UI selections such as armies,
+ * cargo, expansion payment, and relocation payment. Completed
+ * selections are passed upward through callbacks; authoritative
+ * validation and game-state changes happen outside this component.
+ */
+
 interface BaseActionsProps {
   base?: Base;
   resources: BaseResources;
@@ -50,7 +59,6 @@ export default function BaseActions({
     | "attack-armies"
     | "transfer-armies"
     | "cargo"
-    | "transfer-destination"
     | "loot-armies"
     | "expand-payment"
     | "relocate-payment"
@@ -115,20 +123,20 @@ export default function BaseActions({
   const totalExpansionPayment =
     expansionPayment.water + expansionPayment.fire + expansionPayment.grass;
 
-  const relocationCost = base ? (base.relocations + 1) * 250 : 250;
+  const relocationCost = (base.relocations + 1) * 250;
 
   const canAffordRelocation = totalResources >= relocationCost;
 
-  function canAfford(resource: ResourceType) {
+  function canAfford(resource: ResourceType): boolean {
     return resources[resource] >= armyCosts[resource];
   }
 
-  function handleTrain(resource: ResourceType) {
+  function handleTrain(resource: ResourceType): void {
     onTrainArmy(resource);
     setMode("main");
   }
 
-  function changeArmyCount(resource: ResourceType, change: number) {
+  function changeArmyCount(resource: ResourceType, change: number): void {
     setSelectedArmies((current) => {
       const maximum = currentBase.armies[resource];
 
@@ -144,7 +152,7 @@ export default function BaseActions({
     });
   }
 
-  function changeResourceCount(resource: ResourceType, change: number) {
+  function changeResourceCount(resource: ResourceType, change: number): void {
     setSelectedResources((current) => {
       const currentValue = current[resource];
       const newValue = currentValue + change;
@@ -172,7 +180,10 @@ export default function BaseActions({
     });
   }
 
-  function changeExpansionPayment(resource: ResourceType, change: number) {
+  function changeExpansionPayment(
+    resource: ResourceType,
+    change: number,
+  ): void {
     setExpansionPayment((current) => {
       const newValue = current[resource] + change;
 
@@ -199,7 +210,10 @@ export default function BaseActions({
     });
   }
 
-  function changeRelocationPayment(resource: ResourceType, change: number) {
+  function changeRelocationPayment(
+    resource: ResourceType,
+    change: number,
+  ): void {
     setRelocationPayment((current) => {
       const newValue = current[resource] + change;
 
@@ -234,7 +248,7 @@ export default function BaseActions({
     });
   }
 
-  function resetSend() {
+  function resetSend(): void {
     setSelectedArmies({
       water: 0,
       fire: 0,

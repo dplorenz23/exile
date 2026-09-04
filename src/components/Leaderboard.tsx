@@ -5,28 +5,24 @@ import type {
   ArmyMission,
   Base,
   BaseResources,
+  Player,
+  PlayerScore,
 } from "../game/types";
 
 interface LeaderboardProps {
   bases: Base[];
-
-  resourcesByBase:
-    Record<number, BaseResources>;
-
+  resourcesByBase: Record<number, BaseResources>;
   armyMissions: ArmyMission[];
-
-  armiesTrainedByPlayer:
-    Record<number, number>;
-
-  armyResourcesSpentByPlayer:
-    Record<number, number>;
-
+  armiesTrainedByPlayer: Record<number, number>;
+  armyResourcesSpentByPlayer: Record<number, number>;
   activePlayerIds: number[];
-
   eliminatedPlayerIds: number[];
+  finalScoreByPlayer: Record<number, number>;
+}
 
-  finalScoreByPlayer:
-    Record<number, number>;
+interface Standing {
+  player: Player;
+  score: PlayerScore;
 }
 
 export default function Leaderboard({
@@ -39,122 +35,74 @@ export default function Leaderboard({
   eliminatedPlayerIds,
   finalScoreByPlayer,
 }: LeaderboardProps) {
-  const standings =
-    activePlayerIds
-      .map((playerId) => {
-        const player =
-          players.find(
-            (player) =>
-              player.id === playerId,
-          );
+  function getDisplayedScore(
+    playerId: number,
+    calculatedScore: number,
+  ): number {
+    return eliminatedPlayerIds.includes(playerId)
+      ? (finalScoreByPlayer[playerId] ?? calculatedScore)
+      : calculatedScore;
+  }
 
-        const score =
-          calculatePlayerScore(
-            playerId,
-            bases,
-            resourcesByBase,
-            armyMissions,
-            armiesTrainedByPlayer[
-              playerId
-            ] ?? 0,
-            armyResourcesSpentByPlayer[
-              playerId
-            ] ?? 0,
-          );
+  const standings: Standing[] = activePlayerIds
+    .map((playerId): Standing | null => {
+      const player = players.find((player) => player.id === playerId);
 
-        return {
-          player,
-          score,
-        };
-      })
-      .filter(
-        (standing) =>
-          standing.player !== undefined,
-      )
-      .sort((a, b) => {
-        const aPlayer =
-          a.player!;
+      if (!player) {
+        return null;
+      }
 
-        const bPlayer =
-          b.player!;
+      const score = calculatePlayerScore(
+        playerId,
+        bases,
+        resourcesByBase,
+        armyMissions,
+        armiesTrainedByPlayer[playerId] ?? 0,
+        armyResourcesSpentByPlayer[playerId] ?? 0,
+      );
 
-        const aIsEliminated =
-          eliminatedPlayerIds.includes(
-            aPlayer.id,
-          );
+      return {
+        player,
+        score,
+      };
+    })
+    .filter((standing): standing is Standing => standing !== null)
+    .sort((a, b) => {
+      const aScore = getDisplayedScore(a.player.id, a.score.totalScore);
 
-        const bIsEliminated =
-          eliminatedPlayerIds.includes(
-            bPlayer.id,
-          );
+      const bScore = getDisplayedScore(b.player.id, b.score.totalScore);
 
-        const aScore =
-          aIsEliminated
-            ? finalScoreByPlayer[
-                aPlayer.id
-              ] ??
-              a.score.totalScore
-            : a.score.totalScore;
-
-        const bScore =
-          bIsEliminated
-            ? finalScoreByPlayer[
-                bPlayer.id
-              ] ??
-              b.score.totalScore
-            : b.score.totalScore;
-
-        return bScore - aScore;
-      });
+      return bScore - aScore;
+    });
 
   return (
     <div className="leaderboard">
-      <strong className="leaderboard-title">
-        🏆 Standings
-      </strong>
+      <strong className="leaderboard-title">🏆 Standings</strong>
 
-      {standings.map(
-        (standing, index) => {
-          const player =
-            standing.player!;
+      {standings.map((standing, index) => {
+        const { player, score } = standing;
 
-          const isEliminated =
-            eliminatedPlayerIds.includes(
-              player.id,
-            );
+        const isEliminated = eliminatedPlayerIds.includes(player.id);
 
-          const displayedScore =
-            isEliminated
-              ? finalScoreByPlayer[
-                  player.id
-                ] ??
-                standing.score.totalScore
-              : standing.score.totalScore;
+        const displayedScore = getDisplayedScore(player.id, score.totalScore);
 
-          return (
-            <div
-              key={player.id}
-              className={
-                isEliminated
-                  ? "leaderboard-row leaderboard-row--eliminated"
-                  : "leaderboard-row"
-              }
-            >
-              <span>
-                {index + 1}.{" "}
-                {player.avatar}{" "}
-                {player.name}
-              </span>
+        return (
+          <div
+            key={player.id}
+            className={
+              isEliminated
+                ? "leaderboard-row leaderboard-row--eliminated"
+                : "leaderboard-row"
+            }
+          >
+            <span>
+              {index + 1}. {player.avatar} {player.name}
+            </span>
 
-              <span>
-                {Math.round(
-                  displayedScore,
-                ).toLocaleString()}
-              </span>
-            </div>
-          );
-        },
-      )}
+            <span>{Math.round(displayedScore).toLocaleString()}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }

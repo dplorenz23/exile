@@ -9,6 +9,14 @@ import type {
   PlayerScore,
 } from "./types";
 
+/*
+ * Shared EXiLE game rules.
+ *
+ * Functions in this file contain deterministic game logic that can be used
+ * by both the client and authoritative server. Rules that must produce the
+ * same result everywhere should live here rather than being duplicated in
+ * UI or networking code.
+ */
 
 export function getLocationMultiplier(seconds: number) {
   if (seconds >= 600) {
@@ -70,18 +78,11 @@ function copyArmies(armies: ArmyCounts): ArmyCounts {
 function cancelMatchingArmies(
   attackers: ArmyCounts,
   defenders: ArmyCounts,
-) {
-  const resources: ResourceType[] = [
-    "water",
-    "fire",
-    "grass",
-  ];
+): void {
+  const resources: ResourceType[] = ["water", "fire", "grass"];
 
   resources.forEach((resource) => {
-    const cancelled = Math.min(
-      attackers[resource],
-      defenders[resource],
-    );
+    const cancelled = Math.min(attackers[resource], defenders[resource]);
 
     attackers[resource] -= cancelled;
     defenders[resource] -= cancelled;
@@ -106,10 +107,9 @@ function cancelMatchingArmies(
 function resolveStrongMatchup(
   strongArmies: ArmyCounts,
   strongType: ResourceType,
-
   weakArmies: ArmyCounts,
   weakType: ResourceType,
-) {
+): void {
   const strongCount = strongArmies[strongType];
   const weakCount = weakArmies[weakType];
 
@@ -119,10 +119,7 @@ function resolveStrongMatchup(
 
   const maximumKills = strongCount * 2;
 
-  const kills = Math.min(
-    maximumKills,
-    weakCount,
-  );
+  const kills = Math.min(maximumKills, weakCount);
 
   weakArmies[weakType] -= kills;
 }
@@ -138,13 +135,8 @@ function resolveStrongMatchup(
  *
  * This keeps militia deterministic.
  */
-function resolveMilitia(
-  attackers: ArmyCounts,
-): boolean {
-  const totalAttackers =
-    attackers.water +
-    attackers.fire +
-    attackers.grass;
+function resolveMilitia(attackers: ArmyCounts): boolean {
+  const totalAttackers = attackers.water + attackers.fire + attackers.grass;
 
   /*
    * No attackers remain, so militia survives.
@@ -153,11 +145,7 @@ function resolveMilitia(
     return true;
   }
 
-  const casualtyPriority: ResourceType[] = [
-    "water",
-    "fire",
-    "grass",
-  ];
+  const casualtyPriority: ResourceType[] = ["water", "fire", "grass"];
 
   let casualty: ResourceType = "water";
   let largestCount = -1;
@@ -177,12 +165,8 @@ function resolveMilitia(
   return false;
 }
 
-function totalArmies(armies: ArmyCounts) {
-  return (
-    armies.water +
-    armies.fire +
-    armies.grass
-  );
+function totalArmies(armies: ArmyCounts): number {
+  return armies.water + armies.fire + armies.grass;
 }
 
 export function resolveCombat(
@@ -193,11 +177,9 @@ export function resolveCombat(
    * Never mutate the original objects passed into
    * the function.
    */
-  const attackers =
-    copyArmies(attackingArmies);
+  const attackers = copyArmies(attackingArmies);
 
-  const defenders =
-    copyArmies(defendingArmies);
+  const defenders = copyArmies(defendingArmies);
 
   /*
    * ========================================================
@@ -206,10 +188,7 @@ export function resolveCombat(
    * ========================================================
    */
 
-  cancelMatchingArmies(
-    attackers,
-    defenders,
-  );
+  cancelMatchingArmies(attackers, defenders);
 
   /*
    * ========================================================
@@ -219,28 +198,13 @@ export function resolveCombat(
    */
 
   // Water attacks Fire
-  resolveStrongMatchup(
-    attackers,
-    "water",
-    defenders,
-    "fire",
-  );
+  resolveStrongMatchup(attackers, "water", defenders, "fire");
 
   // Fire attacks Grass
-  resolveStrongMatchup(
-    attackers,
-    "fire",
-    defenders,
-    "grass",
-  );
+  resolveStrongMatchup(attackers, "fire", defenders, "grass");
 
   // Grass attacks Water
-  resolveStrongMatchup(
-    attackers,
-    "grass",
-    defenders,
-    "water",
-  );
+  resolveStrongMatchup(attackers, "grass", defenders, "water");
 
   /*
    * ========================================================
@@ -250,28 +214,13 @@ export function resolveCombat(
    */
 
   // Defender Water attacks Attacker Fire
-  resolveStrongMatchup(
-    defenders,
-    "water",
-    attackers,
-    "fire",
-  );
+  resolveStrongMatchup(defenders, "water", attackers, "fire");
 
   // Defender Fire attacks Attacker Grass
-  resolveStrongMatchup(
-    defenders,
-    "fire",
-    attackers,
-    "grass",
-  );
+  resolveStrongMatchup(defenders, "fire", attackers, "grass");
 
   // Defender Grass attacks Attacker Water
-  resolveStrongMatchup(
-    defenders,
-    "grass",
-    attackers,
-    "water",
-  );
+  resolveStrongMatchup(defenders, "grass", attackers, "water");
 
   /*
    * ========================================================
@@ -279,14 +228,11 @@ export function resolveCombat(
    * ========================================================
    */
 
-  const militiaSurvived =
-    resolveMilitia(attackers);
+  const militiaSurvived = resolveMilitia(attackers);
 
-  const attackersRemaining =
-    totalArmies(attackers);
+  const attackersRemaining = totalArmies(attackers);
 
-  const defendersRemaining =
-    totalArmies(defenders);
+  const defendersRemaining = totalArmies(defenders);
 
   /*
    * Attacker only wins if:
@@ -298,9 +244,7 @@ export function resolveCombat(
    * This naturally gives the defender the tie.
    */
   const attackerWon =
-    attackersRemaining > 0 &&
-    defendersRemaining === 0 &&
-    !militiaSurvived;
+    attackersRemaining > 0 && defendersRemaining === 0 && !militiaSurvived;
 
   return {
     attackerSurvivors: attackers,
@@ -348,17 +292,11 @@ export function calculateLoot(
     ...availableResources,
   };
 
-  const resourceTypes: ResourceType[] = [
-    "water",
-    "fire",
-    "grass",
-  ];
+  const resourceTypes: ResourceType[] = ["water", "fire", "grass"];
 
   let remainingCapacity = Math.min(
     capacity,
-    remaining.water +
-      remaining.fire +
-      remaining.grass,
+    remaining.water + remaining.fire + remaining.grass,
   );
 
   /*
@@ -374,9 +312,7 @@ export function calculateLoot(
       break;
     }
 
-    const evenShare = Math.floor(
-      remainingCapacity / availableTypes.length,
-    );
+    const evenShare = Math.floor(remainingCapacity / availableTypes.length);
 
     /*
      * If we can no longer divide evenly because fewer
@@ -387,10 +323,7 @@ export function calculateLoot(
     }
 
     availableTypes.forEach((resource) => {
-      const amountTaken = Math.min(
-        evenShare,
-        remaining[resource],
-      );
+      const amountTaken = Math.min(evenShare, remaining[resource]);
 
       loot[resource] += amountTaken;
       remaining[resource] -= amountTaken;
@@ -417,10 +350,7 @@ export function calculateLoot(
       break;
     }
 
-    const amountTaken = Math.min(
-      remainingCapacity,
-      remaining[largestResource],
-    );
+    const amountTaken = Math.min(remainingCapacity, remaining[largestResource]);
 
     switch (largestResource) {
       case "water":
@@ -440,7 +370,7 @@ export function calculateLoot(
     }
 
     remainingCapacity -= amountTaken;
-    }
+  }
   return {
     loot,
     remaining,
@@ -463,14 +393,9 @@ export function calculatePlayerScore(
    * Relocating bases still belong to the player,
    * so they still count.
    */
-  const playerBases =
-    bases.filter(
-      (base) =>
-        base.playerId === playerId,
-    );
+  const playerBases = bases.filter((base) => base.playerId === playerId);
 
-  const baseScore =
-    playerBases.length * 500;
+  const baseScore = playerBases.length * 500;
 
   /*
    * ==================================================
@@ -480,69 +405,51 @@ export function calculatePlayerScore(
    * Relocating bases have their resources carried
    * by their mission, so don't count them here.
    */
-  const resourcesAtBases =
-    playerBases.reduce(
-      (total, base) => {
-        if (base.isRelocating) {
-          return total;
-        }
+  const resourcesAtBases = playerBases.reduce((total, base) => {
+    if (base.isRelocating) {
+      return total;
+    }
 
-        const resources =
-          resourcesByBase[base.id];
+    const resources = resourcesByBase[base.id];
 
-        if (!resources) {
-          return total;
-        }
+    if (!resources) {
+      return total;
+    }
 
-        return (
-          total +
-          resources.water +
-          resources.fire +
-          resources.grass
-        );
-      },
-      0,
-    );
+    return total + resources.water + resources.fire + resources.grass;
+  }, 0);
 
   /*
    * ==================================================
    * RESOURCES IN TRANSIT
    * ==================================================
    */
-  const playerMissions =
-    armyMissions.filter(
-      (mission) =>
-        mission.playerId === playerId,
-    );
+  const playerMissions = armyMissions.filter(
+    (mission) => mission.playerId === playerId,
+  );
 
-  const resourcesInTransit =
-    playerMissions.reduce(
-      (total, mission) => {
-        let missionResources =
-          mission.resources.water +
-          mission.resources.fire +
-          mission.resources.grass;
+  const resourcesInTransit = playerMissions.reduce((total, mission) => {
+    let missionResources =
+      mission.resources.water +
+      mission.resources.fire +
+      mission.resources.grass;
 
-        /*
-         * Relocation payment is refundable if
-         * relocation fails, so while the mission
-         * is unresolved it still counts as owned value.
-         */
-        if (mission.relocationPayment) {
-          missionResources +=
-            mission.relocationPayment.water +
-            mission.relocationPayment.fire +
-            mission.relocationPayment.grass;
-        }
+    /*
+     * Relocation payment is refundable if
+     * relocation fails, so while the mission
+     * is unresolved it still counts as owned value.
+     */
+    if (mission.relocationPayment) {
+      missionResources +=
+        mission.relocationPayment.water +
+        mission.relocationPayment.fire +
+        mission.relocationPayment.grass;
+    }
 
-        return total + missionResources;
-      },
-      0,
-    );
+    return total + missionResources;
+  }, 0);
 
-  const resourceScore =
-    resourcesAtBases +
-    resourcesInTransit;
+  const resourceScore = resourcesAtBases + resourcesInTransit;
 
   /*
    * ==================================================
@@ -552,49 +459,29 @@ export function calculatePlayerScore(
    * Relocating-base armies are represented by the
    * relocation mission, so don't count them twice.
    */
-  const stationedArmies =
-    playerBases.reduce(
-      (total, base) => {
-        if (base.isRelocating) {
-          return total;
-        }
+  const stationedArmies = playerBases.reduce((total, base) => {
+    if (base.isRelocating) {
+      return total;
+    }
 
-        return (
-          total +
-          base.armies.water +
-          base.armies.fire +
-          base.armies.grass
-        );
-      },
-      0,
-    );
+    return total + base.armies.water + base.armies.fire + base.armies.grass;
+  }, 0);
 
-  const armiesInTransit =
-    playerMissions.reduce(
-      (total, mission) =>
-        total +
-        mission.armies.water +
-        mission.armies.fire +
-        mission.armies.grass,
-      0,
-    );
+  const armiesInTransit = playerMissions.reduce(
+    (total, mission) =>
+      total + mission.armies.water + mission.armies.fire + mission.armies.grass,
+    0,
+  );
 
-  const survivingArmies =
-    stationedArmies +
-    armiesInTransit;
+  const survivingArmies = stationedArmies + armiesInTransit;
 
   /*
    * Historical average price paid per army.
    */
   const averageArmyCost =
-    armiesTrained > 0
-      ? armyResourcesSpent /
-        armiesTrained
-      : 0;
+    armiesTrained > 0 ? armyResourcesSpent / armiesTrained : 0;
 
-  const armyScore =
-    survivingArmies *
-    averageArmyCost;
+  const armyScore = survivingArmies * averageArmyCost;
 
   return {
     playerId,
@@ -603,9 +490,6 @@ export function calculatePlayerScore(
     resourceScore,
     armyScore,
 
-    totalScore:
-      baseScore +
-      resourceScore +
-      armyScore,
+    totalScore: baseScore + resourceScore + armyScore,
   };
 }

@@ -1,9 +1,9 @@
-import { players, getBaseName } from "../game/gameState";
-import type {
-  Base,
-  Tile as MapTile,
-  Treasure,
-} from "../game/types";
+import type { CSSProperties } from "react";
+
+import { getBaseName, players } from "../game/gameState";
+
+import type { Base, Tile as MapTile, Treasure } from "../game/types";
+
 import Tile from "./Tile";
 
 interface GameMapProps {
@@ -11,34 +11,26 @@ interface GameMapProps {
   bases: Base[];
   treasures: Treasure[];
   mapTiles: MapTile[];
-
   targetingMode: "attack" | "loot" | "expand" | "transfer" | "relocate" | null;
   yourPlayerId: number;
-
   originBase?: Base;
+  onAttackTargetSelected: (destinationBaseId: number) => void;
+  onLootTargetSelected: (treasureId: number) => void;
+  onExpandTargetSelected: (row: number, col: number) => void;
+  onTransferTargetSelected: (destinationBaseId: number) => void;
+  onRelocateTargetSelected: (row: number, col: number) => void;
+}
 
-  onAttackTargetSelected: (
-    destinationBaseId: number,
-  ) => void;
+function getTravelTimeSeconds(
+  fromRow: number,
+  fromCol: number,
+  toRow: number,
+  toCol: number,
+  secondsPerTile: number,
+): number {
+  const distance = Math.abs(fromRow - toRow) + Math.abs(fromCol - toCol);
 
-  onLootTargetSelected: (
-    treasureId: number,
-  ) => void;
-
-  onExpandTargetSelected: (
-    row: number,
-    col: number,
-  ) => void;
-
-  onTransferTargetSelected: (
-    destinationBaseId: number,
-  ) => void;
-
-  onRelocateTargetSelected: (
-    row: number,
-    col: number,
-  ) => void;
-
+  return distance * secondsPerTile;
 }
 
 export default function GameMap({
@@ -55,24 +47,19 @@ export default function GameMap({
   onRelocateTargetSelected,
   mapTiles,
 }: GameMapProps) {
+  const mapColumns = Math.max(...mapTiles.map((tile) => tile.col)) + 1;
 
-  const mapColumns =
-    Math.max(
-      ...mapTiles.map((tile) => tile.col),
-    ) + 1;
-
-  const mapRows =
-    Math.max(
-      ...mapTiles.map((tile) => tile.row),
-    ) + 1;
+  const mapRows = Math.max(...mapTiles.map((tile) => tile.row)) + 1;
 
   return (
     <div
       className="game-map"
-      style={{
-        "--map-columns": mapColumns,
-        "--map-rows": mapRows,
-      } as React.CSSProperties}
+      style={
+        {
+          "--map-columns": mapColumns,
+          "--map-rows": mapRows,
+        } as CSSProperties
+      }
     >
       {mapTiles.map((tile) => {
         const base = bases.find(
@@ -83,40 +70,29 @@ export default function GameMap({
         );
 
         const treasure = treasures.find(
-          (treasure) =>
-            treasure.row === tile.row &&
-            treasure.col === tile.col,
+          (treasure) => treasure.row === tile.row && treasure.col === tile.col,
         );
 
-        const isLootTarget =
-          targetingMode === "loot" &&
-          treasure !== undefined;
+        const isLootTarget = targetingMode === "loot" && treasure !== undefined;
 
         const lootTravelTimeSeconds =
           isLootTarget && originBase && treasure
-            ? (
-                Math.abs(
-                  originBase.row - treasure.row,
-                ) +
-                Math.abs(
-                  originBase.col - treasure.col,
-                )
-              ) * 5
+            ? getTravelTimeSeconds(
+                originBase.row,
+                originBase.col,
+                treasure.row,
+                treasure.col,
+                5,
+              )
             : undefined;
 
         const player = base
-          ? players.find(
-              (player) => player.id === base.playerId,
-            )
+          ? players.find((player) => player.id === base.playerId)
           : undefined;
 
-        const baseName =
-          base
-            ? getBaseName(
-                base.playerId,
-                base.baseSlot,
-              )
-            : undefined;
+        const baseName = base
+          ? getBaseName(base.playerId, base.baseSlot)
+          : undefined;
 
         const isExpandTarget =
           targetingMode === "expand" &&
@@ -125,14 +101,13 @@ export default function GameMap({
 
         const expandTravelTimeSeconds =
           isExpandTarget && originBase
-            ? (
-                Math.abs(
-                  originBase.row - tile.row,
-                ) +
-                Math.abs(
-                  originBase.col - tile.col,
-                )
-              ) * 5
+            ? getTravelTimeSeconds(
+                originBase.row,
+                originBase.col,
+                tile.row,
+                tile.col,
+                5,
+              )
             : undefined;
 
         const isTransferTarget =
@@ -143,14 +118,13 @@ export default function GameMap({
 
         const transferTravelTimeSeconds =
           isTransferTarget && originBase && base
-            ? (
-                Math.abs(
-                  originBase.row - base.row,
-                ) +
-                Math.abs(
-                  originBase.col - base.col,
-                )
-              ) * 5
+            ? getTravelTimeSeconds(
+                originBase.row,
+                originBase.col,
+                base.row,
+                base.col,
+                5,
+              )
             : undefined;
 
         const isRelocateTarget =
@@ -160,39 +134,35 @@ export default function GameMap({
 
         const relocationTravelTimeSeconds =
           isRelocateTarget && originBase
-            ? (
-                Math.abs(
-                  originBase.row - tile.row,
-                ) +
-                Math.abs(
-                  originBase.col - tile.col,
-                )
-              ) * 15
+            ? getTravelTimeSeconds(
+                originBase.row,
+                originBase.col,
+                tile.row,
+                tile.col,
+                15,
+              )
             : undefined;
 
         /*
-        * During Attack Targeting Mode, any enemy base
-        * is a valid map target.
-        */
+         * During attack targeting, any enemy base is valid.
+         */
         const isAttackTarget =
           targetingMode === "attack" &&
           base !== undefined &&
           base.playerId !== yourPlayerId;
 
-        const travelTimeSeconds =
+        const attackTravelTimeSeconds =
           isAttackTarget && originBase && base
-            ? (
-                Math.abs(
-                  originBase.row - base.row,
-                ) +
-                Math.abs(
-                  originBase.col - base.col,
-                )
-              ) * 5
+            ? getTravelTimeSeconds(
+                originBase.row,
+                originBase.col,
+                base.row,
+                base.col,
+                5,
+              )
             : undefined;
 
-        const isTargeting =
-          targetingMode !== null;
+        const isTargeting = targetingMode !== null;
 
         const isAvailableTarget =
           isAttackTarget ||
@@ -201,29 +171,23 @@ export default function GameMap({
           isTransferTarget ||
           isRelocateTarget;
 
-        const isUnavailableTarget =
-          isTargeting &&
-          !isAvailableTarget;
+        const isUnavailableTarget = isTargeting && !isAvailableTarget;
 
         return (
           <Tile
             key={`${tile.row}-${tile.col}`}
             tile={tile}
-            gridSize={Math.max(
-              mapColumns,
-              mapRows,
-            )}
+            gridSize={Math.max(mapColumns, mapRows)}
             base={base}
             baseName={baseName}
             player={player}
             treasure={treasure}
             isSelectedBase={base?.id === selectedBaseId}
             isAttackTarget={isAttackTarget}
-            travelTimeSeconds={travelTimeSeconds}
+            travelTimeSeconds={attackTravelTimeSeconds}
             onAttackTargetClick={
               isAttackTarget && base
-                ? () =>
-                    onAttackTargetSelected(base.id)
+                ? () => onAttackTargetSelected(base.id)
                 : undefined
             }
             isLootTarget={isLootTarget}
@@ -236,37 +200,26 @@ export default function GameMap({
             isExpandTarget={isExpandTarget}
             onExpandTargetClick={
               isExpandTarget
-                ? () =>
-                    onExpandTargetSelected(
-                      tile.row,
-                      tile.col,
-                    )
+                ? () => onExpandTargetSelected(tile.row, tile.col)
                 : undefined
             }
             expandTravelTimeSeconds={expandTravelTimeSeconds}
             isTransferTarget={isTransferTarget}
-            transferTravelTimeSeconds={
-              transferTravelTimeSeconds
-            }
+            transferTravelTimeSeconds={transferTravelTimeSeconds}
             onTransferTargetClick={
               isTransferTarget && base
-                ? () =>
-                    onTransferTargetSelected(base.id)
+                ? () => onTransferTargetSelected(base.id)
                 : undefined
             }
             isRelocateTarget={isRelocateTarget}
             relocationTravelTimeSeconds={relocationTravelTimeSeconds}
             onRelocateTargetClick={
               isRelocateTarget
-                ? () =>
-                    onRelocateTargetSelected(
-                      tile.row,
-                      tile.col,
-                    )
+                ? () => onRelocateTargetSelected(tile.row, tile.col)
                 : undefined
             }
             isUnavailableTarget={isUnavailableTarget}
-        />
+          />
         );
       })}
     </div>

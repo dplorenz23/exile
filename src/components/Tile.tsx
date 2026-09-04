@@ -1,9 +1,4 @@
-import type {
-  Base,
-  Player,
-  Tile as TileType,
-  Treasure,
-} from "../game/types";
+import type { Base, Player, Tile as TileType, Treasure } from "../game/types";
 
 import BasePiece from "./BasePiece";
 
@@ -33,7 +28,7 @@ interface TileProps {
   isUnavailableTarget?: boolean;
 }
 
-function getTerrainIcon(tile: TileType) {
+function getTerrainIcon(tile: TileType): string | undefined {
   switch (tile.terrain) {
     case "meadow":
       return "🌾";
@@ -67,7 +62,7 @@ export default function Tile({
   isExpandTarget = false,
   onExpandTargetClick,
   expandTravelTimeSeconds,
-  isTransferTarget,
+  isTransferTarget = false,
   transferTravelTimeSeconds,
   onTransferTargetClick,
   isRelocateTarget = false,
@@ -89,87 +84,69 @@ export default function Tile({
     .filter(Boolean)
     .join(" ");
 
+  const baseTravelTimeSeconds = isAttackTarget
+    ? travelTimeSeconds
+    : transferTravelTimeSeconds;
+
+  const onBaseClick = isAttackTarget
+    ? onAttackTargetClick
+    : isTransferTarget
+      ? onTransferTargetClick
+      : undefined;
+
   return (
     <div
       className={[
         "map-tile",
         `map-tile--${tile.resource}`,
         `terrain--${tile.terrain}`,
-        tile.flowDirection
-          ? `flow--${tile.flowDirection}`
-          : "",
-        isExpandTarget
-          ? "map-tile--expand-target"
-          : "",
-        isRelocateTarget
-          ? "map-tile--relocate-target"
-          : "",
-        isUnavailableTarget
-          ? "map-tile--unavailable-target"
-          : "",
+        tile.flowDirection ? `flow--${tile.flowDirection}` : "",
+        isExpandTarget ? "map-tile--expand-target" : "",
+        isRelocateTarget ? "map-tile--relocate-target" : "",
+        isUnavailableTarget ? "map-tile--unavailable-target" : "",
         edgeClasses,
       ]
         .filter(Boolean)
         .join(" ")}
-      onClick={
-        isRelocateTarget
-          ? onRelocateTargetClick
-          : onExpandTargetClick
-      }
+      onClick={isRelocateTarget ? onRelocateTargetClick : onExpandTargetClick}
       title={
         isAttackTarget
           ? undefined
           : `${tile.terrain} | ${tile.resource} | ${tile.multiplier}x`
       }
     >
-    {isExpandTarget &&
-      expandTravelTimeSeconds !== undefined && (
-        <div className="expand-travel-time">
-          {expandTravelTimeSeconds}s
-        </div>
+      {isExpandTarget && expandTravelTimeSeconds !== undefined && (
+        <div className="expand-travel-time">{expandTravelTimeSeconds}s</div>
       )}
 
-    {isRelocateTarget &&
-      relocationTravelTimeSeconds !== undefined && (
+      {isRelocateTarget && relocationTravelTimeSeconds !== undefined && (
         <div className="relocate-travel-time">
           📦 {relocationTravelTimeSeconds}s
         </div>
       )}
 
-      <span className="tile-icon">
-        {getTerrainIcon(tile)}
-      </span>
+      <span className="tile-icon">{getTerrainIcon(tile)}</span>
 
       {tile.multiplier > 1 && (
-        <span className="tile-multiplier">
-          {tile.multiplier}×
-        </span>
+        <span className="tile-multiplier">{tile.multiplier}×</span>
       )}
 
       {treasure && (
         <div
-          className={[
-            "treasure",
-            isLootTarget ? "treasure--loot-target" : "",
-          ]
+          className={["treasure", isLootTarget ? "treasure--loot-target" : ""]
             .filter(Boolean)
             .join(" ")}
           onClick={onLootTargetClick}
           title={
-            isLootTarget &&
-            lootTravelTimeSeconds !== undefined
+            isLootTarget && lootTravelTimeSeconds !== undefined
               ? `Loot treasure — ${lootTravelTimeSeconds}s travel`
               : `Treasure — Water: ${treasure.resources.water}, Fire: ${treasure.resources.fire}, Grass: ${treasure.resources.grass}`
           }
         >
           💰
-
-          {isLootTarget &&
-            lootTravelTimeSeconds !== undefined && (
-              <div className="loot-travel-time">
-                {lootTravelTimeSeconds}s
-              </div>
-            )}
+          {isLootTarget && lootTravelTimeSeconds !== undefined && (
+            <div className="loot-travel-time">{lootTravelTimeSeconds}s</div>
+          )}
         </div>
       )}
 
@@ -181,18 +158,8 @@ export default function Tile({
           isSelected={isSelectedBase}
           isAttackTarget={isAttackTarget}
           isTransferTarget={isTransferTarget}
-          travelTimeSeconds={
-            isAttackTarget
-              ? travelTimeSeconds
-              : transferTravelTimeSeconds
-          }
-          onClick={
-            isAttackTarget
-              ? onAttackTargetClick
-              : isTransferTarget
-                ? onTransferTargetClick
-                : undefined
-          }
+          travelTimeSeconds={baseTravelTimeSeconds}
+          onClick={onBaseClick}
         />
       )}
     </div>

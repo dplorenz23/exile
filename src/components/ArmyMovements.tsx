@@ -1,10 +1,6 @@
 import { getBaseName } from "../game/gameState";
 
-import type {
-  ArmyMission,
-  Base,
-  Treasure,
-} from "../game/types";
+import type { ArmyMission, Base, Treasure } from "../game/types";
 
 interface ArmyMovementsProps {
   missions: ArmyMission[];
@@ -13,82 +9,34 @@ interface ArmyMovementsProps {
 }
 
 /*
- * ============================================================
- * MISSION LABELS
- * ============================================================
- *
  * Gives each traveling mission a clear human-readable status.
  */
-function getMissionLabel(mission: ArmyMission) {
-  if (
-    mission.type === "attack" &&
-    mission.phase === "outbound"
-  ) {
-    return "Army Attacking";
+function getMissionLabel(mission: ArmyMission): string {
+  if (mission.type === "attack") {
+    return mission.phase === "outbound" ? "Army Attacking" : "Army Returning";
   }
 
-  if (
-    mission.type === "attack" &&
-    mission.phase === "returning"
-  ) {
-    return "Army Returning";
+  if (mission.type === "loot") {
+    return mission.phase === "outbound" ? "Army Looting" : "Army Returning";
   }
 
-  if (
-      mission.type === "loot" &&
-      mission.phase === "outbound"
-    ) {
-      return "Army Looting";
-    }
-
-    if (
-      mission.type === "loot" &&
-      mission.phase === "returning"
-    ) {
-      return "Army Returning";
-    }
-
-  if (
-      mission.type === "transfer" &&
-      mission.phase === "outbound"
-    ) {
-      return "Army Transferring";
-    }
-
-    if (
-      mission.type === "transfer" &&
-      mission.phase === "returning"
-    ) {
-      return "Army Returning";
-    }
-
-  if (
-    mission.type === "expand" &&
-    mission.phase === "outbound"
-  ) {
-    return "Settlers Expanding";
+  if (mission.type === "transfer") {
+    return mission.phase === "outbound"
+      ? "Army Transferring"
+      : "Army Returning";
   }
 
-  if (
-      mission.type === "expand" &&
-      mission.phase === "returning"
-    ) {
-      return "Settlers Returning";
-    }
+  if (mission.type === "expand") {
+    return mission.phase === "outbound"
+      ? "Settlers Expanding"
+      : "Settlers Returning";
+  }
 
-  if (
-      mission.type === "relocate" &&
-      mission.phase === "outbound"
-    ) {
-      return "📦 Base Relocating";
-    }
-
-    if (
-      mission.type === "relocate" &&
-      mission.phase === "returning"
-    ) {
-      return "📦 Base Returning";
-    }
+  if (mission.type === "relocate") {
+    return mission.phase === "outbound"
+      ? "📦 Base Relocating"
+      : "📦 Base Returning";
+  }
 
   return "Army Moving";
 }
@@ -98,62 +46,72 @@ export default function ArmyMovements({
   bases,
   treasures,
 }: ArmyMovementsProps) {
-
-  /*
-   * Convert a base ID into the player's local
-   * Base 1 / Base 2 / Base 3 naming.
-   *
-   * Enemy bases may show as Unknown Base for now
-   * because this component currently receives only
-   * the local player's bases.
-   */
-  function getMissionBaseName(
-    baseId: number,
-  ) {
-    const base = bases.find(
-      (base) => base.id === baseId,
-    );
+  function getMissionBaseName(baseId: number): string {
+    const base = bases.find((base) => base.id === baseId);
 
     if (!base) {
       return "Unknown Base";
     }
 
-    return getBaseName(
-      base.playerId,
-      base.baseSlot,
-    );
+    return getBaseName(base.playerId, base.baseSlot);
   }
 
-  function getCoordinateName(
-    row?: number,
-    col?: number,
-  ) {
-    if (
-      row === undefined ||
-      col === undefined
-    ) {
+  function getCoordinateName(row?: number, col?: number): string {
+    if (row === undefined || col === undefined) {
       return "Unknown Location";
     }
 
-    const column =
-      String.fromCharCode(65 + col);
+    const column = String.fromCharCode(65 + col);
 
     return `${column}${row + 1}`;
   }
 
-  function getTreasureName(treasureId: number) {
-    const treasure = treasures.find(
-      (treasure) => treasure.id === treasureId,
-    );
+  /*
+   * Loot missions store the target treasure ID in destinationBaseId.
+   * This keeps the shared mission shape consistent across mission types.
+   */
+  function getTreasureName(treasureId: number): string {
+    const treasure = treasures.find((treasure) => treasure.id === treasureId);
 
     if (!treasure) {
       return "Treasure";
     }
 
-    const column =
-      String.fromCharCode(65 + treasure.col);
+    const column = String.fromCharCode(65 + treasure.col);
 
     return `Treasure at ${column}${treasure.row + 1}`;
+  }
+
+  function getMissionOrigin(mission: ArmyMission): string {
+    if (mission.type === "relocate" || mission.type === "expand") {
+      return mission.phase === "returning"
+        ? getCoordinateName(mission.destinationRow, mission.destinationCol)
+        : getMissionBaseName(mission.originBaseId);
+    }
+
+    if (mission.phase === "returning") {
+      return mission.type === "loot"
+        ? getTreasureName(mission.destinationBaseId)
+        : getMissionBaseName(mission.destinationBaseId);
+    }
+
+    return getMissionBaseName(mission.originBaseId);
+  }
+
+  function getMissionDestination(mission: ArmyMission): string {
+    if (mission.type === "relocate" || mission.type === "expand") {
+      return mission.phase === "returning"
+        ? getMissionBaseName(mission.originBaseId)
+        : getCoordinateName(mission.destinationRow, mission.destinationCol);
+    }
+
+    if (mission.phase === "returning") {
+      return getMissionBaseName(mission.originBaseId);
+    }
+
+    return mission.type === "loot"
+      ? getTreasureName(mission.destinationBaseId)
+      : getMissionBaseName(mission.destinationBaseId);
   }
 
   return (
@@ -161,121 +119,43 @@ export default function ArmyMovements({
       <strong>Armies Moving</strong>
 
       {missions.map((mission) => (
-        <div
-          key={mission.id}
-          className="army-movement"
-        >
-          {/* Attack / Return / Transfer */}
-          <div className="army-movement-status">
-            {getMissionLabel(mission)}
-          </div>
+        <div key={mission.id} className="army-movement">
+          <div className="army-movement-status">{getMissionLabel(mission)}</div>
 
-          {/* Origin, destination, and timer */}
           <div className="army-movement-header">
             <span>
-              {mission.type === "relocate"
-                ? mission.phase === "returning"
-                  ? getCoordinateName(
-                      mission.destinationRow,
-                      mission.destinationCol,
-                    )
-                  : getMissionBaseName(
-                     mission.originBaseId,
-                    )
-                : mission.type === "expand"
-                  ? mission.phase === "returning"
-                    ? getCoordinateName(
-                        mission.destinationRow,
-                        mission.destinationCol,
-                      )
-                    : getMissionBaseName(
-                        mission.originBaseId,
-                      )
-                  : mission.phase === "returning"
-                    ? mission.type === "loot"
-                      ? getTreasureName(
-                          mission.destinationBaseId,
-                        )
-                      : getMissionBaseName(
-                          mission.destinationBaseId,
-                        )
-                    : getMissionBaseName(
-                        mission.originBaseId,
-                      )}
-
+              {getMissionOrigin(mission)}
               {" → "}
-
-              {mission.type === "relocate"
-                ? mission.phase === "returning"
-                  ? getMissionBaseName(
-                      mission.originBaseId,
-                    )
-                  : getCoordinateName(
-                      mission.destinationRow,
-                      mission.destinationCol,
-                    )
-                : mission.type === "expand"
-                  ? mission.phase === "returning"
-                    ? getMissionBaseName(
-                        mission.originBaseId,
-                      )
-                    : getCoordinateName(
-                        mission.destinationRow,
-                        mission.destinationCol,
-                      )
-                  : mission.phase === "returning"
-                    ? getMissionBaseName(
-                        mission.originBaseId,
-                      )
-                    : mission.type === "loot"
-                      ? getTreasureName(
-                          mission.destinationBaseId,
-                        )
-                      : getMissionBaseName(
-                          mission.destinationBaseId,
-                        )}
+              {getMissionDestination(mission)}
             </span>
 
-            <strong>
-              {mission.secondsRemaining}s
-            </strong>
+            <strong>{mission.secondsRemaining}s</strong>
           </div>
 
-          {/* Armies, cargo, and Expansion Keys in transit */}
           <div className="army-movement-details">
             <div>
-              <span className="movement-label">
-                Armies
-              </span>
+              <span className="movement-label">Armies</span>
 
               <span>
-                ⚔️💧{mission.armies.water}{" "}
-                ⚔️🔥{mission.armies.fire}{" "}
-                ⚔️🌱{mission.armies.grass}
+                ⚔️💧{mission.armies.water} ⚔️🔥{mission.armies.fire} ⚔️🌱
+                {mission.armies.grass}
               </span>
             </div>
 
             <div>
-              <span className="movement-label">
-                Cargo
-              </span>
+              <span className="movement-label">Cargo</span>
 
               <span>
-                💧{mission.resources.water}{" "}
-                🔥{mission.resources.fire}{" "}
-                🌱{mission.resources.grass}
+                💧{mission.resources.water} 🔥{mission.resources.fire} 🌱
+                {mission.resources.grass}
               </span>
             </div>
 
             {mission.expansionKeys > 0 && (
               <div>
-                <span className="movement-label">
-                  Keys
-                </span>
+                <span className="movement-label">Keys</span>
 
-                <span>
-                  🔑{mission.expansionKeys}
-                </span>
+                <span>🔑{mission.expansionKeys}</span>
               </div>
             )}
           </div>
@@ -284,4 +164,3 @@ export default function ArmyMovements({
     </div>
   );
 }
-

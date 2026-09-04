@@ -1,6 +1,27 @@
-import type { Base, Player, BaseResources } from "./types";
+import type { Base, BaseResources, MatchType, Player } from "./types";
 
-export const maps = [
+/*
+ * Static game configuration used when creating a new match.
+ *
+ * This file does not contain live match state. Runtime state is created
+ * separately in createInitialGameState.ts.
+ */
+
+interface MapConfig {
+  id: string;
+  name: string;
+  minPlayers: number;
+  maxPlayers: number;
+  rows: number;
+  columns: number;
+}
+
+interface MatchTypeConfig {
+  name: string;
+  durationMinutes: number | null;
+}
+
+export const maps: MapConfig[] = [
   {
     id: "exile-island",
     name: "EXiLE ISLAND",
@@ -19,12 +40,11 @@ export const maps = [
   },
 ];
 
-export const matchTypes = {
+export const matchTypes: Record<MatchType, MatchTypeConfig> = {
   "30m": {
     name: "30 Minutes",
     durationMinutes: 30,
   },
-
   "sudden-death": {
     name: "Sudden Death",
     durationMinutes: null,
@@ -58,28 +78,22 @@ export const players: Player[] = [
   },
 ];
 
-export const baseNamesByPlayer: Record<
-  number,
-  Record<1 | 2 | 3, string>
-> = {
+export const baseNamesByPlayer: Record<number, Record<1 | 2 | 3, string>> = {
   1: {
     1: "Emberkeep",
     2: "Spellhaven",
     3: "Moonspire",
   },
-
   2: {
     1: "Ironhold",
     2: "Highwatch",
     3: "Stonegate",
   },
-
   3: {
     1: "Frostholm",
     2: "Ravenfjord",
     3: "Skullhaven",
   },
-
   4: {
     1: "Blackwater",
     2: "Rumrunner Rest",
@@ -87,16 +101,16 @@ export const baseNamesByPlayer: Record<
   },
 };
 
-export function getBaseName(
-  playerId: number,
-  baseSlot: 1 | 2 | 3,
-) {
-  return (
-    baseNamesByPlayer[playerId]?.[baseSlot] ??
-    `Base ${baseSlot}`
-  );
+export function getBaseName(playerId: number, baseSlot: 1 | 2 | 3) {
+  return baseNamesByPlayer[playerId]?.[baseSlot] ?? `Base ${baseSlot}`;
 }
 
+/*
+ * Default starting bases for EXiLE Island.
+ *
+ * These are used as seed data for new matches. Map-specific adjustments
+ * can be applied later when createInitialGameState.ts builds runtime state.
+ */
 export const bases: Base[] = [
   {
     id: 1,
@@ -122,7 +136,6 @@ export const bases: Base[] = [
     relocations: 0,
     isRelocating: false,
   },
-
   {
     id: 2,
     playerId: 2,
@@ -147,7 +160,6 @@ export const bases: Base[] = [
     relocations: 0,
     isRelocating: false,
   },
-
   {
     id: 3,
     playerId: 3,
@@ -172,7 +184,6 @@ export const bases: Base[] = [
     relocations: 0,
     isRelocating: false,
   },
-
   {
     id: 4,
     playerId: 4,

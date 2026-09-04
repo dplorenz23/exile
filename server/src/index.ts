@@ -90,7 +90,7 @@ let gameTimer: NodeJS.Timeout | null = null;
  * ==================================================
  */
 
-function getNextAvailableSlot() {
+function getNextAvailableSlot(): number | null {
   const usedSlots = Array.from(lobbyPlayers.values()).map(
     (player) => player.slotId,
   );
@@ -104,7 +104,7 @@ function getNextAvailableSlot() {
   return null;
 }
 
-function getNextAvailablePlayerId() {
+function getNextAvailablePlayerId(): number | null {
   const usedPlayerIds = Array.from(lobbyPlayers.values()).map(
     (player) => player.playerId,
   );
@@ -118,7 +118,23 @@ function getNextAvailablePlayerId() {
   return null;
 }
 
-function broadcastLobby() {
+function assignNextHost(): void {
+  const nextHost = lobbyPlayers.values().next();
+
+  hostClientId = nextHost.done ? null : nextHost.value.clientId;
+
+  if (hostClientId === null) {
+    return;
+  }
+
+  const newHost = lobbyPlayers.get(hostClientId);
+
+  if (newHost) {
+    newHost.isHost = true;
+  }
+}
+
+function broadcastLobby(): void {
   const players = Array.from(lobbyPlayers.values()).sort(
     (a, b) => a.slotId - b.slotId,
   );
@@ -140,7 +156,7 @@ function broadcastLobby() {
  * ==================================================
  */
 
-function broadcastGameState() {
+function broadcastGameState(): void {
   if (!gameState) {
     return;
   }
@@ -160,19 +176,14 @@ function broadcastGameState() {
  * SERVER GAME TICK
  * ==================================================
  *
- * This is the main migration target from App.tsx.
+ * Advances the authoritative match state once per second.
  *
- * As gameplay becomes server-authoritative, the
- * client-side interval logic from App.tsx should move
- * into the numbered sections below.
- *
- * IMPORTANT:
- * After moving a section here and testing it, disable
- * the matching client-side section so both sides do
- * not process the same game logic.
+ * The server owns base aging, training, mission movement
+ * and arrivals, combat, elimination, scoring, victory,
+ * resource production, and state broadcasts.
  */
 
-function runGameTick() {
+function runGameTick(): void {
   if (!gameState) {
     return;
   }
@@ -191,7 +202,6 @@ function runGameTick() {
    * AGE BASES AND PROCESS TRAINING
    * ==================================================
    *
-   * MIGRATED FROM App.tsx.
    */
 
   const updatedArmiesTrainedByPlayer = {
@@ -293,36 +303,16 @@ function runGameTick() {
   /*
    * ==================================================
    * STEP 2:
-   * PROCESS ARMY / SETTLER / RELOCATION MISSIONS
+   * PROCESS MISSIONS
    * ==================================================
    *
-   * TODO — MIGRATE FROM App.tsx
-   *
-   * Expected contents:
-   * - decrement mission secondsRemaining
-   * - process outbound arrivals
-   * - process returning arrivals
-   * - transfer cargo
-   * - loot treasure
-   * - resolve attacks
-   * - resolve expansion arrivals / collisions
-   * - resolve relocation arrivals / collisions
-   * - remove completed/lost missions
-   *
-   * When ready, paste the matching App.tsx block here
-   * and migrate it carefully rather than rewriting it.
+   * Advances and resolves attack, loot, transfer,
+   * expansion, and relocation missions.
    */
 
   const updatedArmyMissions: ArmyMission[] = [];
 
   gameState.armyMissions.forEach((mission) => {
-    /*
-     * For now, only Transfer is
-     * server-authoritative.
-     *
-     * Leave every other mission untouched
-     * until we migrate it.
-     */
     if (
       mission.type !== "transfer" &&
       mission.type !== "attack" &&
@@ -697,14 +687,6 @@ function runGameTick() {
           secondsRemaining: distance * 5,
         });
       }
-
-      console.log("ATTACK RESOLVED:", {
-        attacker: mission.playerId,
-        defender: defendingBase.playerId,
-        baseDestroyed: combatResult.baseDestroyed,
-        attackerSurvivors: combatResult.attackerSurvivors,
-        defenderSurvivors: combatResult.defenderSurvivors,
-      });
 
       return;
     }
@@ -1660,14 +1642,13 @@ function runGameTick() {
    * RESOURCE PRODUCTION
    * ==================================================
    *
-   * MIGRATED FROM App.tsx.
    */
   updatedBases.forEach((base) => {
     if (base.isRelocating) {
       return;
     }
 
-    const activeMapTiles = gameState!.mapId === "map-two" ? mapTwo : mapOne;
+    const activeMapTiles = gameState.mapId === "map-two" ? mapTwo : mapOne;
 
     const tile = activeMapTiles.find(
       (tile) => tile.row === base.row && tile.col === base.col,
@@ -1701,11 +1682,8 @@ function runGameTick() {
   /*
    * ==================================================
    * STEP 5:
-   * COMMIT THIS TICK'S SERVER STATE
+   * COMMIT AUTHORITATIVE STATE
    * ==================================================
-   *
-   * As more App.tsx tick sections move to the server,
-   * add their updated values to THIS assignment.
    */
 
   gameState = {
@@ -1803,13 +1781,12 @@ server.on("connection", (socket) => {
    * CLIENT MESSAGE HANDLING
    * ==================================================
    *
-   * Each player action should eventually follow this
-   * pattern:
+   * Gameplay requests follow the authoritative flow:
    *
-   * 1. Client sends REQUEST.
-   * 2. Server validates REQUEST.
-   * 3. Server changes gameState.
-   * 4. Server broadcasts authoritative gameState.
+   * 1. Client sends a request.
+   * 2. Server validates the request.
+   * 3. Server updates authoritative state.
+   * 4. Server broadcasts the resulting state.
    */
 
   socket.on("message", (data) => {
@@ -1845,17 +1822,7 @@ server.on("connection", (socket) => {
       lobbyPlayers.delete(clientId);
 
       if (clientId === hostClientId) {
-        const nextHost = lobbyPlayers.values().next();
-
-        hostClientId = nextHost.done ? null : nextHost.value.clientId;
-
-        if (hostClientId !== null) {
-          const newHost = lobbyPlayers.get(hostClientId);
-
-          if (newHost) {
-            newHost.isHost = true;
-          }
-        }
+        assignNextHost();
       }
 
       console.log(`Client ${clientId} left lobby`);
@@ -1933,14 +1900,8 @@ server.on("connection", (socket) => {
      * GAME ACTION: TRAIN ARMY
      * ==============================================
      *
-     * SERVER-AUTHORITATIVE.
-     *
-     * Client only requests:
-     * - baseId
-     * - resource
-     *
-     * Server validates ownership, cost and whether
-     * the base is already training.
+     * Validates and starts army training at a
+     * player-owned base.
      */
 
     if (message.type === "train-army") {
@@ -2023,39 +1984,13 @@ server.on("connection", (socket) => {
         resourcesByBase: updatedResources,
       };
 
-      console.log("TRAIN APPROVED:", {
-        baseId,
-        resource,
-        cost,
-      });
-
       broadcastGameState();
     }
 
     /*
      * ==============================================
-     * GAME ACTION TEMPLATE: SEND ARMY
+     * GAME ACTION: TRANSFER
      * ==============================================
-     *
-     * TODO — MIGRATE FROM App.tsx
-     *
-     * Future client request should contain only the
-     * choices the player is allowed to make.
-     *
-     * Example:
-     *
-     * {
-     *   type: "send-army",
-     *   originBaseId,
-     *   missionType,
-     *   armies,
-     *   resources,
-     *   destination...
-     * }
-     *
-     * Server must validate ownership, army counts,
-     * cargo, destination and mission legality before
-     * modifying gameState.
      */
 
     if (message.type === "transfer-army") {
@@ -2242,15 +2177,14 @@ server.on("connection", (socket) => {
         nextMissionId: gameState.nextMissionId + 1,
       };
 
-      console.log("TRANSFER LAUNCHED:", {
-        playerId: player.playerId,
-        originBaseId,
-        destinationBaseId,
-        travelTime,
-      });
-
       broadcastGameState();
     }
+
+    /*
+     * ==============================================
+     * GAME ACTION: ATTACK
+     * ==============================================
+     */
 
     if (message.type === "attack-army") {
       if (!gameState) {
@@ -2386,15 +2320,14 @@ server.on("connection", (socket) => {
         nextMissionId: gameState.nextMissionId + 1,
       };
 
-      console.log("ATTACK LAUNCHED:", {
-        playerId: player.playerId,
-        originBaseId,
-        destinationBaseId,
-        travelTime,
-      });
-
       broadcastGameState();
     }
+
+    /*
+     * ==============================================
+     * GAME ACTION: LOOT
+     * ==============================================
+     */
 
     if (message.type === "loot-army") {
       if (!gameState) {
@@ -2519,6 +2452,12 @@ server.on("connection", (socket) => {
 
       broadcastGameState();
     }
+
+    /*
+     * ==============================================
+     * GAME ACTION: EXPAND
+     * ==============================================
+     */
 
     if (message.type === "expand") {
       if (!gameState) {
@@ -2705,6 +2644,12 @@ server.on("connection", (socket) => {
 
       broadcastGameState();
     }
+
+    /*
+     * ==============================================
+     * GAME ACTION: RELOCATE
+     * ==============================================
+     */
 
     if (message.type === "relocate") {
       if (!gameState) {
@@ -2917,54 +2862,6 @@ server.on("connection", (socket) => {
 
     /*
      * ==============================================
-     * GAME ACTION TEMPLATE: EXPAND
-     * ==============================================
-     *
-     * TODO — MIGRATE FROM App.tsx
-     *
-     * Expected server validation:
-     * - player owns origin base
-     * - player has room for another base
-     * - player has expansion key
-     * - origin has selected 500 resources
-     * - destination is legal when mission is sent
-     */
-
-    /*
-        if (
-          message.type ===
-          "expand"
-        ) {
-          // TODO: migrate expansion request logic.
-        }
-        */
-
-    /*
-     * ==============================================
-     * GAME ACTION TEMPLATE: RELOCATE
-     * ==============================================
-     *
-     * TODO — MIGRATE FROM App.tsx
-     *
-     * Expected server validation:
-     * - player owns base
-     * - base is not already relocating
-     * - payment is valid
-     * - destination is legal when mission is sent
-     * - packing / travel state starts server-side
-     */
-
-    /*
-        if (
-          message.type ===
-          "relocate"
-        ) {
-          // TODO: migrate relocation request logic.
-        }
-        */
-
-    /*
-     * ==============================================
      * LOBBY ACTION: SET MAP
      * ==============================================
      */
@@ -3055,17 +2952,9 @@ server.on("connection", (socket) => {
     console.log(`Client ${clientId} disconnected`);
 
     if (clientId === hostClientId) {
-      const nextHost = lobbyPlayers.values().next();
-
-      hostClientId = nextHost.done ? null : nextHost.value.clientId;
+      assignNextHost();
 
       if (hostClientId !== null) {
-        const newHost = lobbyPlayers.get(hostClientId);
-
-        if (newHost) {
-          newHost.isHost = true;
-        }
-
         console.log(`Client ${hostClientId} is now host`);
       }
     }

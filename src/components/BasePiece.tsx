@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import type { Base, Player } from "../game/types";
 
 interface BasePieceProps {
@@ -6,19 +8,19 @@ interface BasePieceProps {
   player: Player;
   isSelected?: boolean;
   isAttackTarget?: boolean;
+  isTransferTarget?: boolean;
   travelTimeSeconds?: number;
   onClick?: () => void;
-  isTransferTarget?: boolean;
 }
 
-function formatTime(seconds: number) {
+function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
 
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-function getBaseTier(seconds: number) {
+function getBaseTier(seconds: number): number {
   if (seconds >= 600) {
     return 4;
   }
@@ -34,7 +36,7 @@ function getBaseTier(seconds: number) {
   return 1;
 }
 
-function getBaseIcon(tier: number) {
+function getBaseIcon(tier: number): string {
   switch (tier) {
     case 1:
       return "⛺";
@@ -55,9 +57,9 @@ export default function BasePiece({
   player,
   isSelected = false,
   isAttackTarget = false,
+  isTransferTarget = false,
   travelTimeSeconds,
   onClick,
-  isTransferTarget = false,
 }: BasePieceProps) {
   const tier = getBaseTier(base.timeInLocationSeconds);
 
@@ -68,46 +70,36 @@ export default function BasePiece({
         `base-piece--tier-${tier}`,
         isSelected ? "base-piece--selected" : "",
         isAttackTarget ? "base-piece--attack-target" : "",
-        isTransferTarget? "base-piece--transfer-target" : "",
+        isTransferTarget ? "base-piece--transfer-target" : "",
       ]
         .filter(Boolean)
         .join(" ")}
-      style={{ "--player-color": player.color } as React.CSSProperties}
+      style={
+        {
+          "--player-color": player.color,
+        } as CSSProperties
+      }
       onClick={onClick}
     >
-      <div className="base-structure">
-        {getBaseIcon(tier)}
-      </div>
+      <div className="base-structure">{getBaseIcon(tier)}</div>
 
-      <div className="base-avatar">
-        {player.avatar}
-      </div>
+      <div className="base-avatar">{player.avatar}</div>
 
-      {baseName && (
-        <div className="base-name">
-          {baseName}
-        </div>
-      )}
+      {baseName && <div className="base-name">{baseName}</div>}
 
       {isAttackTarget && travelTimeSeconds !== undefined && (
-        <div className="attack-travel-time">
-          {travelTimeSeconds}s
-        </div>
+        <div className="attack-travel-time">{travelTimeSeconds}s</div>
       )}
 
       <div className="base-tooltip">
         <strong>{player.name}</strong>
 
-        <span>
-          Time here: {formatTime(base.timeInLocationSeconds)}
-        </span>
+        <span>Time here: {formatTime(base.timeInLocationSeconds)}</span>
 
         {travelTimeSeconds !== undefined && (
-          <span>
-            Travel time: {travelTimeSeconds}s
-          </span>
+          <span>Travel time: {travelTimeSeconds}s</span>
         )}
-    </div>
+      </div>
     </div>
   );
 }

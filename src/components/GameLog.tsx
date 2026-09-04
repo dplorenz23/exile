@@ -1,24 +1,29 @@
-import type { GameEvent, Player, ResourceType } from "../game/types";
+import type {
+  ArmyCounts,
+  GameEvent,
+  Player,
+  ResourceType,
+} from "../game/types";
 
 interface GameLogProps {
   events: GameEvent[];
   players: Player[];
 }
 
-function formatTime(seconds: number) {
+function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
 
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-function getCoordinates(row: number, col: number) {
+function getCoordinates(row: number, col: number): string {
   const column = String.fromCharCode(65 + col);
 
   return `${column}${row + 1}`;
 }
 
-function formatArmies(armies: { water: number; fire: number; grass: number }) {
+function formatArmies(armies: ArmyCounts): string {
   const parts: string[] = [];
 
   const armyIcons: Record<ResourceType, string> = {
@@ -36,11 +41,7 @@ function formatArmies(armies: { water: number; fire: number; grass: number }) {
   return parts.length > 0 ? parts.join(" ") : "None";
 }
 
-function formatCompactArmies(armies: {
-  water: number;
-  fire: number;
-  grass: number;
-}) {
+function formatCompactArmies(armies: ArmyCounts): string {
   const parts: string[] = [];
 
   if (armies.water > 0) {
@@ -58,8 +59,43 @@ function formatCompactArmies(armies: {
   return parts.length > 0 ? parts.join(" ") : "—";
 }
 
+function getEventSeconds(event: GameEvent): number {
+  return event.type === "battle" ? event.report.gameSeconds : event.gameSeconds;
+}
+
+/*
+ * When multiple events occur during the same second,
+ * show Victory → Elimination → Battle at the top of the log.
+ */
+const eventPriority: Record<GameEvent["type"], number> = {
+  victory: 1,
+  elimination: 2,
+  battle: 3,
+  expansion: 3,
+  relocation: 3,
+  loot: 3,
+  transfer: 3,
+  "mission-failed": 3,
+};
+
+function getMissionFailureMessage(
+  event: Extract<GameEvent, { type: "mission-failed" }>,
+  playerName: string,
+): string {
+  switch (event.reason) {
+    case "destination-unavailable":
+      return `${playerName}'s ${event.missionType} mission failed because the destination is no longer available.`;
+
+    case "origin-destroyed":
+      return `${playerName}'s ${event.missionType} mission was lost because its origin base no longer exists.`;
+
+    case "return-location-blocked":
+      return `${playerName}'s ${event.missionType} mission could not return to its original location.`;
+  }
+}
+
 export default function GameLog({ events, players }: GameLogProps) {
-  function getPlayerName(playerId: number) {
+  function getPlayerName(playerId: number): string {
     return (
       players.find((player) => player.id === playerId)?.name ??
       `Player ${playerId}`
@@ -83,11 +119,8 @@ export default function GameLog({ events, players }: GameLogProps) {
                * Battle events store their timestamp inside
                * report. All other events store it directly.
                */
-              const aSeconds =
-                a.type === "battle" ? a.report.gameSeconds : a.gameSeconds;
-
-              const bSeconds =
-                b.type === "battle" ? b.report.gameSeconds : b.gameSeconds;
+              const aSeconds = getEventSeconds(a);
+              const bSeconds = getEventSeconds(b);
 
               /*
                * Normal behavior:
@@ -96,28 +129,6 @@ export default function GameLog({ events, players }: GameLogProps) {
               if (aSeconds !== bSeconds) {
                 return bSeconds - aSeconds;
               }
-
-              /*
-               * Only when events occurred during the SAME
-               * second do we apply a special display order.
-               *
-               * Chronologically:
-               * Battle → Elimination → Victory
-               *
-               * Since the Game Log displays newest first:
-               * Victory → Elimination → Battle
-               */
-              const eventPriority = {
-                victory: 1,
-                elimination: 2,
-                battle: 3,
-
-                expansion: 3,
-                relocation: 3,
-                loot: 3,
-                transfer: 3,
-                "mission-failed": 3,
-              };
 
               return eventPriority[a.type] - eventPriority[b.type];
             })
@@ -248,19 +259,7 @@ export default function GameLog({ events, players }: GameLogProps) {
               if (event.type === "mission-failed") {
                 const playerName = getPlayerName(event.playerId);
 
-                let message = "";
-
-                if (event.reason === "destination-unavailable") {
-                  message = `${playerName}'s ${event.missionType} mission failed because the destination is no longer available.`;
-                }
-
-                if (event.reason === "origin-destroyed") {
-                  message = `${playerName}'s ${event.missionType} mission was lost because its origin base no longer exists.`;
-                }
-
-                if (event.reason === "return-location-blocked") {
-                  message = `${playerName}'s ${event.missionType} mission could not return to its original location.`;
-                }
+                const message = getMissionFailureMessage(event, playerName);
 
                 return (
                   <div key={event.id} className="battle-report">
