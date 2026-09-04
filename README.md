@@ -14,8 +14,6 @@ game simulation to be rewritten.
 
 ------------------------------------------------------------------------
 
-------------------------------------------------------------------------
-
 ## Table of Contents
 
 -   [Current Game Overview](#current-game-overview)
@@ -32,6 +30,7 @@ game simulation to be rewritten.
 -   [Game Events](#game-events)
 -   [Current Multiplayer Status](#current-multiplayer-status)
 -   [Known Issues and Deferred Work](#known-issues-and-deferred-work)
+-   [Future Ideas & Improvements](#future-ideas-&-improvements)
 -   [Development Status](#development-status)
 -   [Project Structure](#project-structure)
 
@@ -609,6 +608,203 @@ After the multiplayer milestone, development can move toward internet
 hosting, additional polish, gameplay balancing, and additional content.
 
 ------------------------------------------------------------------------
+
+## Future Ideas & Improvements
+
+The following ideas are possible future additions rather than committed
+features. They should generally be evaluated through multiplayer playtesting
+before implementation.
+
+### Speculative Missions and Timing Attacks
+
+A major future gameplay goal is allowing players to launch missions based on
+what they expect the map to look like when the mission arrives, rather than
+requiring the destination to already be valid when the mission is launched.
+
+The server would evaluate the destination when the mission arrives.
+
+This could allow planned sequences such as:
+
+- Attack an enemy base and immediately send a Loot mission toward the same tile.
+  If the attack succeeds and creates treasure, the following Loot mission can
+  collect it. If the attack fails, the Loot mission fails and returns.
+- Attack, Loot, and then Expand toward the same tile. Expansion succeeds only
+  if the base has been destroyed and all blocking treasure has been removed
+  before the settlers arrive.
+- Send multiple players' expansion missions toward the same location, with the
+  first successful arrival claiming the tile.
+- Send a Transfer toward a location where a friendly expansion is expected to
+  establish a base before the transfer arrives.
+- Potentially attack a tile where another player's expansion or relocation is
+  expected to arrive.
+
+This would make mission timing and travel distance important strategic tools.
+Players could coordinate several missions into a single planned operation, but
+each mission would still independently succeed or fail based on the actual map
+state when it arrives.
+
+### Map Resources and Valuable Territory
+
+Future maps may contain more variation in resource production.
+
+Possible additions include:
+
+- More 2x and 3x resource tiles.
+- Rare 4x resource tiles.
+- Increasingly valuable tiles toward the center of the map, encouraging players
+  to compete for central territory.
+- Mixed-resource tiles that produce two resource types.
+- Rare triple-resource tiles that produce Water, Fire, and Grass.
+- Small amounts of secondary-resource production on normal tiles. For example,
+  a mature Grass base might eventually produce a small amount of Water or Fire
+  in addition to Grass.
+
+The goal would be to make base location and control of valuable territory more
+strategically important without requiring a separate technology or upgrade
+system.
+
+### Neutral Camps and Map Objectives
+
+Smaller matches, particularly 1v1 games, could include neutral enemies such as
+Troll camps to create additional objectives and competition.
+
+Neutral camps could have visible army strength and provide rewards when
+defeated, such as:
+
+- Resources.
+- Expansion Keys.
+- Treasure.
+
+The number and strength of neutral camps could depend on player count. A
+four-player match may need few or none, while a two-player match could use them
+to make otherwise-empty portions of the map strategically important.
+
+Treasure chests and Expansion Keys could also be placed on the map when the
+match begins.
+
+Starting treasure should have known contents so players can make strategic
+decisions about whether it is worth competing for.
+
+Periodic random treasure spawning is not currently planned.
+
+### Expansion Keys and Loot
+
+Expansion Keys could become physical loot rather than disappearing when the
+base that owns them is destroyed.
+
+If a destroyed base owns multiple Expansion Keys, those keys would be included
+with the treasure left behind on the tile.
+
+A possible balancing rule is limiting each Loot mission to carrying one
+Expansion Key, even when several keys are present. This would prevent a single
+army mission from immediately collecting every key from a destroyed empire and
+could create continued competition over the remaining treasure.
+
+### Additional Players
+
+Future versions may support more than four players.
+
+EXiLE Island may be large enough to support as many as eight players, although
+starting positions, resource balance, UI layout, and match pacing would need to
+be tested.
+
+Larger-player matches should preferably use the same core rules rather than
+introducing special rules solely because more players are present.
+
+### Computer Players
+
+Computer-controlled players could allow matches to be filled without requiring
+a human player in every slot.
+
+Different computer players could use recognizable strategic archetypes, such
+as:
+
+- Fast Expander
+- Army Builder
+- Aggressive Attacker
+- Resource Accumulator
+- Opportunist
+
+This could be particularly useful for 1v1 or other small-player-count games.
+
+Computer players should use the same gameplay actions and rules available to
+human players rather than receiving hidden advantages.
+
+### Post-Game Awards
+
+In addition to the final leaderboard, EXiLE could award players post-game titles
+based on what actually happened during the match.
+
+Examples could include:
+
+- Most bases destroyed.
+- Most armies trained.
+- Most resources produced or accumulated.
+- Most expansions completed.
+- Most relocations completed.
+- Most treasure collected.
+- Most Expansion Keys collected.
+- Most resources looted.
+- Most battles won.
+
+Rather than relying only on a fixed list of titles, a future AI-assisted system
+could analyze the completed match statistics and generate appropriate awards,
+titles, or short descriptions of each player's performance.
+
+This could make the post-game summary different from match to match and give
+players interesting accomplishments even when they do not win.
+
+### Additional Match Types
+
+Additional victory conditions could eventually be added alongside 30-Minute and
+Sudden Death matches.
+
+One promising option is **King of the Hill**.
+
+A valuable central tile or region could act as the objective, with players
+earning progress by controlling it. This would naturally complement maps whose
+most valuable resource tiles are concentrated toward the center and would force
+players into direct competition.
+
+The exact scoring and control rules would require playtesting.
+
+### Army Training Queue
+
+Army training currently requires the player to return to a base and manually
+start each new army after the previous training period finishes.
+
+A future army-training queue could allow several armies to be ordered in
+advance while preserving the existing training times and escalating costs.
+
+This is intentionally undecided. The manual system creates player interaction
+and attention requirements that may be desirable, so feedback from multiplayer
+playtesting should determine whether a queue improves the game.
+
+### Possible Army Recall
+
+A future option could allow an outbound army to be recalled before reaching its
+destination.
+
+The army would not teleport home; it would reverse course and spend the
+appropriate travel time returning to its origin.
+
+This feature is currently uncertain. While army recall is common in strategy
+games, forcing players to commit to launched missions may better fit EXiLE's
+emphasis on planning, timing, and consequences.
+
+### Design Principles for Future Features
+
+Future additions should generally reinforce the existing strengths of EXiLE:
+
+- Geography should matter.
+- Travel time should matter.
+- Players should be rewarded for anticipating what other players will do.
+- Actions should involve meaningful commitment and consequences.
+- The map should create reasons for players to interact and compete.
+- New systems should use the existing resource, army, base, and mission mechanics
+  when possible rather than adding unnecessary currencies or upgrade systems.
+- Randomness should remain limited unless playtesting demonstrates that it
+  improves the game.
 
 ------------------------------------------------------------------------
 
