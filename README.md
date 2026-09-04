@@ -23,8 +23,8 @@ cd exile
 ```
 
 Terminology:
-Client - App.tsx - ../exile
-Server - index.ts - ../exile/server
+- Client - App.tsx - ../exile
+- Server - index.ts - ../exile/server
 
 Install client dependencies:
 ```bash
@@ -50,6 +50,6 @@ npm run dev -- --host
 ```
 
 The client side will display 2 URL's, the local URL and the Network URL.
-Open the Local URL to play on the host computer.
-Other computers on the same LAN can connect using the Network URL.
+- Open the Local URL to play on the host computer.
+- Other computers on the same LAN can connect using the Network URL.
 
