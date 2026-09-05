@@ -88,10 +88,10 @@ const mapLayout: MapTile[][] = [
 
   // ROW 2
   [
-    G(), // A2
+    G("forest", 2), // A2
     W("river", 1, "north-south"), // B2
     F("lava", 1, "north-south"), // C2
-    G(), // D2
+    G("forest", 2), // D2
   ],
 
   // ROW 3
@@ -104,18 +104,18 @@ const mapLayout: MapTile[][] = [
 
   // ROW 4
   [
-    G("forest", 2), // A4
+    G("forest", 3), // A4
     W("lake", 3), // B4
     F("volcano", 3), // C4
-    G("forest", 2), // D4
+    G("forest", 3), // D4
   ],
 
   // ROW 5
   [
-    G("forest", 2), // A5
+    G("forest", 3), // A5
     F("volcano", 3), // B5
     W("lake", 3), // C5
-    G("forest", 2), // D5
+    G("forest", 3), // D5
   ],
 
   // ROW 6
@@ -128,10 +128,10 @@ const mapLayout: MapTile[][] = [
 
   // ROW 7
   [
-    G(), // A7
+    G("forest", 2), // A7
     F("lava", 1, "north-south"), // B7
     W("river", 1, "north-south"), // C7
-    G(), // D7
+    G("forest", 2), // D7
   ],
 
   // ROW 8

@@ -651,13 +651,9 @@ Possible additions include:
 
 - More 2x and 3x resource tiles.
 - Rare 4x resource tiles.
-- Increasingly valuable tiles toward the center of the map, encouraging players
-  to compete for central territory.
 - Mixed-resource tiles that produce two resource types.
-- Rare triple-resource tiles that produce Water, Fire, and Grass.
-- Small amounts of secondary-resource production on normal tiles. For example,
-  a mature Grass base might eventually produce a small amount of Water or Fire
-  in addition to Grass.
+- Rare triple-resource tiles that produce all 3 resources at the same time.
+- Secondary-resource production being determined by nearby tiles.
 
 The goal would be to make base location and control of valuable territory more
 strategically important without requiring a separate technology or upgrade
@@ -680,12 +676,10 @@ four-player match may need few or none, while a two-player match could use them
 to make otherwise-empty portions of the map strategically important.
 
 Treasure chests and Expansion Keys could also be placed on the map when the
-match begins.
+match begins (e.g. hunger games cornucopia)
 
 Starting treasure should have known contents so players can make strategic
 decisions about whether it is worth competing for.
-
-Periodic random treasure spawning is not currently planned.
 
 ### Expansion Keys and Loot
 
@@ -708,8 +702,14 @@ EXiLE Island may be large enough to support as many as eight players, although
 starting positions, resource balance, UI layout, and match pacing would need to
 be tested.
 
-Larger-player matches should preferably use the same core rules rather than
-introducing special rules solely because more players are present.
+The base exile map (mapOne) is large enough to host 8 players.
+
+### Team games
+
+2v2 or 2v2v2v2 or 4v4 could be game play options.
+
+This would require the ability to transfer to your teammates, disallow the
+ability to attack them, and modifying the winning condition.
 
 ### Computer Players
 
@@ -761,12 +761,17 @@ Sudden Death matches.
 
 One promising option is **King of the Hill**.
 
-A valuable central tile or region could act as the objective, with players
+A valuable 2x2 region could act as the objective, with players
 earning progress by controlling it. This would naturally complement maps whose
 most valuable resource tiles are concentrated toward the center and would force
 players into direct competition.
 
-The exact scoring and control rules would require playtesting.
+Possible idea is that the 2x2 region moves around every so often, meaning players
+would need to relocate/expand to that area to get those extra points.
+
+The exact scoring and control rules would require playtesting, but first idea
+would be to have a 5m limit. Once that 5m limit is done, the person who gathered
+the most resources in that 2x2 region wins a specific amount of resources.
 
 ### Army Training Queue
 
@@ -779,6 +784,9 @@ advance while preserving the existing training times and escalating costs.
 This is intentionally undecided. The manual system creates player interaction
 and attention requirements that may be desirable, so feedback from multiplayer
 playtesting should determine whether a queue improves the game.
+
+Should the queue take longer with each more costly army?
+Should the game allow you to do other things while the army is training?
 
 ### Possible Army Recall
 
