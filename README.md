@@ -659,6 +659,8 @@ The goal would be to make base location and control of valuable territory more
 strategically important without requiring a separate technology or upgrade
 system.
 
+This is easily done by modifying export type ResourceMultiplier = 1 | 2 | 3; in types.ts, then changing mapone/maptwo.
+
 ### Neutral Camps and Map Objectives
 
 Smaller matches, particularly 1v1 games, could include neutral enemies such as
