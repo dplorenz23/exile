@@ -319,7 +319,13 @@ function App() {
    * lobby and game-state updates received from it.
    */
   useEffect(() => {
-    const socket = new WebSocket(`ws://${window.location.hostname}:8080`);
+    const previousClientId = localStorage.getItem("exileClientId");
+
+    const socketUrl = previousClientId
+      ? `ws://${window.location.hostname}:8080?clientId=${previousClientId}`
+      : `ws://${window.location.hostname}:8080`;
+
+    const socket = new WebSocket(socketUrl);
 
     socketRef.current = socket;
 
@@ -334,6 +340,8 @@ function App() {
         myClientIdRef.current = message.clientId;
 
         setMyClientId(message.clientId);
+
+        localStorage.setItem("exileClientId", String(message.clientId));
 
         console.log(`I am Client ${message.clientId}`);
       }

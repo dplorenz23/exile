@@ -1751,54 +1751,100 @@ function runGameTick(): void {
  * ==================================================
  */
 
-server.on("connection", (socket) => {
-  const clientId = nextClientId++;
+server.on("connection", (socket, request) => {
+  const url = new URL(request.url ?? "/", `http://${request.headers.host}`);
 
-  const slotId = getNextAvailableSlot();
+  const requestedClientId = Number(url.searchParams.get("clientId"));
 
-  const playerId = getNextAvailablePlayerId();
+  const isReconnect =
+    Number.isInteger(requestedClientId) &&
+    requestedClientId > 0 &&
+    lobbyPlayers.has(requestedClientId);
 
-  if (slotId === null || playerId === null) {
+  const clientId = isReconnect ? requestedClientId : nextClientId++;
+
+  if (isReconnect) {
+    const existingPlayer = lobbyPlayers.get(clientId);
+
+    if (!existingPlayer) {
+      socket.close();
+      return;
+    }
+
+    connectedClients.set(clientId, socket);
+
+    console.log(`Client ${clientId} reconnected`);
+
     socket.send(
       JSON.stringify({
-        type: "error",
-        message: "Lobby is full",
+        type: "connected",
+        clientId,
+        message: "Reconnected to EXiLE server",
       }),
     );
 
-    socket.close();
-    return;
+    if (gameState) {
+      socket.send(
+        JSON.stringify({
+          type: "game-started",
+          gameState,
+          players: Array.from(lobbyPlayers.values()),
+        }),
+      );
+    }
+
+    broadcastLobby();
+
+    // Message + close handlers still need to be attached below.
   }
 
-  if (hostClientId === null) {
-    hostClientId = clientId;
-  }
+  if (!isReconnect) {
+    const slotId = getNextAvailableSlot();
 
-  const lobbyPlayer: LobbyPlayer = {
-    clientId,
-    slotId,
-    playerId,
-    isReady: false,
+    const playerId = getNextAvailablePlayerId();
 
-    isHost: clientId === hostClientId,
-  };
+    if (slotId === null || playerId === null) {
+      socket.send(
+        JSON.stringify({
+          type: "error",
+          message: "Lobby is full",
+        }),
+      );
 
-  connectedClients.set(clientId, socket);
+      socket.close();
+      return;
+    }
 
-  lobbyPlayers.set(clientId, lobbyPlayer);
+    if (hostClientId === null) {
+      hostClientId = clientId;
+    }
 
-  console.log(`Client ${clientId} connected`);
-
-  socket.send(
-    JSON.stringify({
-      type: "connected",
+    const lobbyPlayer: LobbyPlayer = {
       clientId,
+      slotId,
+      playerId,
+      isReady: false,
 
-      message: "Connected to EXiLE server",
-    }),
-  );
+      isHost: clientId === hostClientId,
+    };
 
-  broadcastLobby();
+    connectedClients.set(clientId, socket);
+
+    lobbyPlayers.set(clientId, lobbyPlayer);
+
+    console.log(`Client ${clientId} connected`);
+
+    socket.send(
+      JSON.stringify({
+        type: "connected",
+        clientId,
+
+        message: "Connected to EXiLE server",
+      }),
+    );
+
+    broadcastLobby();
+  }
 
   /*
    * ==================================================
@@ -2977,11 +3023,13 @@ server.on("connection", (socket) => {
   socket.on("close", () => {
     connectedClients.delete(clientId);
 
-    lobbyPlayers.delete(clientId);
+    if (gameState === null) {
+      lobbyPlayers.delete(clientId);
+    }
 
     console.log(`Client ${clientId} disconnected`);
 
-    if (clientId === hostClientId) {
+    if (gameState === null && clientId === hostClientId) {
       assignNextHost();
 
       if (hostClientId !== null) {
