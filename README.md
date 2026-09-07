@@ -31,6 +31,7 @@ game simulation to be rewritten.
 - [Current Multiplayer Status](#current-multiplayer-status)
 - [Known Issues and Deferred Work](#known-issues-and-deferred-work)
 - [Development Status](#development-status)
+- [Path to Online Alpha](#path-to-online-alpha)
 - [Future Ideas and Improvements](#future-ideas-and-improvements)
 - [Project Structure](#project-structure)
 
@@ -595,17 +596,107 @@ rather than adding major new systems.
 
 The immediate test plan is:
 
-1.  Run a short two-player smoke test covering all five mission types
-    and a full elimination/victory flow.
-2.  Run a three-player LAN match on three separate computers.
-3.  Verify simultaneous actions and interactions between multiple
+1.  Run a three- and four-player LAN match on three separate computers.
+2.  Verify simultaneous actions and interactions between multiple
     players.
-4.  Confirm all clients finish with the same winner and standings.
-5.  Fix multiplayer bugs discovered during those tests before adding
+3.  Confirm all clients finish with the same winner and standings.
+4.  Fix multiplayer bugs discovered during those tests before adding
     substantial new features.
+5.  Discuss and prioritize feature list ahead of the main 1st milestone
+    of making it a legit browser-based game on ankledeepgames.com
 
-After the multiplayer milestone, development can move toward internet
-hosting, additional polish, gameplay balancing, and additional content.
+---
+
+## Path to Online Alpha
+
+The current EXiLE build is running over LAN. The next major milestone is
+making the game playable over the internet from AnkleDeepGames.com.
+
+The first online release should remain intentionally simple. The goal is to
+allow friends to visit the website, launch EXiLE, and play together.
+
+The first alpha does not need to support multiple unrelated groups playing
+simultaneously.
+
+### Required Before Going Online
+
+- [ ] **Finalize current balance decisions**
+  - Resolve known expansion affordability issue caused by payments being made
+    in 50-resource increments.
+  - Make any final pre-alpha map/resource balance decisions.
+  - Avoid major balance redesign solely for deployment.
+
+- [ ] **Production client build**
+  - Verify `npm run build` creates a working production build.
+  - Test the production build rather than relying on the Vite development server.
+
+- [ ] **Configurable WebSocket server URL**
+  - Remove the assumption that the game server is available at the browser's
+    LAN hostname on port 8080.
+  - Use environment/configuration values so development can connect locally
+    while production connects to the hosted server.
+  - Production should use a secure WebSocket connection (`wss://`).
+
+- [ ] **Host the authoritative Node/WebSocket server**
+  - Deploy the server to an internet-accessible application host.
+  - Keep authoritative `GameState` in server memory for the initial alpha.
+  - A database is not required for the first release.
+  - Server restarts may terminate active games during the initial alpha.
+
+- [ ] **Configure production server domain and HTTPS/WSS**
+  - Give the hosted game server a stable address, potentially something like
+    `game-server.ankledeepgames.com`.
+  - Configure DNS and TLS so browsers can connect securely using `wss://`.
+
+- [ ] **Host the EXiLE browser client**
+  - Publish the production React build at an Ankle Deep Games URL, such as
+    `ankledeepgames.com/exile/` or `play.ankledeepgames.com`.
+  - Verify assets, routing, and WebSocket connections work from the hosted build.
+
+- [ ] **Internet multiplayer test**
+  - Test from devices on different networks, not just LAN.
+  - Verify lobby, game start, gameplay, refresh/reconnect, game over, and
+    Play Again behavior.
+  - Test at least one client using cellular or another outside network.
+
+- [ ] **Basic public-server hardening**
+  - Reject malformed WebSocket messages without crashing the server.
+  - Validate message types and required data.
+  - Continue validating all gameplay actions server-side.
+  - Ensure clients cannot control another player's units/resources.
+  - Ensure unexpected disconnects do not crash or reset the match.
+
+- [ ] **Connect the Ankle Deep Games website**
+  - Replace EXiLE's "Coming Soon!" status/button with a "Play" link.
+  - Point the link to the hosted EXiLE client.
+  - Verify the complete flow from `ankledeepgames.com` to a playable match.
+
+### Optional Alpha Add-ons
+
+These features are desirable but should not block the first internet-playable
+version of EXiLE.
+
+- [ ] **Disconnected-player indicator**
+  - Show other players when someone is currently disconnected.
+  - Connection status should not affect production, combat, missions, or scoring.
+
+- [ ] **Room codes and multiple simultaneous games**
+  - Allow a player to create a game and receive a short room code.
+  - Friends can use the room code to join that specific lobby.
+  - Server maintains independent `GameState` instances for multiple rooms.
+  - Until this exists, the online alpha will support only one active lobby/match.
+
+### Definition of "Online Alpha Ready"
+
+EXiLE is ready for its first online alpha when a player can:
+
+1. Visit AnkleDeepGames.com.
+2. Click **Play EXiLE**.
+3. Open the hosted game in a normal browser without installing anything.
+4. Join friends from separate internet connections.
+5. Play a complete match using the authoritative server.
+6. Refresh or temporarily disconnect without resetting the match.
+7. Complete the match and determine a winner.
 
 ---
 
