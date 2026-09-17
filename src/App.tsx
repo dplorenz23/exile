@@ -8,6 +8,7 @@ import GameClock from "./components/GameClock";
 import GameMap from "./components/GameMap";
 import ResourceBar from "./components/ResourceBar";
 import Leaderboard from "./components/Leaderboard";
+import RoomEntry from "./components/RoomEntry";
 
 import { players, getBaseName } from "./game/gameState";
 
@@ -62,6 +63,8 @@ function App() {
    * The Lobby state where characters are chosen and pre-game
    * decisions are made
    */
+  const [roomCode, setRoomCode] = useState<string | null>(null);
+
   const [isGameStarted, setIsGameStarted] = useState(false);
 
   const [lobbySlots, setLobbySlots] = useState<LobbySlot[]>(
@@ -72,6 +75,23 @@ function App() {
     mapId: "exile-island",
     matchType: "30m",
   });
+
+  function handleCreateGame(): void {
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "create-game",
+      }),
+    );
+  }
+
+  function handleJoinGame(roomCode: string): void {
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "join-game",
+        roomCode,
+      }),
+    );
+  }
 
   function handleJoinSlot(slotId: number): void {
     setLobbySlots((current) => {
@@ -344,6 +364,14 @@ function App() {
         localStorage.setItem("exileClientId", String(message.clientId));
 
         console.log(`I am Client ${message.clientId}`);
+      }
+
+      if (message.type === "room-created") {
+        setRoomCode(message.roomCode);
+      }
+
+      if (message.type === "room-joined") {
+        setRoomCode(message.roomCode);
       }
 
       if (message.type === "lobby-state") {
@@ -677,6 +705,12 @@ function App() {
     setPendingRelocationPayment(null);
   }
 
+  if (!roomCode) {
+    return (
+      <RoomEntry onCreateGame={handleCreateGame} onJoinGame={handleJoinGame} />
+    );
+  }
+
   if (!isGameStarted) {
     return (
       <Lobby
@@ -691,6 +725,7 @@ function App() {
         onJoinSlot={handleJoinSlot}
         onCharacterChange={handleCharacterChange}
         onLeaveSlot={handleLeaveSlot}
+        roomCode={roomCode}
       />
     );
   }

@@ -31,6 +31,8 @@ interface LobbyProps {
   onCharacterChange: (slotId: number, playerId: number) => void;
 
   onLeaveSlot: (slotId: number) => void;
+
+  roomCode: string;
 }
 
 export default function Lobby({
@@ -45,6 +47,7 @@ export default function Lobby({
   onJoinSlot,
   onCharacterChange,
   onLeaveSlot,
+  roomCode,
 }: LobbyProps) {
   const occupiedSlots = slots.filter((slot) => slot.playerId !== null);
 
@@ -80,6 +83,10 @@ export default function Lobby({
     <div className="lobby">
       <div className="lobby-panel">
         <h1>EXiLE</h1>
+
+        <div className="lobby-room-code">
+          Game Code: <strong>{roomCode}</strong>
+        </div>
 
         <div className="lobby-slots">
           {slots.map((slot) => {

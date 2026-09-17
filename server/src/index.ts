@@ -61,6 +61,18 @@ type LobbyPlayer = {
   isHost: boolean;
 };
 
+type GameRoom = {
+  code: string;
+  hostClientId: number;
+  lobbyPlayers: Map<number, LobbyPlayer>;
+  matchConfig: {
+    mapId: string;
+    matchType: MatchType;
+  };
+  gameState: GameState | null;
+  gameTimer: NodeJS.Timeout | null;
+};
+
 /*
  * ==================================================
  * SERVER STATE
@@ -72,6 +84,8 @@ let nextClientId = 1;
 let hostClientId: number | null = null;
 
 const connectedClients = new Map<number, WebSocket>();
+
+const rooms = new Map<string, GameRoom>();
 
 const lobbyPlayers = new Map<number, LobbyPlayer>();
 
@@ -92,11 +106,26 @@ let gameTimer: NodeJS.Timeout | null = null;
  * LOBBY HELPERS
  * ==================================================
  */
+function generateRoomCode(): string {
+  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-function getNextAvailableSlot(): number | null {
-  const usedSlots = Array.from(lobbyPlayers.values()).map(
-    (player) => player.slotId,
-  );
+  let code = "";
+
+  do {
+    code = "";
+
+    for (let i = 0; i < 4; i++) {
+      code += characters[Math.floor(Math.random() * characters.length)];
+    }
+  } while (rooms.has(code));
+
+  return code;
+}
+
+function getNextAvailableSlot(
+  players: Map<number, LobbyPlayer>,
+): number | null {
+  const usedSlots = Array.from(players.values()).map((player) => player.slotId);
 
   for (let slotId = 1; slotId <= 4; slotId++) {
     if (!usedSlots.includes(slotId)) {
@@ -107,8 +136,10 @@ function getNextAvailableSlot(): number | null {
   return null;
 }
 
-function getNextAvailablePlayerId(): number | null {
-  const usedPlayerIds = Array.from(lobbyPlayers.values()).map(
+function getNextAvailablePlayerId(
+  players: Map<number, LobbyPlayer>,
+): number | null {
+  const usedPlayerIds = Array.from(players.values()).map(
     (player) => player.playerId,
   );
 
@@ -1799,38 +1830,7 @@ server.on("connection", (socket, request) => {
   }
 
   if (!isReconnect) {
-    const slotId = getNextAvailableSlot();
-
-    const playerId = getNextAvailablePlayerId();
-
-    if (slotId === null || playerId === null) {
-      socket.send(
-        JSON.stringify({
-          type: "error",
-          message: "Lobby is full",
-        }),
-      );
-
-      socket.close();
-      return;
-    }
-
-    if (hostClientId === null) {
-      hostClientId = clientId;
-    }
-
-    const lobbyPlayer: LobbyPlayer = {
-      clientId,
-      slotId,
-      playerId,
-      isReady: false,
-
-      isHost: clientId === hostClientId,
-    };
-
     connectedClients.set(clientId, socket);
-
-    lobbyPlayers.set(clientId, lobbyPlayer);
 
     console.log(`Client ${clientId} connected`);
 
@@ -1838,12 +1838,9 @@ server.on("connection", (socket, request) => {
       JSON.stringify({
         type: "connected",
         clientId,
-
         message: "Connected to EXiLE server",
       }),
     );
-
-    broadcastLobby();
   }
 
   /*
@@ -1861,6 +1858,142 @@ server.on("connection", (socket, request) => {
 
   socket.on("message", (data) => {
     const message = JSON.parse(data.toString());
+
+    /*
+     * ==============================================
+     * ROOM ACTION: CREATE GAME
+     * ==============================================
+     */
+
+    if (message.type === "create-game") {
+      const roomCode = generateRoomCode();
+
+      const slotId = 1;
+      const playerId = 1;
+
+      const lobbyPlayer: LobbyPlayer = {
+        clientId,
+        slotId,
+        playerId,
+        isReady: false,
+        isHost: true,
+      };
+
+      const room: GameRoom = {
+        code: roomCode,
+        hostClientId: clientId,
+        lobbyPlayers: new Map([[clientId, lobbyPlayer]]),
+
+        matchConfig: {
+          mapId: "exile-island",
+          matchType: "30m",
+        },
+
+        gameState: null,
+        gameTimer: null,
+      };
+
+      rooms.set(roomCode, room);
+
+      /*
+       * Keep the existing global lobby synchronized
+       * during the room-system migration.
+       */
+      hostClientId = clientId;
+
+      lobbyPlayers.set(clientId, lobbyPlayer);
+
+      matchConfig = {
+        ...room.matchConfig,
+      };
+
+      console.log(`Client ${clientId} created room ${roomCode}`);
+
+      socket.send(
+        JSON.stringify({
+          type: "room-created",
+          roomCode,
+        }),
+      );
+
+      broadcastLobby();
+    }
+
+    /*
+     * ==============================================
+     * ROOM ACTION: JOIN GAME
+     * ==============================================
+     */
+
+    if (message.type === "join-game") {
+      const roomCode = String(message.roomCode ?? "")
+        .trim()
+        .toUpperCase();
+
+      const room = rooms.get(roomCode);
+
+      if (!room) {
+        socket.send(
+          JSON.stringify({
+            type: "room-error",
+            message: "Game not found.",
+          }),
+        );
+
+        return;
+      }
+
+      if (room.gameState !== null) {
+        socket.send(
+          JSON.stringify({
+            type: "room-error",
+            message: "Game has already started.",
+          }),
+        );
+
+        return;
+      }
+
+      const slotId = getNextAvailableSlot(room.lobbyPlayers);
+      const playerId = getNextAvailablePlayerId(room.lobbyPlayers);
+
+      if (slotId === null || playerId === null) {
+        socket.send(
+          JSON.stringify({
+            type: "room-error",
+            message: "Game is full.",
+          }),
+        );
+
+        return;
+      }
+
+      const lobbyPlayer: LobbyPlayer = {
+        clientId,
+        slotId,
+        playerId,
+        isReady: false,
+        isHost: false,
+      };
+
+      room.lobbyPlayers.set(clientId, lobbyPlayer);
+
+      /*
+       * Temporary bridge to the existing global lobby.
+       */
+      lobbyPlayers.set(clientId, lobbyPlayer);
+
+      socket.send(
+        JSON.stringify({
+          type: "room-joined",
+          roomCode,
+        }),
+      );
+
+      console.log(`Client ${clientId} joined room ${roomCode}`);
+
+      broadcastLobby();
+    }
 
     /*
      * ==============================================
