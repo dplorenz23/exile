@@ -63,6 +63,14 @@ export function getExpansionCost(expansionsCompleted: number): number {
   );
 }
 
+export function getSpendableResourceTotal(resources: ResourceCounts): number {
+  return (
+    Math.floor(resources.water / 50) * 50 +
+    Math.floor(resources.fire / 50) * 50 +
+    Math.floor(resources.grass / 50) * 50
+  );
+}
+
 /*
  * ============================================================
  * COMBAT

@@ -9,7 +9,11 @@ import type {
   ResourceType,
 } from "../game/types";
 
-import { getArmyCost, getExpansionCost } from "../game/rules";
+import {
+  getArmyCost,
+  getExpansionCost,
+  getSpendableResourceTotal,
+} from "../game/rules";
 
 /*
  * Controls the action menus for the currently selected base.
@@ -119,14 +123,14 @@ export default function BaseActions({
   const totalCargo =
     selectedResources.water + selectedResources.fire + selectedResources.grass;
 
-  const totalResources = resources.water + resources.fire + resources.grass;
+  const spendableResources = getSpendableResourceTotal(resources);
 
   const expansionCost = getExpansionCost(expansionsCompleted);
 
   const canExpand =
     ownedBases.length < BALANCE.expansion.maxBases &&
     expansionKeys >= BALANCE.expansion.keyCost &&
-    totalResources >= expansionCost;
+    spendableResources >= expansionCost;
 
   const totalExpansionPayment =
     expansionPayment.water + expansionPayment.fire + expansionPayment.grass;
@@ -135,7 +139,7 @@ export default function BaseActions({
     BALANCE.relocation.baseCost +
     base.relocations * BALANCE.relocation.costIncrease;
 
-  const canAffordRelocation = totalResources >= relocationCost;
+  const canAffordRelocation = spendableResources >= relocationCost;
 
   function canAfford(resource: ResourceType): boolean {
     return resources[resource] >= armyCosts[resource];
