@@ -29,7 +29,7 @@ import { WebSocket, WebSocketServer } from "ws";
  * ==================================================
  */
 
-const PORT = 8080;
+const PORT = Number(process.env.PORT) || 8080;
 
 const server = new WebSocketServer({
   port: PORT,

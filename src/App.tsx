@@ -341,9 +341,12 @@ function App() {
   useEffect(() => {
     const previousClientId = localStorage.getItem("exileClientId");
 
+    const websocketBaseUrl =
+      import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8080`;
+
     const socketUrl = previousClientId
-      ? `ws://${window.location.hostname}:8080?clientId=${previousClientId}`
-      : `ws://${window.location.hostname}:8080`;
+      ? `${websocketBaseUrl}?clientId=${previousClientId}`
+      : websocketBaseUrl;
 
     const socket = new WebSocket(socketUrl);
 
