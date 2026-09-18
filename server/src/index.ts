@@ -81,25 +81,11 @@ type GameRoom = {
 
 let nextClientId = 1;
 
-let hostClientId: number | null = null;
-
 const connectedClients = new Map<number, WebSocket>();
 
 const rooms = new Map<string, GameRoom>();
 
-const lobbyPlayers = new Map<number, LobbyPlayer>();
-
-let matchConfig: {
-  mapId: string;
-  matchType: MatchType;
-} = {
-  mapId: "exile-island",
-  matchType: "30m",
-};
-
-let gameState: GameState | null = null;
-
-let gameTimer: NodeJS.Timeout | null = null;
+const roomCodeByClient = new Map<number, string>();
 
 /*
  * ==================================================
@@ -120,6 +106,16 @@ function generateRoomCode(): string {
   } while (rooms.has(code));
 
   return code;
+}
+
+function getRoomForClient(clientId: number): GameRoom | null {
+  const roomCode = roomCodeByClient.get(clientId);
+
+  if (!roomCode) {
+    return null;
+  }
+
+  return rooms.get(roomCode) ?? null;
 }
 
 function getNextAvailableSlot(
@@ -152,35 +148,23 @@ function getNextAvailablePlayerId(
   return null;
 }
 
-function assignNextHost(): void {
-  const nextHost = lobbyPlayers.values().next();
-
-  hostClientId = nextHost.done ? null : nextHost.value.clientId;
-
-  if (hostClientId === null) {
-    return;
-  }
-
-  const newHost = lobbyPlayers.get(hostClientId);
-
-  if (newHost) {
-    newHost.isHost = true;
-  }
-}
-
-function broadcastLobby(): void {
-  const players = Array.from(lobbyPlayers.values()).sort(
+function broadcastLobby(room: GameRoom): void {
+  const players = Array.from(room.lobbyPlayers.values()).sort(
     (a, b) => a.slotId - b.slotId,
   );
 
   const message = JSON.stringify({
     type: "lobby-state",
     players,
-    matchConfig,
+    matchConfig: room.matchConfig,
   });
 
-  for (const socket of connectedClients.values()) {
-    socket.send(message);
+  for (const player of room.lobbyPlayers.values()) {
+    const socket = connectedClients.get(player.clientId);
+
+    if (socket) {
+      socket.send(message);
+    }
   }
 }
 
@@ -190,18 +174,22 @@ function broadcastLobby(): void {
  * ==================================================
  */
 
-function broadcastGameState(): void {
-  if (!gameState) {
+function broadcastGameState(room: GameRoom): void {
+  if (!room.gameState) {
     return;
   }
 
   const message = JSON.stringify({
     type: "game-state",
-    gameState,
+    gameState: room.gameState,
   });
 
-  for (const socket of connectedClients.values()) {
-    socket.send(message);
+  for (const player of room.lobbyPlayers.values()) {
+    const socket = connectedClients.get(player.clientId);
+
+    if (socket) {
+      socket.send(message);
+    }
   }
 }
 
@@ -217,10 +205,14 @@ function broadcastGameState(): void {
  * resource production, and state broadcasts.
  */
 
-function runGameTick(): void {
-  if (!gameState) {
+function runGameTick(room: GameRoom): void {
+  const currentGameState = room.gameState;
+
+  if (!currentGameState) {
     return;
   }
+
+  let gameState: GameState = currentGameState;
 
   /*
    * Game is over.
@@ -1773,7 +1765,9 @@ function runGameTick(): void {
     winnerPlayerId: updatedWinnerPlayerId,
   };
 
-  broadcastGameState();
+  room.gameState = gameState;
+
+  broadcastGameState(room);
 }
 
 /*
@@ -1787,15 +1781,27 @@ server.on("connection", (socket, request) => {
 
   const requestedClientId = Number(url.searchParams.get("clientId"));
 
+  const reconnectRoomCode = roomCodeByClient.get(requestedClientId);
+
+  const reconnectRoom = reconnectRoomCode
+    ? rooms.get(reconnectRoomCode)
+    : undefined;
+
   const isReconnect =
     Number.isInteger(requestedClientId) &&
     requestedClientId > 0 &&
-    lobbyPlayers.has(requestedClientId);
+    reconnectRoom !== undefined &&
+    reconnectRoom.lobbyPlayers.has(requestedClientId);
 
   const clientId = isReconnect ? requestedClientId : nextClientId++;
 
   if (isReconnect) {
-    const existingPlayer = lobbyPlayers.get(clientId);
+    if (!reconnectRoom) {
+      socket.close();
+      return;
+    }
+
+    const existingPlayer = reconnectRoom.lobbyPlayers.get(clientId);
 
     if (!existingPlayer) {
       socket.close();
@@ -1804,7 +1810,7 @@ server.on("connection", (socket, request) => {
 
     connectedClients.set(clientId, socket);
 
-    console.log(`Client ${clientId} reconnected`);
+    console.log(`Client ${clientId} reconnected to room ${reconnectRoom.code}`);
 
     socket.send(
       JSON.stringify({
@@ -1814,17 +1820,25 @@ server.on("connection", (socket, request) => {
       }),
     );
 
-    if (gameState) {
+    socket.send(
+      JSON.stringify({
+        type: "room-joined",
+        roomCode: reconnectRoom.code,
+      }),
+    );
+
+    if (reconnectRoom.gameState) {
       socket.send(
         JSON.stringify({
           type: "game-started",
-          gameState,
-          players: Array.from(lobbyPlayers.values()),
+          gameState: reconnectRoom.gameState,
+          players: Array.from(reconnectRoom.lobbyPlayers.values()),
+          matchConfig: reconnectRoom.matchConfig,
         }),
       );
     }
 
-    broadcastLobby();
+    broadcastLobby(reconnectRoom);
 
     // Message + close handlers still need to be attached below.
   }
@@ -1895,17 +1909,7 @@ server.on("connection", (socket, request) => {
 
       rooms.set(roomCode, room);
 
-      /*
-       * Keep the existing global lobby synchronized
-       * during the room-system migration.
-       */
-      hostClientId = clientId;
-
-      lobbyPlayers.set(clientId, lobbyPlayer);
-
-      matchConfig = {
-        ...room.matchConfig,
-      };
+      roomCodeByClient.set(clientId, roomCode);
 
       console.log(`Client ${clientId} created room ${roomCode}`);
 
@@ -1916,7 +1920,7 @@ server.on("connection", (socket, request) => {
         }),
       );
 
-      broadcastLobby();
+      broadcastLobby(room);
     }
 
     /*
@@ -1978,10 +1982,7 @@ server.on("connection", (socket, request) => {
 
       room.lobbyPlayers.set(clientId, lobbyPlayer);
 
-      /*
-       * Temporary bridge to the existing global lobby.
-       */
-      lobbyPlayers.set(clientId, lobbyPlayer);
+      roomCodeByClient.set(clientId, roomCode);
 
       socket.send(
         JSON.stringify({
@@ -1992,7 +1993,7 @@ server.on("connection", (socket, request) => {
 
       console.log(`Client ${clientId} joined room ${roomCode}`);
 
-      broadcastLobby();
+      broadcastLobby(room);
     }
 
     /*
@@ -2002,7 +2003,13 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "set-ready") {
-      const player = lobbyPlayers.get(clientId);
+      const room = getRoomForClient(clientId);
+
+      if (!room) {
+        return;
+      }
+
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
@@ -2010,9 +2017,11 @@ server.on("connection", (socket, request) => {
 
       player.isReady = Boolean(message.isReady);
 
-      console.log(`Client ${clientId} ready: ${player.isReady}`);
+      console.log(
+        `Client ${clientId} ready in room ${room.code}: ${player.isReady}`,
+      );
 
-      broadcastLobby();
+      broadcastLobby(room);
     }
 
     /*
@@ -2022,15 +2031,40 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "leave-lobby") {
-      lobbyPlayers.delete(clientId);
+      const room = getRoomForClient(clientId);
 
-      if (clientId === hostClientId) {
-        assignNextHost();
+      if (!room) {
+        return;
       }
 
-      console.log(`Client ${clientId} left lobby`);
+      room.lobbyPlayers.delete(clientId);
+      roomCodeByClient.delete(clientId);
 
-      broadcastLobby();
+      socket.send(
+        JSON.stringify({
+          type: "room-left",
+        }),
+      );
+
+      if (clientId === room.hostClientId) {
+        const nextHost = Array.from(room.lobbyPlayers.values()).sort(
+          (a, b) => a.slotId - b.slotId,
+        )[0];
+
+        if (nextHost) {
+          room.hostClientId = nextHost.clientId;
+          nextHost.isHost = true;
+        }
+      }
+
+      console.log(`Client ${clientId} left room ${room.code}`);
+
+      if (room.lobbyPlayers.size === 0) {
+        rooms.delete(room.code);
+        console.log(`Room ${room.code} deleted`);
+      } else {
+        broadcastLobby(room);
+      }
     }
 
     /*
@@ -2040,14 +2074,16 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "start-game") {
-      if (clientId !== hostClientId) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || clientId !== room.hostClientId) {
         return;
       }
 
-      const players = Array.from(lobbyPlayers.values());
+      const players = Array.from(room.lobbyPlayers.values());
 
       const currentMap =
-        mapConfigs[matchConfig.mapId as keyof typeof mapConfigs];
+        mapConfigs[room.matchConfig.mapId as keyof typeof mapConfigs];
 
       if (!currentMap) {
         return;
@@ -2072,30 +2108,36 @@ server.on("connection", (socket, request) => {
 
       const activePlayerIds = players.map((player) => player.playerId);
 
-      gameState = createInitialGameState(
+      room.gameState = createInitialGameState(
         activePlayerIds,
-        matchConfig.matchType,
-        matchConfig.mapId,
+        room.matchConfig.matchType,
+        room.matchConfig.mapId,
       );
 
-      if (gameTimer) {
-        clearInterval(gameTimer);
+      if (room.gameTimer) {
+        clearInterval(room.gameTimer);
       }
 
-      gameTimer = setInterval(runGameTick, 1000);
+      room.gameTimer = setInterval(() => {
+        runGameTick(room);
+      }, 1000);
 
       const gameStartedMessage = JSON.stringify({
         type: "game-started",
         players,
-        matchConfig,
-        gameState,
+        matchConfig: room.matchConfig,
+        gameState: room.gameState,
       });
 
-      for (const socket of connectedClients.values()) {
-        socket.send(gameStartedMessage);
+      for (const player of room.lobbyPlayers.values()) {
+        const playerSocket = connectedClients.get(player.clientId);
+
+        if (playerSocket) {
+          playerSocket.send(gameStartedMessage);
+        }
       }
 
-      console.log(`Client ${clientId} started the game`);
+      console.log(`Client ${clientId} started game in room ${room.code}`);
     }
 
     /*
@@ -2108,15 +2150,19 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "train-army") {
-      if (!gameState) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
         return;
       }
 
-      const player = lobbyPlayers.get(clientId);
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
       }
+
+      let gameState = room.gameState;
 
       const baseId = Number(message.baseId);
 
@@ -2187,7 +2233,9 @@ server.on("connection", (socket, request) => {
         resourcesByBase: updatedResources,
       };
 
-      broadcastGameState();
+      room.gameState = gameState;
+
+      broadcastGameState(room);
     }
 
     /*
@@ -2197,15 +2245,19 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "transfer-army") {
-      if (!gameState) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
         return;
       }
 
-      const player = lobbyPlayers.get(clientId);
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
       }
+
+      let gameState = room.gameState;
 
       const originBaseId = Number(message.originBaseId);
 
@@ -2380,7 +2432,9 @@ server.on("connection", (socket, request) => {
         nextMissionId: gameState.nextMissionId + 1,
       };
 
-      broadcastGameState();
+      room.gameState = gameState;
+
+      broadcastGameState(room);
     }
 
     /*
@@ -2390,15 +2444,19 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "attack-army") {
-      if (!gameState) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
         return;
       }
 
-      const player = lobbyPlayers.get(clientId);
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
       }
+
+      let gameState = room.gameState;
 
       const originBaseId = Number(message.originBaseId);
 
@@ -2523,7 +2581,9 @@ server.on("connection", (socket, request) => {
         nextMissionId: gameState.nextMissionId + 1,
       };
 
-      broadcastGameState();
+      room.gameState = gameState;
+
+      broadcastGameState(room);
     }
 
     /*
@@ -2533,15 +2593,19 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "loot-army") {
-      if (!gameState) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
         return;
       }
 
-      const player = lobbyPlayers.get(clientId);
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
       }
+
+      let gameState = room.gameState;
 
       const originBaseId = Number(message.originBaseId);
 
@@ -2653,7 +2717,9 @@ server.on("connection", (socket, request) => {
         nextMissionId: gameState.nextMissionId + 1,
       };
 
-      broadcastGameState();
+      room.gameState = gameState;
+
+      broadcastGameState(room);
     }
 
     /*
@@ -2663,15 +2729,19 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "expand") {
-      if (!gameState) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
         return;
       }
 
-      const player = lobbyPlayers.get(clientId);
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
       }
+
+      let gameState = room.gameState;
 
       const originBaseId = Number(message.originBaseId);
 
@@ -2851,7 +2921,9 @@ server.on("connection", (socket, request) => {
         nextMissionId: gameState.nextMissionId + 1,
       };
 
-      broadcastGameState();
+      room.gameState = gameState;
+
+      broadcastGameState(room);
     }
 
     /*
@@ -2861,15 +2933,19 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "relocate") {
-      if (!gameState) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
         return;
       }
 
-      const player = lobbyPlayers.get(clientId);
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
       }
+
+      let gameState = room.gameState;
 
       const originBaseId = Number(message.originBaseId);
 
@@ -3066,7 +3142,9 @@ server.on("connection", (socket, request) => {
         nextMissionId: gameState.nextMissionId + 1,
       };
 
-      broadcastGameState();
+      room.gameState = gameState;
+
+      broadcastGameState(room);
     }
 
     /*
@@ -3076,16 +3154,18 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "set-map") {
-      if (clientId !== hostClientId) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || clientId !== room.hostClientId) {
         return;
       }
 
-      matchConfig = {
-        ...matchConfig,
+      room.matchConfig = {
+        ...room.matchConfig,
         mapId: message.mapId,
       };
 
-      broadcastLobby();
+      broadcastLobby(room);
     }
 
     /*
@@ -3095,17 +3175,18 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "set-match-type") {
-      if (clientId !== hostClientId) {
+      const room = getRoomForClient(clientId);
+
+      if (!room || clientId !== room.hostClientId) {
         return;
       }
 
-      matchConfig = {
-        ...matchConfig,
-
+      room.matchConfig = {
+        ...room.matchConfig,
         matchType: message.matchType,
       };
 
-      broadcastLobby();
+      broadcastLobby(room);
     }
 
     /*
@@ -3115,7 +3196,13 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "change-character") {
-      const player = lobbyPlayers.get(clientId);
+      const room = getRoomForClient(clientId);
+
+      if (!room) {
+        return;
+      }
+
+      const player = room.lobbyPlayers.get(clientId);
 
       if (!player) {
         return;
@@ -3127,7 +3214,7 @@ server.on("connection", (socket, request) => {
         return;
       }
 
-      const alreadyClaimed = Array.from(lobbyPlayers.values()).some(
+      const alreadyClaimed = Array.from(room.lobbyPlayers.values()).some(
         (otherPlayer) =>
           otherPlayer.clientId !== clientId &&
           otherPlayer.playerId === requestedPlayerId,
@@ -3143,7 +3230,7 @@ server.on("connection", (socket, request) => {
 
       console.log(`Client ${clientId} changed to player ${requestedPlayerId}`);
 
-      broadcastLobby();
+      broadcastLobby(room);
     }
   });
 
@@ -3156,21 +3243,56 @@ server.on("connection", (socket, request) => {
   socket.on("close", () => {
     connectedClients.delete(clientId);
 
-    if (gameState === null) {
-      lobbyPlayers.delete(clientId);
+    const room = getRoomForClient(clientId);
+
+    if (!room) {
+      console.log(`Client ${clientId} disconnected`);
+      return;
     }
 
-    console.log(`Client ${clientId} disconnected`);
+    /*
+     * During an active game, preserve the player's room
+     * membership so they can reconnect later.
+     */
+    if (room.gameState !== null) {
+      console.log(
+        `Client ${clientId} disconnected from active room ${room.code}`,
+      );
 
-    if (gameState === null && clientId === hostClientId) {
-      assignNextHost();
+      return;
+    }
 
-      if (hostClientId !== null) {
-        console.log(`Client ${hostClientId} is now host`);
+    /*
+     * Before the game starts, disconnecting removes
+     * the player from the lobby.
+     */
+    room.lobbyPlayers.delete(clientId);
+    roomCodeByClient.delete(clientId);
+
+    console.log(`Client ${clientId} disconnected from room ${room.code}`);
+
+    if (clientId === room.hostClientId) {
+      const nextHost = Array.from(room.lobbyPlayers.values()).sort(
+        (a, b) => a.slotId - b.slotId,
+      )[0];
+
+      if (nextHost) {
+        room.hostClientId = nextHost.clientId;
+        nextHost.isHost = true;
+
+        console.log(
+          `Client ${nextHost.clientId} is now host of room ${room.code}`,
+        );
       }
     }
 
-    broadcastLobby();
+    if (room.lobbyPlayers.size === 0) {
+      rooms.delete(room.code);
+
+      console.log(`Room ${room.code} deleted`);
+    } else {
+      broadcastLobby(room);
+    }
   });
 });
 

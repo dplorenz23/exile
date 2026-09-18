@@ -374,6 +374,11 @@ function App() {
         setRoomCode(message.roomCode);
       }
 
+      if (message.type === "room-left") {
+        setRoomCode(null);
+        setLobbySlots(createLobbySlots(4));
+      }
+
       if (message.type === "lobby-state") {
         console.log("Server lobby:", message.players);
 
