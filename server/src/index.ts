@@ -33,6 +33,7 @@ const PORT = 8080;
 
 const server = new WebSocketServer({
   port: PORT,
+  maxPayload: 64 * 1024,
 });
 
 const mapConfigs = {
@@ -148,6 +149,69 @@ function getNextAvailablePlayerId(
   return null;
 }
 
+function isResourceType(value: unknown): value is ResourceType {
+  return value === "water" || value === "fire" || value === "grass";
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function isPositiveInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0;
+}
+
+function isValidMapCoordinate(
+  mapId: string,
+  row: number,
+  col: number,
+): boolean {
+  const map =
+    mapId === "map-two" ? mapTwo : mapId === "exile-island" ? mapOne : null;
+
+  if (!map) {
+    return false;
+  }
+
+  return map.some((tile) => tile.row === row && tile.col === col);
+}
+
+function isValidResourcePayment(payment: BaseResources): boolean {
+  return (
+    payment.water % 50 === 0 &&
+    payment.fire % 50 === 0 &&
+    payment.grass % 50 === 0
+  );
+}
+
+function isArmyCounts(value: unknown): value is ArmyCounts {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const armies = value as Record<string, unknown>;
+
+  return (
+    isNonNegativeInteger(armies.water) &&
+    isNonNegativeInteger(armies.fire) &&
+    isNonNegativeInteger(armies.grass)
+  );
+}
+
+function isBaseResources(value: unknown): value is BaseResources {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const resources = value as Record<string, unknown>;
+
+  return (
+    isNonNegativeInteger(resources.water) &&
+    isNonNegativeInteger(resources.fire) &&
+    isNonNegativeInteger(resources.grass)
+  );
+}
+
 function broadcastLobby(room: GameRoom): void {
   const players = Array.from(room.lobbyPlayers.values()).sort(
     (a, b) => a.slotId - b.slotId,
@@ -216,9 +280,15 @@ function runGameTick(room: GameRoom): void {
 
   /*
    * Game is over.
-   * Freeze authoritative game state.
+   * Freeze authoritative game state
+   * and stop the room's game timer.
    */
   if (gameState.winnerPlayerId !== null) {
+    if (room.gameTimer) {
+      clearInterval(room.gameTimer);
+      room.gameTimer = null;
+    }
+
     return;
   }
 
@@ -1795,6 +1865,10 @@ server.on("connection", (socket, request) => {
 
   const clientId = isReconnect ? requestedClientId : nextClientId++;
 
+  socket.on("error", (error) => {
+    console.error(`WebSocket error for client ${clientId}:`, error);
+  });
+
   if (isReconnect) {
     if (!reconnectRoom) {
       socket.close();
@@ -1871,7 +1945,30 @@ server.on("connection", (socket, request) => {
    */
 
   socket.on("message", (data) => {
-    const message = JSON.parse(data.toString());
+    let parsedMessage: unknown;
+
+    try {
+      parsedMessage = JSON.parse(data.toString());
+    } catch {
+      console.warn(`Client ${clientId} sent invalid JSON`);
+      return;
+    }
+
+    if (
+      typeof parsedMessage !== "object" ||
+      parsedMessage === null ||
+      Array.isArray(parsedMessage)
+    ) {
+      console.warn(`Client ${clientId} sent an invalid message`);
+      return;
+    }
+
+    const message = parsedMessage as Record<string, unknown>;
+
+    if (typeof message.type !== "string") {
+      console.warn(`Client ${clientId} sent a message without a valid type`);
+      return;
+    }
 
     /*
      * ==============================================
@@ -1880,6 +1977,10 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "create-game") {
+      if (getRoomForClient(clientId)) {
+        return;
+      }
+
       const roomCode = generateRoomCode();
 
       const slotId = 1;
@@ -1930,6 +2031,10 @@ server.on("connection", (socket, request) => {
      */
 
     if (message.type === "join-game") {
+      if (getRoomForClient(clientId)) {
+        return;
+      }
+
       const roomCode = String(message.roomCode ?? "")
         .trim()
         .toUpperCase();
@@ -2005,7 +2110,7 @@ server.on("connection", (socket, request) => {
     if (message.type === "set-ready") {
       const room = getRoomForClient(clientId);
 
-      if (!room) {
+      if (!room || room.gameState !== null) {
         return;
       }
 
@@ -2060,7 +2165,13 @@ server.on("connection", (socket, request) => {
       console.log(`Client ${clientId} left room ${room.code}`);
 
       if (room.lobbyPlayers.size === 0) {
+        if (room.gameTimer) {
+          clearInterval(room.gameTimer);
+          room.gameTimer = null;
+        }
+
         rooms.delete(room.code);
+
         console.log(`Room ${room.code} deleted`);
       } else {
         broadcastLobby(room);
@@ -2166,7 +2277,11 @@ server.on("connection", (socket, request) => {
 
       const baseId = Number(message.baseId);
 
-      const resource = message.resource as ResourceType;
+      if (!isResourceType(message.resource)) {
+        return;
+      }
+
+      const resource = message.resource;
 
       const base = gameState.bases.find((base) => base.id === baseId);
 
@@ -2263,9 +2378,16 @@ server.on("connection", (socket, request) => {
 
       const destinationBaseId = Number(message.destinationBaseId);
 
-      const armies = message.armies as ArmyCounts;
+      if (!isArmyCounts(message.armies)) {
+        return;
+      }
 
-      const transferredResources = message.resources as BaseResources;
+      if (!isBaseResources(message.resources)) {
+        return;
+      }
+
+      const armies = message.armies;
+      const transferredResources = message.resources;
 
       const originBase = gameState.bases.find(
         (base) => base.id === originBaseId,
@@ -2462,7 +2584,11 @@ server.on("connection", (socket, request) => {
 
       const destinationBaseId = Number(message.destinationBaseId);
 
-      const armies = message.armies as ArmyCounts;
+      if (!isArmyCounts(message.armies)) {
+        return;
+      }
+
+      const armies = message.armies;
 
       const originBase = gameState.bases.find(
         (base) => base.id === originBaseId,
@@ -2611,7 +2737,11 @@ server.on("connection", (socket, request) => {
 
       const treasureId = Number(message.treasureId);
 
-      const armies = message.armies as ArmyCounts;
+      if (!isArmyCounts(message.armies)) {
+        return;
+      }
+
+      const armies = message.armies;
 
       const originBase = gameState.bases.find(
         (base) => base.id === originBaseId,
@@ -2749,7 +2879,33 @@ server.on("connection", (socket, request) => {
 
       const destinationCol = Number(message.destinationCol);
 
-      const payment = message.payment as BaseResources;
+      if (
+        !isPositiveInteger(originBaseId) ||
+        !isPositiveInteger(destinationRow) ||
+        !isPositiveInteger(destinationCol)
+      ) {
+        return;
+      }
+
+      if (
+        !isValidMapCoordinate(
+          room.matchConfig.mapId,
+          destinationRow,
+          destinationCol,
+        )
+      ) {
+        return;
+      }
+
+      if (!isBaseResources(message.payment)) {
+        return;
+      }
+
+      const payment = message.payment;
+
+      if (!isValidResourcePayment(payment)) {
+        return;
+      }
 
       const originBase = gameState.bases.find(
         (base) => base.id === originBaseId,
@@ -2953,7 +3109,33 @@ server.on("connection", (socket, request) => {
 
       const destinationCol = Number(message.destinationCol);
 
-      const payment = message.payment as BaseResources;
+      if (
+        !isPositiveInteger(originBaseId) ||
+        !isPositiveInteger(destinationRow) ||
+        !isPositiveInteger(destinationCol)
+      ) {
+        return;
+      }
+
+      if (
+        !isValidMapCoordinate(
+          room.matchConfig.mapId,
+          destinationRow,
+          destinationCol,
+        )
+      ) {
+        return;
+      }
+
+      if (!isBaseResources(message.payment)) {
+        return;
+      }
+
+      const payment = message.payment;
+
+      if (!isValidResourcePayment(payment)) {
+        return;
+      }
 
       const originBase = gameState.bases.find(
         (base) => base.id === originBaseId,
@@ -3156,7 +3338,11 @@ server.on("connection", (socket, request) => {
     if (message.type === "set-map") {
       const room = getRoomForClient(clientId);
 
-      if (!room || clientId !== room.hostClientId) {
+      if (!room || room.gameState !== null || clientId !== room.hostClientId) {
+        return;
+      }
+
+      if (typeof message.mapId !== "string" || !(message.mapId in mapConfigs)) {
         return;
       }
 
@@ -3177,7 +3363,11 @@ server.on("connection", (socket, request) => {
     if (message.type === "set-match-type") {
       const room = getRoomForClient(clientId);
 
-      if (!room || clientId !== room.hostClientId) {
+      if (!room || room.gameState !== null || clientId !== room.hostClientId) {
+        return;
+      }
+
+      if (message.matchType !== "30m" && message.matchType !== "sudden-death") {
         return;
       }
 
@@ -3198,7 +3388,7 @@ server.on("connection", (socket, request) => {
     if (message.type === "change-character") {
       const room = getRoomForClient(clientId);
 
-      if (!room) {
+      if (!room || room.gameState !== null) {
         return;
       }
 
@@ -3210,7 +3400,7 @@ server.on("connection", (socket, request) => {
 
       const requestedPlayerId = Number(message.playerId);
 
-      if (requestedPlayerId < 1 || requestedPlayerId > 4) {
+      if (!isPositiveInteger(requestedPlayerId) || requestedPlayerId > 4) {
         return;
       }
 
@@ -3287,6 +3477,11 @@ server.on("connection", (socket, request) => {
     }
 
     if (room.lobbyPlayers.size === 0) {
+      if (room.gameTimer) {
+        clearInterval(room.gameTimer);
+        room.gameTimer = null;
+      }
+
       rooms.delete(room.code);
 
       console.log(`Room ${room.code} deleted`);
