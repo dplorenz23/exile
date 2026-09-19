@@ -339,7 +339,9 @@ function App() {
    * lobby and game-state updates received from it.
    */
   useEffect(() => {
-    const previousClientId = localStorage.getItem("exileClientId");
+    const previousClientId = sessionStorage.getItem("exileClientId");
+
+    console.log("Previous session client ID:", previousClientId);
 
     const websocketBaseUrl =
       import.meta.env.VITE_WS_URL || `ws://${window.location.hostname}:8080`;
@@ -353,7 +355,7 @@ function App() {
     socketRef.current = socket;
 
     socket.onopen = () => {
-      console.log("Connected to EXiLE server");
+      console.log("Connected to EXiLE server", socketUrl);
     };
 
     socket.onmessage = (event) => {
@@ -364,7 +366,7 @@ function App() {
 
         setMyClientId(message.clientId);
 
-        localStorage.setItem("exileClientId", String(message.clientId));
+        sessionStorage.setItem("exileClientId", String(message.clientId));
 
         console.log(`I am Client ${message.clientId}`);
       }
@@ -437,8 +439,14 @@ function App() {
       }
     };
 
-    socket.onclose = () => {
-      console.log("Disconnected from EXiLE server");
+    socket.onclose = (event) => {
+      console.log(
+        "Disconnected from EXiLE server",
+        "code:",
+        event.code,
+        "reason:",
+        event.reason,
+      );
     };
 
     return () => {
