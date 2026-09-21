@@ -3431,6 +3431,15 @@ server.on("connection", (socket, request) => {
    */
 
   socket.on("close", () => {
+    const currentSocket = connectedClients.get(clientId);
+
+    if (currentSocket !== socket) {
+      console.log(
+        `Ignoring close event from stale socket for Client ${clientId}`,
+      );
+      return;
+    }
+
     connectedClients.delete(clientId);
 
     const room = getRoomForClient(clientId);

@@ -82,11 +82,16 @@ export default function Lobby({
   return (
     <div className="lobby">
       <div className="lobby-panel">
-        <h1>EXiLE</h1>
+        <div className="lobby-header">
+          <h1>EXiLE</h1>
 
-        <div className="lobby-room-code">
-          Game Code: <strong>{roomCode}</strong>
+          <div className="lobby-room-code">
+            <span>ROOM</span>
+            <strong>{roomCode}</strong>
+          </div>
         </div>
+
+        <div className="lobby-section-title">Players</div>
 
         <div className="lobby-slots">
           {slots.map((slot) => {
@@ -96,113 +101,142 @@ export default function Lobby({
                 : undefined;
 
             return (
-              <div key={slot.slotId} className="lobby-slot">
-                <strong>
-                  Slot {slot.slotId}
-                  {slot.isHost && " 👑 Host"}
-                </strong>
-
+              <div
+                key={slot.slotId}
+                className={`lobby-slot ${
+                  slot.isReady ? "lobby-slot-ready" : ""
+                }`}
+              >
                 {player ? (
-                  <select
-                    value={slot.playerId ?? ""}
-                    onChange={(event) =>
-                      onCharacterChange(slot.slotId, Number(event.target.value))
-                    }
-                  >
-                    {players.map((character) => {
-                      const claimedByAnotherSlot = slots.some(
-                        (otherSlot) =>
-                          otherSlot.slotId !== slot.slotId &&
-                          otherSlot.playerId === character.id,
-                      );
-
-                      return (
-                        <option
-                          key={character.id}
-                          value={character.id}
-                          disabled={claimedByAnotherSlot}
-                        >
-                          {character.avatar} {character.name}
-                        </option>
-                      );
-                    })}
-                  </select>
-                ) : (
                   <>
-                    <span>Open</span>
+                    <div className="lobby-player-header">
+                      <div className="lobby-player-identity">
+                        <span className="lobby-player-avatar">
+                          {player.avatar}
+                        </span>
+
+                        <div>
+                          <strong>{player.name}</strong>
+                          <span>Player {slot.slotId}</span>
+                        </div>
+                      </div>
+
+                      {slot.isHost && (
+                        <span className="lobby-host-badge">👑 Host</span>
+                      )}
+                    </div>
+
+                    <label className="lobby-character-select">
+                      Character
+                      <select
+                        value={slot.playerId ?? ""}
+                        disabled={slot.clientId !== myClientId}
+                        onChange={(event) =>
+                          onCharacterChange(
+                            slot.slotId,
+                            Number(event.target.value),
+                          )
+                        }
+                      >
+                        {players.map((character) => {
+                          const claimedByAnotherSlot = slots.some(
+                            (otherSlot) =>
+                              otherSlot.slotId !== slot.slotId &&
+                              otherSlot.playerId === character.id,
+                          );
+
+                          return (
+                            <option
+                              key={character.id}
+                              value={character.id}
+                              disabled={claimedByAnotherSlot}
+                            >
+                              {character.avatar} {character.name}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+
+                    <button
+                      className="lobby-ready-button"
+                      disabled={slot.clientId !== myClientId}
+                      onClick={() => onToggleReady(slot.slotId)}
+                    >
+                      {slot.isReady ? "✓ Ready" : "Ready Up"}
+                    </button>
+
+                    {slot.clientId === myClientId && (
+                      <button
+                        className="lobby-leave-button"
+                        onClick={() => onLeaveSlot(slot.slotId)}
+                      >
+                        Leave
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="lobby-empty-slot">
+                    <span className="lobby-empty-icon">+</span>
+                    <strong>Open Player Slot</strong>
 
                     <button onClick={() => onJoinSlot(slot.slotId)}>
                       Join
                     </button>
-                  </>
-                )}
-
-                {player && (
-                  <button
-                    className="lobby-ready-button"
-                    disabled={slot.clientId !== myClientId}
-                    onClick={() => onToggleReady(slot.slotId)}
-                  >
-                    {slot.isReady ? "✅ Ready" : "Ready Up"}
-                  </button>
-                )}
-
-                {player && slot.clientId === myClientId && (
-                  <button
-                    className="lobby-leave-button"
-                    onClick={() => onLeaveSlot(slot.slotId)}
-                  >
-                    Leave
-                  </button>
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
 
-        <div className="lobby-host-controls">
-          <label>
-            Map{" "}
-            <select
-              value={matchConfig.mapId}
-              disabled={!isCurrentClientHost}
-              onChange={(event) => onMapChange(event.target.value)}
-            >
-              {maps.map((map) => (
-                <option key={map.id} value={map.id}>
-                  {map.name} ({map.minPlayers}–{map.maxPlayers} Players)
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="lobby-settings">
+          <div className="lobby-section-title">Game Settings</div>
 
-          <label>
-            Match Type{" "}
-            <select
-              value={matchConfig.matchType}
-              disabled={!isCurrentClientHost}
-              onChange={(event) =>
-                onMatchTypeChange(event.target.value as MatchType)
-              }
-            >
-              <option value="30m">30 Minutes</option>
+          <div className="lobby-settings-grid">
+            <label>
+              Map
+              <select
+                value={matchConfig.mapId}
+                disabled={!isCurrentClientHost}
+                onChange={(event) => onMapChange(event.target.value)}
+              >
+                {maps.map((map) => (
+                  <option key={map.id} value={map.id}>
+                    {map.name} ({map.minPlayers}–{map.maxPlayers} Players)
+                  </option>
+                ))}
+              </select>
+            </label>
 
-              <option value="sudden-death">Sudden Death</option>
-            </select>
-          </label>
-
-          <div className="lobby-start-section">
-            {startError && (
-              <div className="lobby-start-error">{startError}</div>
-            )}
-
-            <button
-              disabled={!canStart || !isCurrentClientHost}
-              onClick={onStartGame}
-            >
-              Play Game
-            </button>
+            <label>
+              Match Type
+              <select
+                value={matchConfig.matchType}
+                disabled={!isCurrentClientHost}
+                onChange={(event) =>
+                  onMatchTypeChange(event.target.value as MatchType)
+                }
+              >
+                <option value="30m">30 Minutes</option>
+                <option value="sudden-death">Sudden Death</option>
+              </select>
+            </label>
           </div>
+        </div>
+
+        <div className="lobby-start-section">
+          {startError && (
+            <div className="lobby-start-message">{startError}</div>
+          )}
+
+          <button
+            className="lobby-play-button"
+            disabled={!canStart || !isCurrentClientHost}
+            onClick={onStartGame}
+          >
+            Play Game
+          </button>
         </div>
       </div>
     </div>

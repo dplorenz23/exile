@@ -12,29 +12,49 @@ export default function RoomEntry({
   const [joinCode, setJoinCode] = useState("");
 
   return (
-    <div className="lobby">
-      <div className="lobby-panel">
-        <h1>EXiLE</h1>
+    <div className="lobby room-entry">
+      <div className="room-entry-panel">
+        <h1 className="room-entry-title">EXiLE</h1>
 
-        <button onClick={onCreateGame}>Create Game</button>
+        <p className="room-entry-heading">ENTER THE BATTLE</p>
+        <p className="room-entry-subtitle">
+          Create a new game or join your friends.
+        </p>
 
-        <div>— or —</div>
+        <div className="room-entry-actions">
+          <button
+            className="room-entry-button room-entry-create"
+            onClick={onCreateGame}
+          >
+            Create Game
+          </button>
 
-        <label>
-          Game Code{" "}
+          <div className="room-entry-divider">
+            <span>OR</span>
+          </div>
+
+          <label className="room-entry-code-label" htmlFor="room-code">
+            Game Code
+          </label>
+
           <input
+            id="room-code"
+            className="room-entry-code"
             value={joinCode}
             maxLength={4}
+            autoComplete="off"
+            placeholder="ABCD"
             onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
           />
-        </label>
 
-        <button
-          disabled={joinCode.trim().length !== 4}
-          onClick={() => onJoinGame(joinCode)}
-        >
-          Join Game
-        </button>
+          <button
+            className="room-entry-button room-entry-join"
+            disabled={joinCode.trim().length !== 4}
+            onClick={() => onJoinGame(joinCode)}
+          >
+            Join Game
+          </button>
+        </div>
       </div>
     </div>
   );

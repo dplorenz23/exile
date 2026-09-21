@@ -366,20 +366,34 @@ function App() {
 
         setMyClientId(message.clientId);
 
-        sessionStorage.setItem("exileClientId", String(message.clientId));
-
         console.log(`I am Client ${message.clientId}`);
       }
 
       if (message.type === "room-created") {
         setRoomCode(message.roomCode);
+
+        if (myClientIdRef.current !== null) {
+          sessionStorage.setItem(
+            "exileClientId",
+            String(myClientIdRef.current),
+          );
+        }
       }
 
       if (message.type === "room-joined") {
         setRoomCode(message.roomCode);
+
+        if (myClientIdRef.current !== null) {
+          sessionStorage.setItem(
+            "exileClientId",
+            String(myClientIdRef.current),
+          );
+        }
       }
 
       if (message.type === "room-left") {
+        sessionStorage.removeItem("exileClientId");
+
         setRoomCode(null);
         setLobbySlots(createLobbySlots(4));
       }
