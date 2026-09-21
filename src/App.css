@@ -2252,8 +2252,8 @@ body {
 
 .game-how-to-button {
   position: fixed;
-  top: 14px;
-  right: 84px;
+  top: 24px;
+  right: 104px;
   z-index: 100;
 
   width: 34px;
