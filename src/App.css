@@ -1854,6 +1854,192 @@ body {
 }
 
 /* =========================
+   HOW TO PLAY
+   ========================= */
+
+.lobby-start-buttons {
+  width: min(620px, 100%);
+
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 12px;
+}
+
+.lobby-how-to-button {
+  min-height: 48px;
+
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: 7px;
+
+  color: var(--exile-ink);
+
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+
+  cursor: pointer;
+
+  transition:
+    transform 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.lobby-how-to-button:hover {
+  transform: translateY(-1px);
+
+  background: rgb(255 255 255 / 9%);
+  border-color: rgb(255 255 255 / 28%);
+}
+
+.lobby-start-buttons .lobby-play-button {
+  width: 100%;
+}
+
+.how-to-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 24px;
+
+  background: rgb(0 0 0 / 72%);
+  backdrop-filter: blur(3px);
+}
+
+.how-to-modal {
+  width: min(720px, 94vw);
+  max-height: min(760px, 88vh);
+
+  display: flex;
+  flex-direction: column;
+
+  background: #0d151c;
+  border: 1px solid rgb(255 255 255 / 16%);
+  border-radius: 16px;
+
+  box-shadow: 0 24px 60px rgb(0 0 0 / 60%);
+
+  overflow: hidden;
+}
+
+.how-to-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 20px 24px;
+
+  border-bottom: 1px solid rgb(255 255 255 / 10%);
+}
+
+.how-to-header h2 {
+  margin: 0;
+
+  color: var(--exile-gold-soft);
+
+  font-size: 1.35rem;
+  letter-spacing: 0.04em;
+}
+
+.how-to-close {
+  width: 36px;
+  height: 36px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+
+  background: transparent;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 7px;
+
+  color: var(--exile-ink-soft);
+
+  font-size: 1.5rem;
+  line-height: 1;
+
+  cursor: pointer;
+}
+
+.how-to-close:hover {
+  color: var(--exile-ink);
+  border-color: rgb(255 255 255 / 28%);
+}
+
+.how-to-content {
+  padding: 8px 24px 24px;
+
+  overflow-y: auto;
+}
+
+.how-to-content section {
+  padding: 16px 0;
+
+  border-bottom: 1px solid rgb(255 255 255 / 8%);
+}
+
+.how-to-content section:last-child {
+  border-bottom: 0;
+}
+
+.how-to-content h3 {
+  margin: 0 0 8px;
+
+  color: var(--exile-ink);
+
+  font-size: 0.95rem;
+}
+
+.how-to-content p {
+  margin: 6px 0;
+
+  color: var(--exile-ink-soft);
+
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.how-to-content strong {
+  color: var(--exile-ink);
+}
+
+.how-to-combat {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+
+  margin-top: 10px;
+
+  font-size: 0.9rem;
+}
+
+@media (max-width: 550px) {
+  .lobby-start-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .how-to-overlay {
+    padding: 12px;
+  }
+
+  .how-to-header {
+    padding: 16px 18px;
+  }
+
+  .how-to-content {
+    padding: 6px 18px 20px;
+  }
+}
+
+/* =========================
    LEADERBOARD
    ========================= */
 
