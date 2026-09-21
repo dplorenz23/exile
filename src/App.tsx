@@ -9,6 +9,7 @@ import GameMap from "./components/GameMap";
 import ResourceBar from "./components/ResourceBar";
 import Leaderboard from "./components/Leaderboard";
 import RoomEntry from "./components/RoomEntry";
+import HowToPlay from "./components/HowToPlay";
 
 import { players, getBaseName } from "./game/gameState";
 
@@ -208,6 +209,8 @@ function App() {
   const [gameState, setGameState] = useState<GameState>(createInitialGameState);
 
   const currentMapTiles = gameState.mapId === "map-two" ? mapTwo : mapOne;
+
+  const [showHowToPlay, setShowHowToPlay] = useState(false);
 
   /*
    * ==========================================================
@@ -842,6 +845,16 @@ function App() {
 
       <GameClock seconds={gameState.gameSeconds} />
 
+      {/* How to Play */}
+      <button
+        className="game-how-to-button"
+        onClick={() => setShowHowToPlay(true)}
+        aria-label="How to Play"
+        title="How to Play"
+      >
+        ?
+      </button>
+
       {/* Bottom-right */}
       <BaseActions
         key={selectedBaseId}
@@ -954,6 +967,7 @@ function App() {
           ))}
         </div>
       </div>
+      {showHowToPlay && <HowToPlay onClose={() => setShowHowToPlay(false)} />}
     </main>
   );
 }
