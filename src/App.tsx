@@ -54,6 +54,8 @@ function App() {
 
   const [myClientId, setMyClientId] = useState<number | null>(null);
 
+  const [isServerConnected, setIsServerConnected] = useState(false);
+
   const [yourPlayerId, setYourPlayerId] = useState(1);
 
   /*
@@ -92,34 +94,6 @@ function App() {
         roomCode,
       }),
     );
-  }
-
-  function handleJoinSlot(slotId: number): void {
-    setLobbySlots((current) => {
-      const claimedPlayerIds = current
-        .map((slot) => slot.playerId)
-        .filter((playerId): playerId is number => playerId !== null);
-
-      const availablePlayer = players.find(
-        (player) => !claimedPlayerIds.includes(player.id),
-      );
-
-      if (!availablePlayer) {
-        return current;
-      }
-
-      return current.map((slot) =>
-        slot.slotId === slotId
-          ? {
-              ...slot,
-
-              playerId: availablePlayer.id,
-
-              isReady: false,
-            }
-          : slot,
-      );
-    });
   }
 
   function handleMatchTypeChange(matchType: MatchType): void {
@@ -194,6 +168,16 @@ function App() {
     socketRef.current?.send(
       JSON.stringify({
         type: "start-game",
+      }),
+    );
+  }
+
+  function handleAddBot() {
+    console.log("Sending add-bot request");
+
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "add-bot",
       }),
     );
   }
@@ -359,6 +343,7 @@ function App() {
 
     socket.onopen = () => {
       console.log("Connected to EXiLE server", socketUrl);
+      setIsServerConnected(true);
     };
 
     socket.onmessage = (event) => {
@@ -464,6 +449,7 @@ function App() {
         "reason:",
         event.reason,
       );
+      setIsServerConnected(false);
     };
 
     return () => {
@@ -740,7 +726,11 @@ function App() {
 
   if (!roomCode) {
     return (
-      <RoomEntry onCreateGame={handleCreateGame} onJoinGame={handleJoinGame} />
+      <RoomEntry
+        onCreateGame={handleCreateGame}
+        onJoinGame={handleJoinGame}
+        isServerConnected={isServerConnected}
+      />
     );
   }
 
@@ -755,10 +745,10 @@ function App() {
         onMapChange={handleMapChange}
         onToggleReady={handleToggleReady}
         onStartGame={handleStartGame}
-        onJoinSlot={handleJoinSlot}
         onCharacterChange={handleCharacterChange}
         onLeaveSlot={handleLeaveSlot}
         roomCode={roomCode}
+        onAddBot={handleAddBot}
       />
     );
   }

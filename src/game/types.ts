@@ -6,6 +6,7 @@ export interface LobbySlot {
   isReady: boolean;
   clientId?: number;
   isHost?: boolean;
+  isBot?: boolean;
 }
 
 export interface MatchConfig {

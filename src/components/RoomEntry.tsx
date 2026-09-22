@@ -3,11 +3,13 @@ import { useState } from "react";
 interface RoomEntryProps {
   onCreateGame: () => void;
   onJoinGame: (roomCode: string) => void;
+  isServerConnected: boolean;
 }
 
 export default function RoomEntry({
   onCreateGame,
   onJoinGame,
+  isServerConnected,
 }: RoomEntryProps) {
   const [joinCode, setJoinCode] = useState("");
 
@@ -24,9 +26,10 @@ export default function RoomEntry({
         <div className="room-entry-actions">
           <button
             className="room-entry-button room-entry-create"
+            disabled={!isServerConnected}
             onClick={onCreateGame}
           >
-            Create Game
+            {isServerConnected ? "Create Game" : "Connecting..."}
           </button>
 
           <div className="room-entry-divider">
@@ -49,7 +52,7 @@ export default function RoomEntry({
 
           <button
             className="room-entry-button room-entry-join"
-            disabled={joinCode.trim().length !== 4}
+            disabled={!isServerConnected || joinCode.trim().length !== 4}
             onClick={() => onJoinGame(joinCode)}
           >
             Join Game

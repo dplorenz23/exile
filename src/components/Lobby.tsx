@@ -30,13 +30,13 @@ interface LobbyProps {
 
   onStartGame: () => void;
 
-  onJoinSlot: (slotId: number) => void;
-
   onCharacterChange: (slotId: number, playerId: number) => void;
 
   onLeaveSlot: (slotId: number) => void;
 
   roomCode: string;
+
+  onAddBot: () => void;
 }
 
 export default function Lobby({
@@ -48,10 +48,10 @@ export default function Lobby({
   onMapChange,
   onToggleReady,
   onStartGame,
-  onJoinSlot,
   onCharacterChange,
   onLeaveSlot,
   roomCode,
+  onAddBot,
 }: LobbyProps) {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 
@@ -62,6 +62,21 @@ export default function Lobby({
   );
 
   const currentMap = maps.find((map) => map.id === matchConfig.mapId);
+
+  const displaySlots: LobbySlot[] = Array.from(
+    { length: currentMap?.maxPlayers ?? 4 },
+    (_, index) => {
+      const slotId = index + 1;
+
+      return (
+        slots.find((slot) => slot.slotId === slotId) ?? {
+          slotId,
+          playerId: null,
+          isReady: false,
+        }
+      );
+    },
+  );
 
   const canStart =
     currentMap !== undefined &&
@@ -100,7 +115,7 @@ export default function Lobby({
         <div className="lobby-section-title">Players</div>
 
         <div className="lobby-slots">
-          {slots.map((slot) => {
+          {displaySlots.map((slot) => {
             const player =
               slot.playerId !== null
                 ? players.find((player) => player.id === slot.playerId)
@@ -122,7 +137,13 @@ export default function Lobby({
                         </span>
 
                         <div>
-                          <strong>{player.name}</strong>
+                          <strong>
+                            {player.name}
+                            {slot.isBot && (
+                              <span className="lobby-bot-badge"> BOT</span>
+                            )}
+                          </strong>
+
                           <span>Player {slot.slotId}</span>
                         </div>
                       </div>
@@ -136,7 +157,7 @@ export default function Lobby({
                       Character
                       <select
                         value={slot.playerId ?? ""}
-                        disabled={slot.clientId !== myClientId}
+                        disabled={slot.clientId !== myClientId || slot.isBot}
                         onChange={(event) =>
                           onCharacterChange(
                             slot.slotId,
@@ -166,7 +187,7 @@ export default function Lobby({
 
                     <button
                       className="lobby-ready-button"
-                      disabled={slot.clientId !== myClientId}
+                      disabled={slot.clientId !== myClientId || slot.isBot}
                       onClick={() => onToggleReady(slot.slotId)}
                     >
                       {slot.isReady ? "✓ Ready" : "Ready Up"}
@@ -186,9 +207,16 @@ export default function Lobby({
                     <span className="lobby-empty-icon">+</span>
                     <strong>Open Player Slot</strong>
 
-                    <button onClick={() => onJoinSlot(slot.slotId)}>
-                      Join
-                    </button>
+                    {isCurrentClientHost && (
+                      <button
+                        onClick={() => {
+                          console.log("Add Bot button clicked");
+                          onAddBot();
+                        }}
+                      >
+                        Add Bot
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

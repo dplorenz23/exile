@@ -60,6 +60,7 @@ type LobbyPlayer = {
   playerId: number;
   isReady: boolean;
   isHost: boolean;
+  isBot: boolean;
 };
 
 type GameRoom = {
@@ -81,6 +82,7 @@ type GameRoom = {
  */
 
 let nextClientId = 1;
+let nextBotClientId = -1;
 
 const connectedClients = new Map<number, WebSocket>();
 
@@ -1992,6 +1994,7 @@ server.on("connection", (socket, request) => {
         playerId,
         isReady: false,
         isHost: true,
+        isBot: false,
       };
 
       const room: GameRoom = {
@@ -2083,6 +2086,7 @@ server.on("connection", (socket, request) => {
         playerId,
         isReady: false,
         isHost: false,
+        isBot: false,
       };
 
       room.lobbyPlayers.set(clientId, lobbyPlayer);
@@ -2097,6 +2101,46 @@ server.on("connection", (socket, request) => {
       );
 
       console.log(`Client ${clientId} joined room ${roomCode}`);
+
+      broadcastLobby(room);
+    }
+
+    /*
+     * ==============================================
+     * LOBBY ACTION: ADD BOT
+     * ==============================================
+     */
+
+    if (message.type === "add-bot") {
+      const room = getRoomForClient(clientId);
+
+      if (!room || room.gameState !== null || clientId !== room.hostClientId) {
+        return;
+      }
+
+      const slotId = getNextAvailableSlot(room.lobbyPlayers);
+      const playerId = getNextAvailablePlayerId(room.lobbyPlayers);
+
+      if (slotId === null || playerId === null) {
+        return;
+      }
+
+      const botClientId = nextBotClientId--;
+
+      const botPlayer: LobbyPlayer = {
+        clientId: botClientId,
+        slotId,
+        playerId,
+        isReady: true,
+        isHost: false,
+        isBot: true,
+      };
+
+      room.lobbyPlayers.set(botClientId, botPlayer);
+
+      console.log(
+        `Bot ${botClientId} added to room ${room.code} as Player ${playerId}`,
+      );
 
       broadcastLobby(room);
     }
