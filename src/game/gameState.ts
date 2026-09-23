@@ -1,5 +1,5 @@
 import type { Base, BaseResources, MatchType, Player } from "./types";
-
+import { BALANCE } from "../../src/game/balance";
 /*
  * Static game configuration used when creating a new match.
  *
@@ -215,9 +215,7 @@ export const startingResourcesByBase: Record<number, BaseResources> =
     bases.map((base) => [
       base.id,
       {
-        water: 50,
-        fire: 50,
-        grass: 50,
+        ...BALANCE.startingBase.resources,
       },
     ]),
   );

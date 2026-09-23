@@ -4,6 +4,8 @@ import {
   startingResourcesByBase,
 } from "./gameState";
 
+import { BALANCE } from "../../src/game/balance";
+
 import type { GameState, MatchType } from "./types";
 
 /*
@@ -83,9 +85,7 @@ export function createInitialGameState(
           startingResources
             ? { ...startingResources }
             : {
-                water: 50,
-                fire: 50,
-                grass: 50,
+                ...BALANCE.startingBase.resources,
               },
         ];
       }),

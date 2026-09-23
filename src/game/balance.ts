@@ -1,4 +1,12 @@
 export const BALANCE = {
+  startingBase: {
+    resources: {
+      water: 100,
+      fire: 100,
+      grass: 100,
+    },
+  },
+
   production: {
     level2Seconds: 120,
     level3Seconds: 300,
@@ -22,9 +30,9 @@ export const BALANCE = {
     maxBases: 3,
 
     startingResources: {
-      water: 50,
-      fire: 50,
-      grass: 50,
+      water: 100,
+      fire: 100,
+      grass: 100,
     },
   },
 

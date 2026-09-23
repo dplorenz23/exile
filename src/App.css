@@ -27,7 +27,8 @@ body,
 }
 
 body {
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* =========================
@@ -1438,7 +1439,7 @@ body {
   min-height: 100vh;
 
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
 
   padding: 28px;
@@ -1471,6 +1472,7 @@ body {
 
 .lobby-panel {
   width: min(760px, 94vw);
+  margin: auto 0;
 
   padding: 34px 40px 38px;
 
