@@ -182,6 +182,15 @@ function App() {
     );
   }
 
+  function handleRemoveBot(botClientId: number) {
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "remove-bot",
+        botClientId,
+      }),
+    );
+  }
+
   /*
    * ==========================================================
    * LIVE GAME STATE
@@ -749,6 +758,7 @@ function App() {
         onLeaveSlot={handleLeaveSlot}
         roomCode={roomCode}
         onAddBot={handleAddBot}
+        onRemoveBot={handleRemoveBot}
       />
     );
   }

@@ -37,6 +37,8 @@ interface LobbyProps {
   roomCode: string;
 
   onAddBot: () => void;
+
+  onRemoveBot: (botClientId: number) => void;
 }
 
 export default function Lobby({
@@ -52,6 +54,7 @@ export default function Lobby({
   onLeaveSlot,
   roomCode,
   onAddBot,
+  onRemoveBot,
 }: LobbyProps) {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 
@@ -201,6 +204,17 @@ export default function Lobby({
                         Leave
                       </button>
                     )}
+
+                    {isCurrentClientHost &&
+                      slot.isBot &&
+                      slot.clientId !== undefined && (
+                        <button
+                          className="lobby-leave-button"
+                          onClick={() => onRemoveBot(slot.clientId!)}
+                        >
+                          Remove Bot
+                        </button>
+                      )}
                   </>
                 ) : (
                   <div className="lobby-empty-slot">

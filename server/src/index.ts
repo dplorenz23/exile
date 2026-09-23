@@ -2147,6 +2147,33 @@ server.on("connection", (socket, request) => {
 
     /*
      * ==============================================
+     * LOBBY ACTION: REMOVE BOT
+     * ==============================================
+     */
+
+    if (message.type === "remove-bot") {
+      const room = getRoomForClient(clientId);
+
+      if (!room || room.gameState !== null || clientId !== room.hostClientId) {
+        return;
+      }
+
+      const botClientId = Number(message.botClientId);
+      const botPlayer = room.lobbyPlayers.get(botClientId);
+
+      if (!botPlayer || !botPlayer.isBot) {
+        return;
+      }
+
+      room.lobbyPlayers.delete(botClientId);
+
+      console.log(`Bot ${botClientId} removed from room ${room.code}`);
+
+      broadcastLobby(room);
+    }
+
+    /*
+     * ==============================================
      * LOBBY ACTION: READY
      * ==============================================
      */
