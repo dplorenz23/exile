@@ -151,6 +151,31 @@ function getNextAvailablePlayerId(
   return null;
 }
 
+function broadcastLobby(room: GameRoom): void {
+  const players = Array.from(room.lobbyPlayers.values()).sort(
+    (a, b) => a.slotId - b.slotId,
+  );
+
+  const message = JSON.stringify({
+    type: "lobby-state",
+    players,
+    matchConfig: room.matchConfig,
+  });
+
+  for (const player of room.lobbyPlayers.values()) {
+    const socket = connectedClients.get(player.clientId);
+
+    if (socket) {
+      socket.send(message);
+    }
+  }
+}
+
+/*
+ * ==================================================
+ * VALIDATION HELPERS
+ * ==================================================
+ */
 function isResourceType(value: unknown): value is ResourceType {
   return value === "water" || value === "fire" || value === "grass";
 }
@@ -213,24 +238,142 @@ function isBaseResources(value: unknown): value is BaseResources {
     isNonNegativeInteger(resources.grass)
   );
 }
+/*
+ * ==================================================
+ * GAME ACTION HELPERS
+ * ==================================================
+ */
+function startArmyTraining(
+  room: GameRoom,
+  playerId: number,
+  baseId: number,
+  resource: ResourceType,
+): boolean {
+  const gameState = room.gameState;
 
-function broadcastLobby(room: GameRoom): void {
-  const players = Array.from(room.lobbyPlayers.values()).sort(
-    (a, b) => a.slotId - b.slotId,
-  );
+  if (!gameState) {
+    return false;
+  }
 
-  const message = JSON.stringify({
-    type: "lobby-state",
-    players,
-    matchConfig: room.matchConfig,
+  const base = gameState.bases.find((base) => base.id === baseId);
+
+  if (!base) {
+    return false;
+  }
+
+  /*
+   * Player may only train at their own base.
+   */
+  if (base.playerId !== playerId) {
+    return false;
+  }
+
+  /*
+   * Base can only train one army at a time.
+   */
+  if (base.training) {
+    return false;
+  }
+
+  const resources = gameState.resourcesByBase[baseId];
+
+  if (!resources) {
+    return false;
+  }
+
+  const cost = getArmyCost(base.armiesBuilt[resource]);
+
+  if (resources[resource] < cost) {
+    return false;
+  }
+
+  const updatedBases = gameState.bases.map((currentBase) => {
+    if (currentBase.id !== baseId) {
+      return currentBase;
+    }
+
+    return {
+      ...currentBase,
+      training: {
+        resource,
+        secondsRemaining: BALANCE.armies.trainingSeconds,
+      },
+    };
   });
 
-  for (const player of room.lobbyPlayers.values()) {
-    const socket = connectedClients.get(player.clientId);
+  const updatedResources = {
+    ...gameState.resourcesByBase,
 
-    if (socket) {
-      socket.send(message);
+    [baseId]: {
+      ...resources,
+      [resource]: resources[resource] - cost,
+    },
+  };
+
+  room.gameState = {
+    ...gameState,
+    bases: updatedBases,
+    resourcesByBase: updatedResources,
+  };
+
+  return true;
+}
+
+/*
+ * ==================================================
+ * BOT HELPERS
+ * ==================================================
+ */
+
+function tryBotTrainArmy(room: GameRoom, bot: LobbyPlayer): boolean {
+  const gameState = room.gameState;
+
+  if (!gameState || !bot.isBot) {
+    return false;
+  }
+
+  const base = gameState.bases.find((base) => base.playerId === bot.playerId);
+
+  if (!base || base.training) {
+    return false;
+  }
+
+  const resources = gameState.resourcesByBase[base.id];
+
+  if (!resources) {
+    return false;
+  }
+
+  const resourceTypes: ResourceType[] = ["water", "fire", "grass"];
+
+  const affordableResources = resourceTypes.filter((resource) => {
+    const cost = getArmyCost(base.armiesBuilt[resource]);
+
+    return resources[resource] >= cost;
+  });
+
+  if (affordableResources.length === 0) {
+    return false;
+  }
+
+  affordableResources.sort((a, b) => base.armiesBuilt[a] - base.armiesBuilt[b]);
+
+  const resource = affordableResources[0];
+
+  return startArmyTraining(room, bot.playerId, base.id, resource);
+}
+
+function runBotTick(room: GameRoom): void {
+  if (!room.gameState) {
+    return;
+  }
+
+  for (const player of room.lobbyPlayers.values()) {
+    if (!player.isBot) {
+      continue;
     }
+
+    tryBotTrainArmy(room, player);
   }
 }
 
@@ -1839,6 +1982,12 @@ function runGameTick(room: GameRoom): void {
 
   room.gameState = gameState;
 
+  /*
+   * Allow bots to make decisions using the newly
+   * committed authoritative state.
+   */
+  runBotTick(room);
+
   broadcastGameState(room);
 }
 
@@ -2223,9 +2372,9 @@ server.on("connection", (socket, request) => {
       );
 
       if (clientId === room.hostClientId) {
-        const nextHost = Array.from(room.lobbyPlayers.values()).sort(
-          (a, b) => a.slotId - b.slotId,
-        )[0];
+        const nextHost = Array.from(room.lobbyPlayers.values())
+          .filter((player) => !player.isBot)
+          .sort((a, b) => a.slotId - b.slotId)[0];
 
         if (nextHost) {
           room.hostClientId = nextHost.clientId;
@@ -2344,8 +2493,6 @@ server.on("connection", (socket, request) => {
         return;
       }
 
-      let gameState = room.gameState;
-
       const baseId = Number(message.baseId);
 
       if (!isResourceType(message.resource)) {
@@ -2354,72 +2501,16 @@ server.on("connection", (socket, request) => {
 
       const resource = message.resource;
 
-      const base = gameState.bases.find((base) => base.id === baseId);
+      const trainingStarted = startArmyTraining(
+        room,
+        player.playerId,
+        baseId,
+        resource,
+      );
 
-      if (!base) {
+      if (!trainingStarted) {
         return;
       }
-
-      /*
-       * Player may only train at their own base.
-       */
-      if (base.playerId !== player.playerId) {
-        return;
-      }
-
-      /*
-       * Base can only train one army at a time.
-       */
-      if (base.training) {
-        return;
-      }
-
-      const resources = gameState.resourcesByBase[baseId];
-
-      if (!resources) {
-        return;
-      }
-
-      const cost = getArmyCost(base.armiesBuilt[resource]);
-
-      if (resources[resource] < cost) {
-        return;
-      }
-
-      const updatedBases = gameState.bases.map((currentBase) => {
-        if (currentBase.id !== baseId) {
-          return currentBase;
-        }
-
-        return {
-          ...currentBase,
-
-          training: {
-            resource,
-            secondsRemaining: BALANCE.armies.trainingSeconds,
-          },
-        };
-      });
-
-      const updatedResources = {
-        ...gameState.resourcesByBase,
-
-        [baseId]: {
-          ...resources,
-
-          [resource]: resources[resource] - cost,
-        },
-      };
-
-      gameState = {
-        ...gameState,
-
-        bases: updatedBases,
-
-        resourcesByBase: updatedResources,
-      };
-
-      room.gameState = gameState;
 
       broadcastGameState(room);
     }
@@ -3542,17 +3633,13 @@ server.on("connection", (socket, request) => {
     console.log(`Client ${clientId} disconnected from room ${room.code}`);
 
     if (clientId === room.hostClientId) {
-      const nextHost = Array.from(room.lobbyPlayers.values()).sort(
-        (a, b) => a.slotId - b.slotId,
-      )[0];
+      const nextHost = Array.from(room.lobbyPlayers.values())
+        .filter((player) => !player.isBot)
+        .sort((a, b) => a.slotId - b.slotId)[0];
 
       if (nextHost) {
         room.hostClientId = nextHost.clientId;
         nextHost.isHost = true;
-
-        console.log(
-          `Client ${nextHost.clientId} is now host of room ${room.code}`,
-        );
       }
     }
 

@@ -124,6 +124,8 @@ export default function Lobby({
                 ? players.find((player) => player.id === slot.playerId)
                 : undefined;
 
+            console.log("Lobby slots:", slots);
+
             return (
               <div
                 key={slot.slotId}

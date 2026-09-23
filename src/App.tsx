@@ -406,15 +406,18 @@ function App() {
               playerId: number;
               isReady: boolean;
               isHost: boolean;
+              isBot: boolean;
             }) => ({
               clientId: player.clientId,
               slotId: player.slotId,
               playerId: player.playerId,
               isReady: player.isReady,
               isHost: player.isHost,
+              isBot: player.isBot,
             }),
           ),
         );
+
         setMatchConfig(message.matchConfig);
       }
 
