@@ -140,7 +140,11 @@ export default function Tile({
           title={
             isLootTarget && lootTravelTimeSeconds !== undefined
               ? `Loot treasure — ${lootTravelTimeSeconds}s travel`
-              : `Treasure — Water: ${treasure.resources.water}, Fire: ${treasure.resources.fire}, Grass: ${treasure.resources.grass}`
+              : `Treasure — Water: ${treasure.resources.water}, Fire: ${treasure.resources.fire}, Grass: ${treasure.resources.grass}${
+                  treasure.expansionKeys > 0
+                    ? `, Expansion Keys: ${treasure.expansionKeys}`
+                    : ""
+                }`
           }
         >
           💰

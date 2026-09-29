@@ -185,6 +185,9 @@ export default function GameLog({ events, players }: GameLogProps) {
                       Taken: 💧{event.resourcesLooted.water} 🔥
                       {event.resourcesLooted.fire} 🌱
                       {event.resourcesLooted.grass}
+                      {event.expansionKeysLooted > 0 && (
+                        <> 🔑{event.expansionKeysLooted}</>
+                      )}
                     </div>
 
                     <div>

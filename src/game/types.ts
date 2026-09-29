@@ -296,6 +296,8 @@ export type GameEvent =
 
       resourcesLooted: BaseResources;
       resourcesRemaining: BaseResources;
+
+      expansionKeysLooted: number;
     }
   | {
       type: "transfer";
@@ -351,6 +353,8 @@ export interface Treasure {
   col: number;
 
   resources: ResourceCounts;
+
+  expansionKeys: number;
 }
 
 export interface PlayerScore {

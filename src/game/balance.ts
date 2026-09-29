@@ -16,6 +16,19 @@ export const BALANCE = {
     secondaryByLevel: [0, 1, 1, 2],
   },
 
+  startingTreasure: {
+    chestsPerPlayer: 1,
+
+    minimumResources: 200,
+    maximumResources: 300,
+    resourceIncrement: 50,
+
+    expansionKeysPerTwoPlayers: 1,
+
+    minimumStartDistance: 3,
+    preferredMaximumStartDistance: 4,
+  },
+
   armies: {
     trainingSeconds: 10,
     baseCost: 100,

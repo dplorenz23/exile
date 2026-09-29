@@ -825,6 +825,8 @@ function runGameTick(room: GameRoom): void {
             resources: {
               ...lootResult.remaining,
             },
+
+            expansionKeys: 0,
           });
 
           nextTreasureId += 1;
@@ -1007,6 +1009,13 @@ function runGameTick(room: GameRoom): void {
 
       const lootResult = calculateLoot(treasure.resources, lootCapacity);
 
+      const remainingTotal =
+        lootResult.remaining.water +
+        lootResult.remaining.fire +
+        lootResult.remaining.grass;
+
+      const expansionKeysLooted = treasure.expansionKeys;
+
       updatedGameEvents.push({
         type: "loot",
 
@@ -1027,14 +1036,11 @@ function runGameTick(room: GameRoom): void {
         resourcesRemaining: {
           ...lootResult.remaining,
         },
+
+        expansionKeysLooted,
       });
 
       nextGameEventId += 1;
-
-      const remainingTotal =
-        lootResult.remaining.water +
-        lootResult.remaining.fire +
-        lootResult.remaining.grass;
 
       if (remainingTotal > 0) {
         const treasureIndex = updatedTreasures.findIndex(
@@ -1048,6 +1054,8 @@ function runGameTick(room: GameRoom): void {
             resources: {
               ...lootResult.remaining,
             },
+
+            expansionKeys: 0,
           };
         }
       } else {
@@ -1072,6 +1080,8 @@ function runGameTick(room: GameRoom): void {
         resources: {
           ...lootResult.loot,
         },
+
+        expansionKeys: expansionKeysLooted,
 
         secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
       });
@@ -1137,6 +1147,12 @@ function runGameTick(room: GameRoom): void {
 
           grass: originResources.grass + mission.resources.grass,
         };
+      }
+
+      if (mission.expansionKeys > 0) {
+        updatedExpansionKeysByPlayer[originBase.playerId] =
+          (updatedExpansionKeysByPlayer[originBase.playerId] ?? 0) +
+          mission.expansionKeys;
       }
 
       return;
