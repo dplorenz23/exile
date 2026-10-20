@@ -1,3 +1,5 @@
+import type { CharacterClass, PortraitVariant } from "./characters";
+
 export type MatchType = "30m" | "sudden-death";
 
 export interface LobbySlot {
@@ -7,6 +9,8 @@ export interface LobbySlot {
   clientId?: number;
   isHost?: boolean;
   isBot?: boolean;
+  characterClass?: CharacterClass | null;
+  portrait?: PortraitVariant;
 }
 
 export interface MatchConfig {

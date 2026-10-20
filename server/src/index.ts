@@ -21,6 +21,9 @@ import type {
   ResourceType,
 } from "../../src/game/types";
 
+import { CLASSES } from "../../src/game/characters";
+import type { CharacterClass } from "../../src/game/characters";
+
 import { WebSocket, WebSocketServer } from "ws";
 
 /*
@@ -61,6 +64,8 @@ type LobbyPlayer = {
   isReady: boolean;
   isHost: boolean;
   isBot: boolean;
+  characterClass: CharacterClass | null;
+  portrait: PortraitVariant;
 };
 
 type GameRoom = {
@@ -2252,6 +2257,8 @@ server.on("connection", (socket, request) => {
         isReady: false,
         isHost: false,
         isBot: false,
+        characterClass: null,
+        portrait: "A",
       };
 
       room.lobbyPlayers.set(clientId, lobbyPlayer);
@@ -2290,6 +2297,18 @@ server.on("connection", (socket, request) => {
         return;
       }
 
+      // Find the first class that isn't taken.
+      const availableClass = CLASSES.find(
+        (characterClass) =>
+          !Array.from(room.lobbyPlayers.values()).some(
+            (player) => player.characterClass === characterClass,
+          ),
+      );
+
+      if (!availableClass) {
+        return;
+      }
+
       const botClientId = nextBotClientId--;
 
       const botPlayer: LobbyPlayer = {
@@ -2299,12 +2318,14 @@ server.on("connection", (socket, request) => {
         isReady: true,
         isHost: false,
         isBot: true,
+        characterClass: availableClass,
+        portrait: "A",
       };
 
       room.lobbyPlayers.set(botClientId, botPlayer);
 
       console.log(
-        `Bot ${botClientId} added to room ${room.code} as Player ${playerId}`,
+        `Bot ${botClientId} added to room ${room.code} as Player ${playerId} (${botPlayer.characterClass})`,
       );
 
       broadcastLobby(room);
@@ -2352,11 +2373,18 @@ server.on("connection", (socket, request) => {
 
       const player = room.lobbyPlayers.get(clientId);
 
-      if (!player) {
+      if (!player || player.isBot) {
         return;
       }
 
-      player.isReady = Boolean(message.isReady);
+      const requestedReady = message.isReady === true;
+
+      // Players must select a class before readying up.
+      if (requestedReady && player.characterClass === null) {
+        return;
+      }
+
+      player.isReady = requestedReady;
 
       console.log(
         `Client ${clientId} ready in room ${room.code}: ${player.isReady}`,
@@ -2450,6 +2478,20 @@ server.on("connection", (socket, request) => {
       const everyoneReady = players.every((player) => player.isReady);
 
       if (!everyoneReady) {
+        return;
+      }
+
+      const everyoneHasCharacter = players.every(
+        (player) => player.characterClass != null,
+      );
+
+      if (!everyoneHasCharacter) {
+        return;
+      }
+
+      const selectedClasses = players.map((player) => player.characterClass);
+
+      if (new Set(selectedClasses).size !== selectedClasses.length) {
         return;
       }
 
@@ -3600,8 +3642,68 @@ server.on("connection", (socket, request) => {
 
       broadcastLobby(room);
     }
-  });
 
+    /*
+     * ==============================================
+     * LOBBY ACTION: SELECT CHARACTER
+     * ==============================================
+     */
+
+    if (message.type === "select-character") {
+      const room = getRoomForClient(clientId);
+
+      if (!room || room.gameState !== null) return;
+
+      const player = room.lobbyPlayers.get(clientId);
+
+      if (!player || player.isBot || player.isReady) return;
+
+      const requestedClass = message.characterClass;
+
+      if (!CLASSES.includes(requestedClass as CharacterClass)) {
+        return;
+      }
+
+      // Only one player may select each class.
+      const alreadyClaimed = Array.from(room.lobbyPlayers.values()).some(
+        (otherPlayer) =>
+          otherPlayer.clientId !== clientId &&
+          otherPlayer.characterClass === requestedClass,
+      );
+
+      if (alreadyClaimed) return;
+
+      player.characterClass = requestedClass as CharacterClass;
+      player.portrait = "A";
+      player.isReady = false;
+
+      broadcastLobby(room);
+    }
+
+    /*
+     * ==============================================
+     * LOBBY ACTION: CHANGE PORTRAIT
+     * ==============================================
+     */
+
+    if (message.type === "change-portrait") {
+      const room = getRoomForClient(clientId);
+
+      if (!room || room.gameState !== null) return;
+
+      const player = room.lobbyPlayers.get(clientId);
+
+      if (!player || player.isBot || player.isReady) return;
+
+      if (message.variant !== "A" && message.variant !== "B") return;
+
+      if (player.characterClass === null) return;
+
+      player.portrait = message.variant;
+
+      broadcastLobby(room);
+    }
+  });
   /*
    * ==================================================
    * DISCONNECT HANDLING

@@ -54,50 +54,50 @@ export const matchTypes: Record<MatchType, MatchTypeConfig> = {
 export const players: Player[] = [
   {
     id: 1,
-    name: "Albus",
+    name: "Survivor 1",
     color: "#4f8cff",
-    avatar: "🧙",
+    avatar: "🎖️",
   },
   {
     id: 2,
-    name: "Galahad",
+    name: "Survivor 2",
     color: "#e05a47",
-    avatar: "🛡️",
+    avatar: "🔧",
   },
   {
     id: 3,
-    name: "Magnus",
+    name: "Survivor 3",
     color: "#d8b640",
-    avatar: "🪓",
+    avatar: "🌾",
   },
   {
     id: 4,
-    name: "Blackbeard",
+    name: "Survivor 4",
     color: "#9b6bd6",
-    avatar: "🏴‍☠️",
+    avatar: "🔬",
   },
 ];
 
 export const baseNamesByPlayer: Record<number, Record<1 | 2 | 3, string>> = {
   1: {
-    1: "Emberkeep",
-    2: "Spellhaven",
-    3: "Moonspire",
+    1: "Base 1",
+    2: "Base 2",
+    3: "Base 3",
   },
   2: {
-    1: "Ironhold",
-    2: "Highwatch",
-    3: "Stonegate",
+    1: "Base 1",
+    2: "Base 2",
+    3: "Base 3",
   },
   3: {
-    1: "Frostholm",
-    2: "Ravenfjord",
-    3: "Skullhaven",
+    1: "Base 1",
+    2: "Base 2",
+    3: "Base 3",
   },
   4: {
-    1: "Blackwater",
-    2: "Rumrunner Rest",
-    3: "Deadman's Cay",
+    1: "Base 1",
+    2: "Base 2",
+    3: "Base 3",
   },
 };
 

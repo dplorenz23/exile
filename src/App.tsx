@@ -30,6 +30,8 @@ import type {
   GameState,
 } from "./game/types";
 
+import type { CharacterClass, PortraitVariant } from "./game/characters";
+
 import "./App.css";
 
 function createLobbySlots(playerCount: number): LobbySlot[] {
@@ -125,6 +127,24 @@ function App() {
       JSON.stringify({
         type: "change-character",
         playerId,
+      }),
+    );
+  }
+
+  function handleSelectCharacter(characterClass: CharacterClass): void {
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "select-character",
+        characterClass,
+      }),
+    );
+  }
+
+  function handleChangePortrait(variant: PortraitVariant): void {
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "change-portrait",
+        variant,
       }),
     );
   }
@@ -399,23 +419,16 @@ function App() {
         console.log("Server lobby:", message.players);
 
         setLobbySlots(
-          message.players.map(
-            (player: {
-              clientId: number;
-              slotId: number;
-              playerId: number;
-              isReady: boolean;
-              isHost: boolean;
-              isBot: boolean;
-            }) => ({
-              clientId: player.clientId,
-              slotId: player.slotId,
-              playerId: player.playerId,
-              isReady: player.isReady,
-              isHost: player.isHost,
-              isBot: player.isBot,
-            }),
-          ),
+          message.players.map((player: LobbySlot) => ({
+            clientId: player.clientId,
+            slotId: player.slotId,
+            playerId: player.playerId,
+            isReady: player.isReady,
+            isHost: player.isHost,
+            isBot: player.isBot,
+            characterClass: player.characterClass,
+            portrait: player.portrait,
+          })),
         );
 
         setMatchConfig(message.matchConfig);
@@ -758,6 +771,8 @@ function App() {
         onToggleReady={handleToggleReady}
         onStartGame={handleStartGame}
         onCharacterChange={handleCharacterChange}
+        onSelectCharacter={handleSelectCharacter}
+        onChangePortrait={handleChangePortrait}
         onLeaveSlot={handleLeaveSlot}
         roomCode={roomCode}
         onAddBot={handleAddBot}

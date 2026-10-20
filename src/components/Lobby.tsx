@@ -4,7 +4,17 @@ import { maps } from "../game/gameState";
 
 import type { LobbySlot, MatchConfig, Player, MatchType } from "../game/types";
 
+import type { CharacterClass, PortraitVariant } from "../game/characters";
+import { CLASSES } from "../game/characters";
+
 import HowToPlay from "./HowToPlay";
+
+function getCharacterPortrait(
+  characterClass: CharacterClass,
+  variant: PortraitVariant = "A",
+): string {
+  return `${import.meta.env.BASE_URL}assets/characters/${characterClass}-${variant.toLowerCase()}.png`;
+}
 
 /*
  * Displays the multiplayer lobby and sends player/host actions
@@ -39,6 +49,10 @@ interface LobbyProps {
   onAddBot: () => void;
 
   onRemoveBot: (botClientId: number) => void;
+
+  onSelectCharacter: (characterClass: CharacterClass) => void;
+
+  onChangePortrait: (variant: PortraitVariant) => void;
 }
 
 export default function Lobby({
@@ -50,13 +64,34 @@ export default function Lobby({
   onMapChange,
   onToggleReady,
   onStartGame,
-  onCharacterChange,
   onLeaveSlot,
   roomCode,
   onAddBot,
   onRemoveBot,
+  onSelectCharacter,
+  onChangePortrait,
 }: LobbyProps) {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
+
+  const mySlot = slots.find(
+    (slot) => slot.clientId === myClientId && !slot.isBot,
+  );
+
+  function handleClassSelection(characterClass: CharacterClass): void {
+    if (!mySlot || mySlot.isReady) return;
+
+    const taken = slots.some(
+      (slot) =>
+        slot.clientId !== myClientId && slot.characterClass === characterClass,
+    );
+
+    if (!taken) onSelectCharacter(characterClass);
+  }
+
+  function handlePortraitSelection(variant: PortraitVariant): void {
+    if (!mySlot?.characterClass || mySlot.isReady) return;
+    onChangePortrait(variant);
+  }
 
   const occupiedSlots = slots.filter((slot) => slot.playerId !== null);
 
@@ -107,41 +142,137 @@ export default function Lobby({
     <div className="lobby">
       <div className="lobby-panel">
         <div className="lobby-header">
-          <h1>EXiLE</h1>
+          <div className="room-entry-brand">
+            <img
+              src={`${import.meta.env.BASE_URL}assets/exile-small-logo.png`}
+              alt="EXiLE volcano logo"
+              className="room-entry-brand-icon"
+            />
 
-          <div className="lobby-room-code">
-            <span>ROOM</span>
-            <strong>{roomCode}</strong>
+            <div className="room-entry-brand-text">
+              <span className="room-entry-studio">ANKLE DEEP GAMES</span>
+              <span className="room-entry-logo">EXiLE</span>
+            </div>
+          </div>
+
+          <div className="lobby-header-actions">
+            <div className="lobby-room-code">
+              <span>ROOM</span>
+              <strong>{roomCode}</strong>
+            </div>
+
+            {mySlot && (
+              <button
+                type="button"
+                className="lobby-header-leave"
+                onClick={() => onLeaveSlot(mySlot.slotId)}
+              >
+                Leave
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="lobby-section-title">Players</div>
+        <div className="lobby-character-builder">
+          <div className="lobby-builder-heading">
+            <div>
+              <span className="lobby-builder-eyebrow">CHARACTER CREATION</span>
+              <h2>
+                {mySlot?.characterClass
+                  ? "CHOOSE YOUR WARRIOR"
+                  : "CHOOSE YOUR WARRIOR"}
+              </h2>
+            </div>
+          </div>
 
-        <div className="lobby-slots">
-          {displaySlots.map((slot) => {
-            const player =
-              slot.playerId !== null
-                ? players.find((player) => player.id === slot.playerId)
-                : undefined;
+          <div className="lobby-character-grid">
+            {CLASSES.map((characterClass) => {
+              const isSelected = mySlot?.characterClass === characterClass;
+              const taken = slots.some(
+                (slot) =>
+                  slot.clientId !== myClientId &&
+                  slot.characterClass === characterClass,
+              );
+              const portrait = isSelected ? (mySlot?.portrait ?? "A") : "A";
 
-            console.log("Lobby slots:", slots);
+              return (
+                <div
+                  key={characterClass}
+                  className={`lobby-character-card ${
+                    isSelected ? "lobby-character-card-selected" : ""
+                  } ${taken ? "lobby-character-taken" : ""}`}
+                >
+                  <div className="lobby-character-art">
+                    <img
+                      src={getCharacterPortrait(characterClass, portrait)}
+                      alt={`${characterClass} ${portrait === "A" ? "female" : "male"} survivor`}
+                      className="lobby-character-image"
+                    />
+                  </div>
 
-            return (
-              <div
-                key={slot.slotId}
-                className={`lobby-slot ${
-                  slot.isReady ? "lobby-slot-ready" : ""
-                }`}
-              >
-                {player ? (
-                  <>
-                    <div className="lobby-player-header">
-                      <div className="lobby-player-identity">
-                        <span className="lobby-player-avatar">
-                          {player.avatar}
-                        </span>
+                  <div className="lobby-character-details">
+                    <h3>{characterClass.toUpperCase()}</h3>
 
-                        <div>
+                    {isSelected ? (
+                      <>
+                        <span>SELECTED</span>
+                        <div className="lobby-card-actions">
+                          <div className="lobby-portrait-toggle">
+                            <button
+                              type="button"
+                              className={portrait === "A" ? "active" : ""}
+                              disabled={mySlot?.isReady}
+                              onClick={() => handlePortraitSelection("A")}
+                            >
+                              Female
+                            </button>
+                            <button
+                              type="button"
+                              className={portrait === "B" ? "active" : ""}
+                              disabled={mySlot?.isReady}
+                              onClick={() => handlePortraitSelection("B")}
+                            >
+                              Male
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={taken || !mySlot || mySlot.isReady}
+                        onClick={() => handleClassSelection(characterClass)}
+                      >
+                        {taken ? "Taken" : "Choose Class"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="lobby-management-row">
+          <div className="lobby-players-column">
+            <div className="lobby-section-title">Players</div>
+
+            <div className="lobby-slots">
+              {displaySlots.map((slot) => {
+                const player =
+                  slot.playerId !== null
+                    ? players.find((player) => player.id === slot.playerId)
+                    : undefined;
+
+                console.log("Lobby slots:", slots);
+
+                return (
+                  <div
+                    key={slot.slotId}
+                    className={`lobby-slot ${slot.isReady ? "lobby-slot-ready" : ""}`}
+                  >
+                    {player ? (
+                      <>
+                        <div className="lobby-player-identity">
                           <strong>
                             {player.name}
                             {slot.isBot && (
@@ -149,129 +280,74 @@ export default function Lobby({
                             )}
                           </strong>
 
-                          <span>Player {slot.slotId}</span>
+                          {slot.isHost && (
+                            <span className="lobby-host-badge">👑 Host</span>
+                          )}
                         </div>
-                      </div>
 
-                      {slot.isHost && (
-                        <span className="lobby-host-badge">👑 Host</span>
-                      )}
-                    </div>
+                        <span className="lobby-player-status">
+                          {slot.isReady ? "✓ Ready" : "Not Ready"}
+                        </span>
 
-                    <label className="lobby-character-select">
-                      Character
-                      <select
-                        value={slot.playerId ?? ""}
-                        disabled={slot.clientId !== myClientId || slot.isBot}
-                        onChange={(event) =>
-                          onCharacterChange(
-                            slot.slotId,
-                            Number(event.target.value),
-                          )
-                        }
-                      >
-                        {players.map((character) => {
-                          const claimedByAnotherSlot = slots.some(
-                            (otherSlot) =>
-                              otherSlot.slotId !== slot.slotId &&
-                              otherSlot.playerId === character.id,
-                          );
-
-                          return (
-                            <option
-                              key={character.id}
-                              value={character.id}
-                              disabled={claimedByAnotherSlot}
+                        {isCurrentClientHost &&
+                          slot.isBot &&
+                          slot.clientId !== undefined && (
+                            <button
+                              className="lobby-leave-button"
+                              onClick={() => onRemoveBot(slot.clientId!)}
                             >
-                              {character.avatar} {character.name}
-                            </option>
-                          );
-                        })}
-                      </select>
-                    </label>
-
-                    <button
-                      className="lobby-ready-button"
-                      disabled={slot.clientId !== myClientId || slot.isBot}
-                      onClick={() => onToggleReady(slot.slotId)}
-                    >
-                      {slot.isReady ? "✓ Ready" : "Ready Up"}
-                    </button>
-
-                    {slot.clientId === myClientId && (
-                      <button
-                        className="lobby-leave-button"
-                        onClick={() => onLeaveSlot(slot.slotId)}
-                      >
-                        Leave
-                      </button>
-                    )}
-
-                    {isCurrentClientHost &&
-                      slot.isBot &&
-                      slot.clientId !== undefined && (
-                        <button
-                          className="lobby-leave-button"
-                          onClick={() => onRemoveBot(slot.clientId!)}
-                        >
-                          Remove Bot
-                        </button>
-                      )}
-                  </>
-                ) : (
-                  <div className="lobby-empty-slot">
-                    <span className="lobby-empty-icon">+</span>
-                    <strong>Open Player Slot</strong>
-
-                    {isCurrentClientHost && (
-                      <button
-                        onClick={() => {
-                          console.log("Add Bot button clicked");
-                          onAddBot();
-                        }}
-                      >
-                        Add Bot
-                      </button>
+                              Remove Bot
+                            </button>
+                          )}
+                      </>
+                    ) : (
+                      <div className="lobby-empty-slot">
+                        <strong>Open Seat</strong>
+                        {isCurrentClientHost && (
+                          <button onClick={onAddBot}>Add Bot</button>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="lobby-settings-column">
+            <div className="lobby-section-title">Game Settings</div>
+            <div className="lobby-settings">
+              <div className="lobby-settings-grid">
+                <label>
+                  Map
+                  <select
+                    value={matchConfig.mapId}
+                    disabled={!isCurrentClientHost}
+                    onChange={(event) => onMapChange(event.target.value)}
+                  >
+                    {maps.map((map) => (
+                      <option key={map.id} value={map.id}>
+                        {map.name} ({map.minPlayers}–{map.maxPlayers} Players)
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label>
+                  Match Type
+                  <select
+                    value={matchConfig.matchType}
+                    disabled={!isCurrentClientHost}
+                    onChange={(event) =>
+                      onMatchTypeChange(event.target.value as MatchType)
+                    }
+                  >
+                    <option value="30m">30 Minutes</option>
+                    <option value="sudden-death">Sudden Death</option>
+                  </select>
+                </label>
               </div>
-            );
-          })}
-        </div>
-
-        <div className="lobby-settings">
-          <div className="lobby-section-title">Game Settings</div>
-
-          <div className="lobby-settings-grid">
-            <label>
-              Map
-              <select
-                value={matchConfig.mapId}
-                disabled={!isCurrentClientHost}
-                onChange={(event) => onMapChange(event.target.value)}
-              >
-                {maps.map((map) => (
-                  <option key={map.id} value={map.id}>
-                    {map.name} ({map.minPlayers}–{map.maxPlayers} Players)
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              Match Type
-              <select
-                value={matchConfig.matchType}
-                disabled={!isCurrentClientHost}
-                onChange={(event) =>
-                  onMatchTypeChange(event.target.value as MatchType)
-                }
-              >
-                <option value="30m">30 Minutes</option>
-                <option value="sudden-death">Sudden Death</option>
-              </select>
-            </label>
+            </div>
           </div>
         </div>
 
@@ -286,6 +362,19 @@ export default function Lobby({
               onClick={() => setShowHowToPlay(true)}
             >
               ? How to Play
+            </button>
+
+            <button
+              type="button"
+              className="lobby-ready-button"
+              disabled={!mySlot || (!mySlot.isReady && !mySlot.characterClass)}
+              onClick={() => {
+                if (mySlot) {
+                  onToggleReady(mySlot.slotId);
+                }
+              }}
+            >
+              {mySlot?.isReady ? "Not Ready" : "Ready Up"}
             </button>
 
             <button
