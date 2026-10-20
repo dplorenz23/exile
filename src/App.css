@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap");
+
 * {
   box-sizing: border-box;
 }
@@ -1224,210 +1226,319 @@ body {
 }
 
 /* =========================
-   ROOM ENTRY
+   ROOM ENTRY - CINEMATIC
    ========================= */
 
 .room-entry {
-  background-color: var(--exile-bg);
-  background-image:
-    radial-gradient(
-      circle at 50% 0%,
-      #223342 0%,
-      var(--exile-bg) 46%,
-      var(--exile-bg-deep) 100%
-    ),
-    repeating-linear-gradient(
-      0deg,
-      rgb(190 210 230 / 4%) 0px,
-      rgb(190 210 230 / 4%) 1px,
-      transparent 1px,
-      transparent 42px
-    ),
-    repeating-linear-gradient(
-      90deg,
-      rgb(190 210 230 / 4%) 0px,
-      rgb(190 210 230 / 4%) 1px,
-      transparent 1px,
-      transparent 42px
-    );
+  box-sizing: border-box;
+  min-height: 100vh;
+  width: 100%;
+  padding: 0 32px 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+
+  background: radial-gradient(
+    circle at 50% 0%,
+    #242b30 0%,
+    #15191d 45%,
+    #0c0f12 100%
+  );
+
+  color: #f3e9d4;
+  font-family: "DM Sans", sans-serif;
 }
 
-.room-entry-panel {
-  width: min(520px, 90vw);
-  padding: 42px 48px 48px;
+.room-entry *,
+.room-entry *::before,
+.room-entry *::after {
+  box-sizing: border-box;
+}
 
-  text-align: center;
+.room-entry-header {
+  width: 100%;
+  max-width: 1240px;
+  min-height: 82px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(240, 220, 185, 0.16);
+}
 
-  background: rgba(10, 14, 18, 0.94);
-  border: 1px solid rgb(255 255 255 / 14%);
+.room-entry-brand {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.room-entry-brand-icon {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.room-entry-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.room-entry-studio {
+  color: #b9aa97;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+}
+
+.room-entry-logo {
+  color: #ffd995;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.room-entry-hero {
+  width: 100%;
+  max-width: 1120px;
+  min-height: 600px;
+  margin: 60px auto 0;
+
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr;
+  align-items: center;
+
+  overflow: hidden;
+  border: 1px solid rgba(240, 220, 185, 0.16);
   border-radius: 18px;
 
-  box-shadow:
-    0 18px 40px rgb(0 0 0 / 40%),
-    inset 0 1px 0 rgb(255 255 255 / 6%);
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(10, 13, 16, 0.35),
+      rgba(10, 13, 16, 0.55) 55%,
+      rgba(10, 13, 16, 0.88)
+    ),
+    url("/assets/exile-landing.png");
+
+  background-color: #19232a;
+  background-size: cover;
+  background-position: center;
+
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
 }
 
-.room-entry-title {
-  margin: 0 0 26px;
-
-  font-size: 2.6rem;
-  letter-spacing: 0.04em;
-
-  color: var(--exile-ink);
+.room-entry-copy {
+  align-self: end;
+  padding: 64px;
+  text-shadow: 0 3px 20px #000;
 }
 
 .room-entry-heading {
-  margin: 0;
-
-  font-size: 0.9rem;
-  font-weight: 800;
+  margin: 0 0 14px;
+  color: #e0ac55;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: 0.18em;
+}
 
-  color: var(--exile-gold);
+.room-entry-title {
+  margin: 0;
+  color: #f3e9d4;
+  font-family: "Cinzel", Georgia, serif;
+  font-size: clamp(42px, 5vw, 66px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.room-entry-title em {
+  color: #ffd995;
+  font-style: normal;
 }
 
 .room-entry-subtitle {
-  margin: 8px 0 30px;
+  max-width: 520px;
+  margin: 24px 0;
+  color: #e0d7cc;
+  font-size: 16px;
+  line-height: 1.7;
+}
 
-  font-size: 0.95rem;
+.room-entry-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 28px;
+}
 
-  color: var(--exile-ink-soft);
+.room-entry-features span {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 217, 149, 0.3);
+  border-radius: 99px;
+  color: #f3e9d4;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.room-entry-panel {
+  width: auto;
+  margin: 32px;
+  padding: 32px;
+  text-align: left;
+
+  background: rgba(13, 16, 20, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+
+  backdrop-filter: blur(12px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.3);
 }
 
 .room-entry-actions {
-  width: min(360px, 100%);
-  margin: 0 auto;
-
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 12px;
+}
+
+.room-entry-actions label {
+  color: #c9bcae;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
 }
 
 .room-entry-button {
-  width: 100%;
-  min-height: 48px;
-
+  min-height: 46px;
+  padding: 10px 16px;
   border-radius: 8px;
-
-  font-size: 0.85rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
   cursor: pointer;
-
   transition:
-    transform 0.15s ease,
-    filter 0.15s ease,
-    box-shadow 0.15s ease,
-    opacity 0.15s ease;
+    filter 0.15s,
+    transform 0.15s;
 }
 
-.room-entry-create,
+.room-entry-create {
+  width: 100%;
+  background: linear-gradient(#f0c278, #c89349);
+  border: 1px solid #e0ac55;
+  color: #17120e;
+}
+
 .room-entry-join {
-  background: var(--exile-lava);
-  border: 1px solid #ef8a3d;
-
-  color: var(--exile-ink);
-
-  box-shadow:
-    0 0 22px -8px #ef8a3d,
-    0 8px 18px rgb(0 0 0 / 30%);
+  background: #284b36;
+  border: 1px solid #416c4e;
+  color: #f3e9d4;
 }
 
 .room-entry-button:not(:disabled):hover {
-  transform: translateY(-2px);
-  filter: brightness(1.1);
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+}
+
+.room-entry-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
 }
 
 .room-entry-divider {
   display: flex;
   align-items: center;
-  gap: 14px;
-
-  margin: 4px 0;
-
-  color: var(--exile-ink-soft);
-
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
+  gap: 12px;
+  margin: 10px 0;
+  color: #a99ca3;
+  font-size: 11px;
+  letter-spacing: 0.08em;
 }
 
 .room-entry-divider::before,
 .room-entry-divider::after {
   content: "";
-
   flex: 1;
   height: 1px;
-
-  background: rgb(255 255 255 / 14%);
+  background: rgba(255, 255, 255, 0.15);
 }
 
-.room-entry-code-label {
-  margin-bottom: -6px;
-
-  font-size: 0.75rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-
-  color: var(--exile-ink-soft);
+.room-entry-join-row {
+  display: flex;
+  gap: 8px;
 }
 
 .room-entry-code {
-  width: 100%;
-  height: 58px;
+  min-width: 0;
+  flex: 1;
+  height: 48px;
+  padding: 10px 14px;
 
-  padding: 8px 16px;
-
-  background: rgb(255 255 255 / 5%);
-  border: 1.5px solid rgb(255 255 255 / 16%);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(240, 220, 185, 0.25);
   border-radius: 8px;
 
-  color: var(--exile-ink);
-
-  text-align: center;
-  font-size: 1.6rem;
-  font-weight: 800;
-  letter-spacing: 0.35em;
-  text-transform: uppercase;
-
+  color: #f3e9d4;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  text-align: left;
+  letter-spacing: 0.08em;
   outline: none;
-
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.room-entry-code::placeholder {
-  color: rgb(147 164 176 / 35%);
 }
 
 .room-entry-code:focus {
-  border-color: var(--exile-gold);
-
-  box-shadow: 0 0 0 3px rgb(217 165 60 / 12%);
+  border-color: #e0ac55;
 }
 
-.room-entry-button:disabled {
-  background: rgb(255 255 255 / 5%);
-  border-color: rgb(255 255 255 / 10%);
-
-  color: rgb(147 164 176 / 45%);
-
-  box-shadow: none;
-
-  cursor: not-allowed;
+.room-entry-join-row .room-entry-join {
+  flex: 0 0 auto;
 }
 
-@media (max-width: 550px) {
+@media (max-width: 900px) {
+  .room-entry-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .room-entry-copy {
+    padding: 48px 32px 20px;
+  }
+
   .room-entry-panel {
-    padding: 34px 24px 38px;
+    margin: 20px 32px 32px;
+  }
+}
+
+@media (max-width: 600px) {
+  .room-entry {
+    padding: 0 14px 30px;
+  }
+
+  .room-entry-header {
+    min-height: 68px;
+  }
+
+  .room-entry-hero {
+    margin-top: 20px;
+  }
+
+  .room-entry-copy {
+    padding: 36px 22px 12px;
   }
 
   .room-entry-title {
-    font-size: 2.2rem;
+    font-size: clamp(34px, 9vw, 48px);
+  }
+
+  .room-entry-panel {
+    margin: 18px;
+    padding: 22px;
   }
 }
 

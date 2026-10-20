@@ -14,51 +14,93 @@ export default function RoomEntry({
   const [joinCode, setJoinCode] = useState("");
 
   return (
-    <div className="lobby room-entry">
-      <div className="room-entry-panel">
-        <h1 className="room-entry-title">EXiLE</h1>
-
-        <p className="room-entry-heading">ENTER THE BATTLE</p>
-        <p className="room-entry-subtitle">
-          Create a new game or join your friends.
-        </p>
-
-        <div className="room-entry-actions">
-          <button
-            className="room-entry-button room-entry-create"
-            disabled={!isServerConnected}
-            onClick={onCreateGame}
-          >
-            {isServerConnected ? "Create Game" : "Connecting..."}
-          </button>
-
-          <div className="room-entry-divider">
-            <span>OR</span>
-          </div>
-
-          <label className="room-entry-code-label" htmlFor="room-code">
-            Game Code
-          </label>
-
-          <input
-            id="room-code"
-            className="room-entry-code"
-            value={joinCode}
-            maxLength={4}
-            autoComplete="off"
-            placeholder="ABCD"
-            onChange={(event) => setJoinCode(event.target.value.toUpperCase())}
+    <main className="room-entry">
+      <header className="room-entry-header">
+        <div className="room-entry-brand">
+          <img
+            src={`${import.meta.env.BASE_URL}assets/exile-small-logo.png`}
+            alt="EXiLE volcano logo"
+            className="room-entry-brand-icon"
           />
 
-          <button
-            className="room-entry-button room-entry-join"
-            disabled={!isServerConnected || joinCode.trim().length !== 4}
-            onClick={() => onJoinGame(joinCode)}
-          >
-            Join Game
-          </button>
+          <div className="room-entry-brand-text">
+            <span className="room-entry-studio">ANKLE DEEP GAMES</span>
+            <span className="room-entry-logo">EXiLE</span>
+          </div>
         </div>
-      </div>
-    </div>
+      </header>
+
+      <section className="room-entry-hero">
+        <div className="room-entry-copy">
+          <p className="room-entry-heading">
+            A STRATEGY GAME OF ELEMENTS AND EMPIRES
+          </p>
+
+          <h1 className="room-entry-title">
+            CONQUER.
+            <br />
+            EXPAND.
+            <br />
+            <em>OUTLAST.</em>
+          </h1>
+
+          <p className="room-entry-subtitle">
+            Gather resources. Build your bases. Train your armies. Outmaneuver
+            your opponents and be the last one standing.
+          </p>
+
+          <div className="room-entry-features">
+            <span>2–12 PLAYERS</span>
+            <span>UP TO 30 MINUTES</span>
+            <span>LAST ONE STANDING</span>
+          </div>
+        </div>
+
+        <div className="room-entry-panel">
+          <div className="room-entry-actions">
+            <label htmlFor="room-create">START A NEW BATTLE</label>
+
+            <button
+              id="room-create"
+              className="room-entry-button room-entry-create"
+              disabled={!isServerConnected}
+              onClick={onCreateGame}
+            >
+              {isServerConnected ? "Create a Game" : "Connecting..."}
+            </button>
+
+            <div className="room-entry-divider">
+              <span>OR JOIN FRIENDS</span>
+            </div>
+
+            <label htmlFor="room-code">GAME CODE</label>
+
+            <div className="room-entry-join-row">
+              <input
+                id="room-code"
+                className="room-entry-code"
+                value={joinCode}
+                maxLength={4}
+                autoComplete="off"
+                placeholder="ABCD"
+                onChange={(event) =>
+                  setJoinCode(
+                    event.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""),
+                  )
+                }
+              />
+
+              <button
+                className="room-entry-button room-entry-join"
+                disabled={!isServerConnected || joinCode.length !== 4}
+                onClick={() => onJoinGame(joinCode)}
+              >
+                Join
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
