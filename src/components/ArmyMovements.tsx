@@ -116,8 +116,13 @@ export default function ArmyMovements({
 
   return (
     <div className="army-movements">
-      <strong>Armies Moving</strong>
-
+      <div className="army-movements-title">
+        <span>📡 DEPLOYMENTS</span>
+        <span className="army-movements-count">{missions.length} ACTIVE</span>
+      </div>
+      {missions.length === 0 && (
+        <div className="army-movements-empty">No active deployments</div>
+      )}
       {missions.map((mission) => (
         <div key={mission.id} className="army-movement">
           <div className="army-movement-status">{getMissionLabel(mission)}</div>

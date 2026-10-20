@@ -105,8 +105,8 @@ export default function GameLog({ events, players }: GameLogProps) {
   return (
     <div className="battle-reports">
       <div className="battle-reports-button">
-        📜 Game Log
-        {events.length > 0 && ` (${events.length})`}
+        <span>📡 COMMS</span>
+        <span className="battle-reports-count">{events.length} EVENTS</span>
       </div>
 
       <div className="battle-reports-panel">

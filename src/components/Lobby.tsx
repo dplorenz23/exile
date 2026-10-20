@@ -179,8 +179,8 @@ export default function Lobby({
               <span className="lobby-builder-eyebrow">CHARACTER CREATION</span>
               <h2>
                 {mySlot?.characterClass
-                  ? "CHOOSE YOUR WARRIOR"
-                  : "CHOOSE YOUR WARRIOR"}
+                  ? "CHOOSE YOUR FACTION"
+                  : "CHOOSE YOUR FACTION"}
               </h2>
             </div>
           </div>

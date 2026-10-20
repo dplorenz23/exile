@@ -4,25 +4,36 @@ interface ResourceBarProps {
   grass: number;
 }
 
-export default function ResourceBar({
-  water,
-  fire,
-  grass,
-}: ResourceBarProps) {
+export default function ResourceBar({ water, fire, grass }: ResourceBarProps) {
   return (
     <div className="resource-bar">
       <div className="resource">
-        <span>💧</span>
+        <img
+          className="resource-icon"
+          src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+          alt="Water"
+        />
+        <span className="resource-label">WATER</span>
         <strong>{water}</strong>
       </div>
 
       <div className="resource">
-        <span>🔥</span>
+        <img
+          className="resource-icon"
+          src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+          alt="Fuel"
+        />
+        <span className="resource-label">FUEL</span>
         <strong>{fire}</strong>
       </div>
 
       <div className="resource">
-        <span>🌱</span>
+        <img
+          className="resource-icon"
+          src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+          alt="Food"
+        />
+        <span className="resource-label">FOOD</span>
         <strong>{grass}</strong>
       </div>
     </div>

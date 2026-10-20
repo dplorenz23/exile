@@ -77,7 +77,10 @@ export default function Leaderboard({
 
   return (
     <div className="leaderboard">
-      <strong className="leaderboard-title">🏆 Standings</strong>
+      <div className="leaderboard-title">
+        <span>⚑ FACTIONS</span>
+        <span className="leaderboard-count">{standings.length} ACTIVE</span>
+      </div>
 
       {standings.map((standing, index) => {
         const { player, score } = standing;

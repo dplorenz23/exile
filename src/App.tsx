@@ -976,9 +976,22 @@ function App() {
               </span>
 
               <span className="base-resource-summary">
-                💧
-                {Math.floor(gameState.resourcesByBase[base.id]?.water ?? 0)} 🔥
-                {Math.floor(gameState.resourcesByBase[base.id]?.fire ?? 0)} 🌱
+                <img
+                  src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+                  alt="Water"
+                />
+                {Math.floor(gameState.resourcesByBase[base.id]?.water ?? 0)}
+
+                <img
+                  src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+                  alt="Fuel"
+                />
+                {Math.floor(gameState.resourcesByBase[base.id]?.fire ?? 0)}
+
+                <img
+                  src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+                  alt="Food"
+                />
                 {Math.floor(gameState.resourcesByBase[base.id]?.grass ?? 0)}
               </span>
             </button>

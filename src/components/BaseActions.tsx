@@ -499,7 +499,7 @@ export default function BaseActions({
         </div>
 
         <ResourceSelector
-          icon="💧"
+          resourceType="water"
           label="Water"
           available={resources.water}
           selected={selectedResources.water}
@@ -508,8 +508,8 @@ export default function BaseActions({
         />
 
         <ResourceSelector
-          icon="🔥"
-          label="Fire"
+          resourceType="fuel"
+          label="Fuel"
           available={resources.fire}
           selected={selectedResources.fire}
           onDecrease={() => changeResourceCount("fire", -50)}
@@ -517,8 +517,8 @@ export default function BaseActions({
         />
 
         <ResourceSelector
-          icon="🌱"
-          label="Grass"
+          resourceType="food"
+          label="Food"
           available={resources.grass}
           selected={selectedResources.grass}
           onDecrease={() => changeResourceCount("grass", -50)}
@@ -638,7 +638,7 @@ export default function BaseActions({
         </div>
 
         <ResourceSelector
-          icon="💧"
+          resourceType="water"
           label="Water"
           available={resources.water}
           selected={expansionPayment.water}
@@ -647,8 +647,8 @@ export default function BaseActions({
         />
 
         <ResourceSelector
-          icon="🔥"
-          label="Fire"
+          resourceType="fuel"
+          label="Fuel"
           available={resources.fire}
           selected={expansionPayment.fire}
           onDecrease={() => changeExpansionPayment("fire", -50)}
@@ -656,8 +656,8 @@ export default function BaseActions({
         />
 
         <ResourceSelector
-          icon="🌱"
-          label="Grass"
+          resourceType="food"
+          label="Food"
           available={resources.grass}
           selected={expansionPayment.grass}
           onDecrease={() => changeExpansionPayment("grass", -50)}
@@ -703,7 +703,7 @@ export default function BaseActions({
         </div>
 
         <ResourceSelector
-          icon="💧"
+          resourceType="water"
           label="Water"
           available={resources.water}
           selected={relocationPayment.water}
@@ -712,8 +712,8 @@ export default function BaseActions({
         />
 
         <ResourceSelector
-          icon="🔥"
-          label="Fire"
+          resourceType="fuel"
+          label="Fuel"
           available={resources.fire}
           selected={relocationPayment.fire}
           onDecrease={() => changeRelocationPayment("fire", -50)}
@@ -721,8 +721,8 @@ export default function BaseActions({
         />
 
         <ResourceSelector
-          icon="🌱"
-          label="Grass"
+          resourceType="food"
+          label="Food"
           available={resources.grass}
           selected={relocationPayment.grass}
           onDecrease={() => changeRelocationPayment("grass", -50)}
@@ -775,7 +775,7 @@ export default function BaseActions({
   return (
     <div className="base-actions">
       <button className="base-action-button" onClick={() => setMode("train")}>
-        ⚔ Train
+        🪖 RECRUIT
       </button>
 
       <button
@@ -785,7 +785,7 @@ export default function BaseActions({
         }
         onClick={() => setMode("mission")}
       >
-        ➤ Send Army
+        📡 DEPLOY ARMY
       </button>
 
       <button
@@ -793,7 +793,7 @@ export default function BaseActions({
         disabled={!canExpand}
         onClick={() => setMode("expand-payment")}
       >
-        🔑 Expand ({expansionCost}+🔑)
+        🏕️ EXPAND ({expansionCost}+🔑)
       </button>
 
       <button
@@ -801,7 +801,7 @@ export default function BaseActions({
         disabled={!canAffordRelocation}
         onClick={() => setMode("relocate-payment")}
       >
-        📦 Relocate ({relocationCost})
+        🚚 RELOCATE ({relocationCost})
       </button>
     </div>
   );
@@ -846,7 +846,7 @@ function ArmySelector({
   );
 }
 interface ResourceSelectorProps {
-  icon: string;
+  resourceType: "water" | "fuel" | "food";
   label: string;
   available: number;
   selected: number;
@@ -855,7 +855,7 @@ interface ResourceSelectorProps {
 }
 
 function ResourceSelector({
-  icon,
+  resourceType,
   label,
   available,
   selected,
@@ -865,7 +865,12 @@ function ResourceSelector({
   return (
     <div className="army-selector">
       <div className="army-selector-label">
-        {icon} {label}
+        <img
+          className="resource-selector-icon"
+          src={`${import.meta.env.BASE_URL}assets/resources/${resourceType}.png`}
+          alt=""
+        />
+        {label}
         <span>Available: {available}</span>
       </div>
 
@@ -873,9 +878,7 @@ function ResourceSelector({
         <button disabled={selected <= 0} onClick={onDecrease}>
           −50
         </button>
-
         <strong>{selected}</strong>
-
         <button disabled={selected + 50 > available} onClick={onIncrease}>
           +50
         </button>
