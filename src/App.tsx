@@ -881,6 +881,11 @@ function App() {
         ownedBases={yourBases}
         expansionKeys={yourExpansionKeys}
         expansionsCompleted={yourExpansionsCompleted}
+        activeDeployments={
+          gameState.armyMissions.filter(
+            (mission) => mission.playerId === selectedBase?.playerId,
+          ).length
+        }
         onTrainArmy={handleTrainArmy}
         onStartAttackTargeting={handleStartAttackTargeting}
         onStartLootTargeting={handleStartLootTargeting}

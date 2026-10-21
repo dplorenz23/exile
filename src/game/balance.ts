@@ -57,6 +57,7 @@ export const BALANCE = {
 
   missions: {
     travelSecondsPerTile: 5,
+    maxActivePerPlayer: 3,
   },
 
   scoring: {

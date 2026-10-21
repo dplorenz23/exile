@@ -5,6 +5,8 @@ import type {
   ResourceType,
 } from "../game/types";
 
+import { formatResources } from "../game/formatResources";
+
 interface GameLogProps {
   events: GameEvent[];
   players: Player[];
@@ -181,19 +183,14 @@ export default function GameLog({ events, players }: GameLogProps) {
                       <span>{formatTime(event.gameSeconds)}</span>
                     </div>
 
-                    <div>
-                      Taken: 💧{event.resourcesLooted.water} 🔥
-                      {event.resourcesLooted.fire} 🌱
-                      {event.resourcesLooted.grass}
-                      {event.expansionKeysLooted > 0 && (
-                        <> 🔑{event.expansionKeysLooted}</>
-                      )}
-                    </div>
+                    <div>Taken: {formatResources(event.resourcesLooted)}</div>
+
+                    {event.expansionKeysLooted > 0 && (
+                      <div>Keys: 🔑{event.expansionKeysLooted}</div>
+                    )}
 
                     <div>
-                      Remaining: 💧{event.resourcesRemaining.water} 🔥
-                      {event.resourcesRemaining.fire} 🌱
-                      {event.resourcesRemaining.grass}
+                      Remaining: {formatResources(event.resourcesRemaining)}
                     </div>
                   </div>
                 );
@@ -324,14 +321,10 @@ export default function GameLog({ events, players }: GameLogProps) {
                         : `🛡️ ${report.defenderBaseName} defended`}
                     </strong>
                     {" · Loot "}
-                    💧{report.resourcesLooted.water} 🔥
-                    {report.resourcesLooted.fire} 🌱
-                    {report.resourcesLooted.grass}
+                    {formatResources(report.resourcesLooted)}
                     {" · "}
                     {report.baseDestroyed ? "Chest " : "Kept "}
-                    💧{report.resourcesRemaining.water} 🔥
-                    {report.resourcesRemaining.fire} 🌱
-                    {report.resourcesRemaining.grass}
+                    {formatResources(report.resourcesRemaining)}
                   </div>
                 </div>
               );

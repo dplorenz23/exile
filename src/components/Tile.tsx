@@ -28,23 +28,6 @@ interface TileProps {
   isUnavailableTarget?: boolean;
 }
 
-function getTerrainIcon(tile: TileType): string | undefined {
-  switch (tile.terrain) {
-    case "meadow":
-      return "🌾";
-    case "forest":
-      return "🌲";
-    case "lake":
-      return "💧";
-    case "river":
-      return "🌊";
-    case "volcano":
-      return "🌋";
-    case "lava":
-      return "🔥";
-  }
-}
-
 export default function Tile({
   tile,
   gridSize,
@@ -124,8 +107,6 @@ export default function Tile({
           📦 {relocationTravelTimeSeconds}s
         </div>
       )}
-
-      <span className="tile-icon">{getTerrainIcon(tile)}</span>
 
       {tile.multiplier > 1 && (
         <span className="tile-multiplier">{tile.multiplier}×</span>

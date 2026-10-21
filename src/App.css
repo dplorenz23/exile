@@ -47,12 +47,11 @@ body {
 
   padding: 40px;
 
-  background: radial-gradient(
-    circle at center,
-    #18364a 0%,
-    #0d2331 70%,
-    #071821 100%
-  );
+  background-image: url("/assets/exile-map-background.png");
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #171310;
 }
 
 /* =========================
@@ -1037,13 +1036,20 @@ body {
 .army-movement {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 6px;
 
   padding: 10px;
   border: 1px solid rgba(184, 146, 83, 0.15);
   border-radius: 5px;
 
   background: rgba(255, 255, 255, 0.035);
+}
+
+.army-movement-status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .army-movement-status {
@@ -1054,41 +1060,49 @@ body {
   text-transform: uppercase;
 }
 
-.army-movement-header {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  align-items: center;
-}
-
-.army-movement-header strong {
-  color: #e9c58d;
+.army-movement-timer {
+  color: var(--exile-gold-soft);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.army-movement-details {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+.army-movement--returning .army-movement-timer {
+  color: #7ed9a2;
+}
 
-  padding-top: 7px;
+.army-movement-route {
+  color: #e6e2d9;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.army-movement-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+
+  padding-top: 6px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
 
-.army-movement-details > div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.movement-label {
-  color: #89958f;
+  color: #b8c3bc;
+  font-size: 11px;
 }
 
 .cargo-capacity {
   color: #e6e2d9;
   font-size: 13px;
   text-align: center;
+}
+
+/* Outbound missions */
+.army-movement--outbound {
+  border-left: 3px solid var(--exile-gold);
+}
+
+/* Returning missions */
+.army-movement--returning {
+  border-left: 3px solid #5cbb84;
 }
 
 /* =========================
@@ -2759,10 +2773,13 @@ body {
     top: 62px;
     right: 16px;
 
-    min-width: 200px;
-    min-height: 260px;
+    width: 300px;
+    height: 410px;
 
     padding: 8px 10px;
+
+    overflow-y: auto;
+    overflow-x: hidden;
   }
 
   /* Bottom-right Actions */
@@ -2842,4 +2859,41 @@ body {
 
   background: rgb(255 255 255 / 10%);
   border-color: var(--exile-gold);
+}
+
+/* =========================
+   ILLUSTRATED MAP
+   ========================= */
+
+.game-map .map-tile {
+  background: transparent;
+  border-color: rgba(230, 210, 170, 0.06);
+}
+
+.game-map .map-tile::before,
+.game-map .map-tile::after {
+  display: none;
+}
+
+/* Align the interactive grid with the illustrated map */
+.app .game-map {
+  position: relative;
+  left: -3px;
+  top: 0;
+
+  height: 78vh;
+  aspect-ratio: 1 / 1;
+}
+
+/* =========================
+   PLAYABLE MAP BOUNDARY
+   ========================= */
+
+.game-map {
+  outline: 3px solid rgba(215, 173, 108, 0.85);
+  outline-offset: 0;
+
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    0 0 18px rgba(215, 173, 108, 0.25);
 }

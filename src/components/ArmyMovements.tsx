@@ -2,6 +2,10 @@ import { getBaseName } from "../game/gameState";
 
 import type { ArmyMission, Base, Treasure } from "../game/types";
 
+import { formatArmies, formatResources } from "../game/formatResources";
+
+import { BALANCE } from "../game/balance";
+
 interface ArmyMovementsProps {
   missions: ArmyMission[];
   bases: Base[];
@@ -118,51 +122,54 @@ export default function ArmyMovements({
     <div className="army-movements">
       <div className="army-movements-title">
         <span>📡 DEPLOYMENTS</span>
-        <span className="army-movements-count">{missions.length} ACTIVE</span>
+        <span className="army-movements-count">
+          {missions.length} / {BALANCE.missions.maxActivePerPlayer} ACTIVE
+        </span>
       </div>
       {missions.length === 0 && (
         <div className="army-movements-empty">No active deployments</div>
       )}
       {missions.map((mission) => (
-        <div key={mission.id} className="army-movement">
-          <div className="army-movement-status">{getMissionLabel(mission)}</div>
-
-          <div className="army-movement-header">
-            <span>
-              {getMissionOrigin(mission)}
-              {" → "}
-              {getMissionDestination(mission)}
+        <div
+          key={mission.id}
+          className={[
+            "army-movement",
+            `army-movement--${mission.phase}`,
+            `army-movement--${mission.type}`,
+          ].join(" ")}
+        >
+          <div className="army-movement-status-row">
+            <span className="army-movement-status">
+              {getMissionLabel(mission)}
             </span>
 
-            <strong>{mission.secondsRemaining}s</strong>
+            <strong className="army-movement-timer">
+              {mission.secondsRemaining}s
+            </strong>
           </div>
 
-          <div className="army-movement-details">
-            <div>
-              <span className="movement-label">Armies</span>
+          <div className="army-movement-route">
+            {getMissionOrigin(mission)}
+            {" → "}
+            {getMissionDestination(mission)}
+          </div>
 
-              <span>
-                ⚔️💧{mission.armies.water} ⚔️🔥{mission.armies.fire} ⚔️🌱
-                {mission.armies.grass}
-              </span>
-            </div>
+          <div className="army-movement-summary">
+            {formatArmies(mission.armies) !== "None" && (
+              <span>{formatArmies(mission.armies)}</span>
+            )}
 
-            <div>
-              <span className="movement-label">Cargo</span>
-
-              <span>
-                💧{mission.resources.water} 🔥{mission.resources.fire} 🌱
-                {mission.resources.grass}
-              </span>
-            </div>
+            {formatResources(mission.resources) !== "None" && (
+              <span>Cargo: {formatResources(mission.resources)}</span>
+            )}
 
             {mission.expansionKeys > 0 && (
-              <div>
-                <span className="movement-label">Keys</span>
-
-                <span>🔑{mission.expansionKeys}</span>
-              </div>
+              <span>Keys: 🔑{mission.expansionKeys}</span>
             )}
+
+            {formatArmies(mission.armies) === "None" &&
+              formatResources(mission.resources) === "None" &&
+              mission.expansionKeys === 0 && <span>None</span>}
           </div>
         </div>
       ))}

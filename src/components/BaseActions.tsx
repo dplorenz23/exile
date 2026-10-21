@@ -45,6 +45,8 @@ interface BaseActionsProps {
   ) => void;
 
   onStartRelocateTargeting: (payment: BaseResources) => void;
+
+  activeDeployments: number;
 }
 
 export default function BaseActions({
@@ -59,6 +61,7 @@ export default function BaseActions({
   onStartExpandTargeting,
   onStartTransferTargeting,
   onStartRelocateTargeting,
+  activeDeployments,
 }: BaseActionsProps) {
   const [mode, setMode] = useState<
     | "main"
@@ -104,6 +107,9 @@ export default function BaseActions({
   }
 
   const currentBase = base;
+
+  const deploymentLimitReached =
+    activeDeployments >= BALANCE.missions.maxActivePerPlayer;
 
   const armyCosts = {
     water: getArmyCost(base.armiesBuilt.water),
@@ -781,6 +787,7 @@ export default function BaseActions({
       <button
         className="base-action-button"
         disabled={
+          deploymentLimitReached ||
           base.armies.water + base.armies.fire + base.armies.grass === 0
         }
         onClick={() => setMode("mission")}
@@ -790,7 +797,7 @@ export default function BaseActions({
 
       <button
         className="base-action-button"
-        disabled={!canExpand}
+        disabled={!canExpand || deploymentLimitReached}
         onClick={() => setMode("expand-payment")}
       >
         🏕️ EXPAND ({expansionCost}+🔑)
@@ -798,7 +805,7 @@ export default function BaseActions({
 
       <button
         className="base-action-button"
-        disabled={!canAffordRelocation}
+        disabled={!canAffordRelocation || deploymentLimitReached}
         onClick={() => setMode("relocate-payment")}
       >
         🚚 RELOCATE ({relocationCost})
