@@ -8,6 +8,9 @@ import type { Base, Tile as MapTile, Treasure } from "../game/types";
 
 import Tile from "./Tile";
 
+import { CLASS_COLORS } from "../game/characters";
+import type { CharacterClass } from "../game/characters";
+
 interface GameMapProps {
   selectedBaseId: number;
   bases: Base[];
@@ -21,6 +24,7 @@ interface GameMapProps {
   onExpandTargetSelected: (row: number, col: number) => void;
   onTransferTargetSelected: (destinationBaseId: number) => void;
   onRelocateTargetSelected: (row: number, col: number) => void;
+  characterClassByPlayer: Record<number, CharacterClass>;
 }
 
 function getTravelTimeSeconds(
@@ -48,6 +52,7 @@ export default function GameMap({
   onTransferTargetSelected,
   onRelocateTargetSelected,
   mapTiles,
+  characterClassByPlayer,
 }: GameMapProps) {
   const mapColumns = Math.max(...mapTiles.map((tile) => tile.col)) + 1;
 
@@ -89,7 +94,22 @@ export default function GameMap({
             : undefined;
 
         const player = base
-          ? players.find((player) => player.id === base.playerId)
+          ? (() => {
+              const originalPlayer = players.find(
+                (player) => player.id === base.playerId,
+              );
+
+              if (!originalPlayer) return undefined;
+
+              const characterClass = characterClassByPlayer[base.playerId];
+
+              return {
+                ...originalPlayer,
+                color: characterClass
+                  ? CLASS_COLORS[characterClass]
+                  : originalPlayer.color,
+              };
+            })()
           : undefined;
 
         const baseName = base

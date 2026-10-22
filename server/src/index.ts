@@ -649,6 +649,19 @@ function runGameTick(room: GameRoom): void {
         return;
       }
 
+      /*
+       * Capture the defender's score before combat casualties.
+       * If this battle eliminates them, preserve this score.
+       */
+      const defenderScoreBeforeDestruction = calculatePlayerScore(
+        defendingBase.playerId,
+        updatedBases,
+        updatedResources,
+        updatedArmyMissions,
+        updatedArmiesTrainedByPlayer[defendingBase.playerId] ?? 0,
+        updatedArmyResourcesSpentByPlayer[defendingBase.playerId] ?? 0,
+      ).totalScore;
+
       const combatResult = resolveCombat(mission.armies, defendingBase.armies);
 
       const survivingAttackers = combatResult.attackerSurvivors;
@@ -695,15 +708,6 @@ function runGameTick(room: GameRoom): void {
           armies: combatResult.defenderSurvivors,
         };
       });
-
-      const defenderScoreBeforeDestruction = calculatePlayerScore(
-        defendingBase.playerId,
-        updatedBases,
-        updatedResources,
-        updatedArmyMissions,
-        updatedArmiesTrainedByPlayer[defendingBase.playerId] ?? 0,
-        updatedArmyResourcesSpentByPlayer[defendingBase.playerId] ?? 0,
-      ).totalScore;
 
       let eliminatedPlayerId: number | undefined;
 

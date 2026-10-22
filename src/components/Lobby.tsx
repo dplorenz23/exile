@@ -1,13 +1,22 @@
 import { useState } from "react";
 
+import { Swords, Wrench, Wheat, FlaskConical } from "lucide-react";
+
 import { maps } from "../game/gameState";
 
 import type { LobbySlot, MatchConfig, Player, MatchType } from "../game/types";
 
 import type { CharacterClass, PortraitVariant } from "../game/characters";
-import { CLASSES } from "../game/characters";
+import { CLASSES, CLASS_COLORS } from "../game/characters";
 
 import HowToPlay from "./HowToPlay";
+
+const FACTION_ICONS = {
+  soldier: Swords,
+  engineer: Wrench,
+  farmer: Wheat,
+  scientist: FlaskConical,
+};
 
 function getCharacterPortrait(
   characterClass: CharacterClass,
@@ -187,6 +196,7 @@ export default function Lobby({
 
           <div className="lobby-character-grid">
             {CLASSES.map((characterClass) => {
+              const FactionIcon = FACTION_ICONS[characterClass];
               const isSelected = mySlot?.characterClass === characterClass;
               const taken = slots.some(
                 (slot) =>
@@ -201,6 +211,12 @@ export default function Lobby({
                   className={`lobby-character-card ${
                     isSelected ? "lobby-character-card-selected" : ""
                   } ${taken ? "lobby-character-taken" : ""}`}
+                  style={
+                    {
+                      borderColor: CLASS_COLORS[characterClass],
+                      "--faction-color": CLASS_COLORS[characterClass],
+                    } as React.CSSProperties
+                  }
                 >
                   <div className="lobby-character-art">
                     <img
@@ -211,7 +227,10 @@ export default function Lobby({
                   </div>
 
                   <div className="lobby-character-details">
-                    <h3>{characterClass.toUpperCase()}</h3>
+                    <h3 className="lobby-faction-heading">
+                      <FactionIcon size={19} strokeWidth={2.3} />
+                      {characterClass.toUpperCase()}
+                    </h3>
 
                     {isSelected ? (
                       <>
@@ -284,6 +303,15 @@ export default function Lobby({
                             <span className="lobby-host-badge">👑 Host</span>
                           )}
                         </div>
+
+                        {slot.isReady && slot.characterClass && (
+                          <span
+                            className="lobby-player-faction"
+                            style={{ color: CLASS_COLORS[slot.characterClass] }}
+                          >
+                            {slot.characterClass.toUpperCase()}
+                          </span>
+                        )}
 
                         <span className="lobby-player-status">
                           {slot.isReady ? "✓ Ready" : "Not Ready"}

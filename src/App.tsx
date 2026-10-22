@@ -850,28 +850,54 @@ function App() {
       />
 
       {/* Top-right */}
-      <Leaderboard
-        bases={gameState.bases}
-        resourcesByBase={gameState.resourcesByBase}
-        armyMissions={gameState.armyMissions}
-        armiesTrainedByPlayer={gameState.armiesTrainedByPlayer}
-        armyResourcesSpentByPlayer={gameState.armyResourcesSpentByPlayer}
-        activePlayerIds={activePlayerIds}
-        eliminatedPlayerIds={gameState.eliminatedPlayerIds}
-        finalScoreByPlayer={gameState.finalScoreByPlayer}
-      />
 
-      <GameClock seconds={gameState.gameSeconds} />
+      {/* Top-right HUD */}
+      <div className="game-right-hud">
+        <Leaderboard
+          bases={gameState.bases}
+          resourcesByBase={gameState.resourcesByBase}
+          armyMissions={gameState.armyMissions}
+          armiesTrainedByPlayer={gameState.armiesTrainedByPlayer}
+          armyResourcesSpentByPlayer={gameState.armyResourcesSpentByPlayer}
+          activePlayerIds={activePlayerIds}
+          eliminatedPlayerIds={gameState.eliminatedPlayerIds}
+          finalScoreByPlayer={gameState.finalScoreByPlayer}
+          characterClassByPlayer={Object.fromEntries(
+            lobbySlots
+              .filter(
+                (slot) =>
+                  slot.playerId !== null && slot.characterClass !== null,
+              )
+              .map((slot) => [slot.playerId, slot.characterClass]),
+          )}
+        />
 
-      {/* How to Play */}
-      <button
-        className="game-how-to-button"
-        onClick={() => setShowHowToPlay(true)}
-        aria-label="How to Play"
-        title="How to Play"
-      >
-        ?
-      </button>
+        <div className="game-right-hud-main">
+          <div className="game-header-controls">
+            <button
+              className="game-how-to-button"
+              onClick={() => setShowHowToPlay(true)}
+              aria-label="How to Play"
+              title="How to Play"
+            >
+              ?
+            </button>
+
+            <GameClock
+              seconds={gameState.gameSeconds}
+              matchType={gameState.matchType}
+            />
+          </div>
+
+          <ArmyMovements
+            missions={gameState.armyMissions.filter(
+              (mission) => mission.playerId === yourPlayerId,
+            )}
+            bases={gameState.bases}
+            treasures={gameState.treasures}
+          />
+        </div>
+      </div>
 
       {/* Bottom-right */}
       <BaseActions
@@ -892,15 +918,6 @@ function App() {
         onStartExpandTargeting={handleStartExpandTargeting}
         onStartTransferTargeting={handleStartTransferTargeting}
         onStartRelocateTargeting={handleStartRelocateTargeting}
-      />
-
-      {/* Traveling armies */}
-      <ArmyMovements
-        missions={gameState.armyMissions.filter(
-          (mission) => mission.playerId === yourPlayerId,
-        )}
-        bases={gameState.bases}
-        treasures={gameState.treasures}
       />
 
       {/* Map Targeting Banner */}
@@ -938,71 +955,120 @@ function App() {
         onExpandTargetSelected={handleExpandTargetSelected}
         onTransferTargetSelected={handleTransferTargetSelected}
         onRelocateTargetSelected={handleRelocateTargetSelected}
+        characterClassByPlayer={Object.fromEntries(
+          lobbySlots
+            .filter(
+              (slot) => slot.playerId !== null && slot.characterClass !== null,
+            )
+            .map((slot) => [slot.playerId, slot.characterClass]),
+        )}
       />
 
       {/*
        * ======================================================
        * BOTTOM-LEFT BASE SELECTOR
        * ======================================================
-       *
-       * Quick empire overview:
-       *
-       * - select a base
-       * - see armies
-       * - see stored resources
        */}
+
       <div className="base-selector">
         <div className="base-selector-title">
           <span>{yourPlayer?.name ?? "Your Bases"}</span>
-
           <span className="expansion-key-count">🔑 {yourExpansionKeys}</span>
         </div>
 
         <div className="base-selector-row">
-          {yourBases.map((base) => (
-            <button
-              key={base.id}
-              className={[
-                "base-selector-button",
+          {[1, 2, 3].map((slot) => {
+            const base = yourBases.find((base) => base.baseSlot === slot);
 
-                base.id === selectedBaseId
-                  ? "base-selector-button--selected"
-                  : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-              onClick={() => setSelectedBaseId(base.id)}
-            >
-              <span>{getBaseName(base.playerId, base.baseSlot)}</span>
+            return (
+              <button
+                key={slot}
+                type="button"
+                disabled={!base}
+                className={[
+                  "base-selector-button",
+                  base?.id === selectedBaseId
+                    ? "base-selector-button--selected"
+                    : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                onClick={() => {
+                  if (base) setSelectedBaseId(base.id);
+                }}
+              >
+                Base {slot}
+              </button>
+            );
+          })}
+        </div>
 
-              <span className="base-army-summary">
-                ⚔️💧{base.armies.water} ⚔️🔥{base.armies.fire} ⚔️🌱
-                {base.armies.grass}
-              </span>
+        <div className="base-selector-details">
+          {selectedBase ? (
+            <>
+              <div className="base-selector-details-title">
+                <span>
+                  {getBaseName(selectedBase.playerId, selectedBase.baseSlot)}
+                </span>
+                <span>SELECTED</span>
+              </div>
 
-              <span className="base-resource-summary">
-                <img
-                  src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
-                  alt="Water"
-                />
-                {Math.floor(gameState.resourcesByBase[base.id]?.water ?? 0)}
+              <div className="base-selector-stats">
+                <div className="base-selector-stat-column">
+                  <div className="base-selector-stat-heading">RESOURCES</div>
 
-                <img
-                  src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
-                  alt="Fuel"
-                />
-                {Math.floor(gameState.resourcesByBase[base.id]?.fire ?? 0)}
+                  <div className="base-selector-stat">
+                    <img
+                      src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+                      alt="Water"
+                    />
+                    {Math.floor(
+                      gameState.resourcesByBase[selectedBase.id]?.water ?? 0,
+                    )}
+                  </div>
 
-                <img
-                  src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
-                  alt="Food"
-                />
-                {Math.floor(gameState.resourcesByBase[base.id]?.grass ?? 0)}
-              </span>
-            </button>
-          ))}
+                  <div className="base-selector-stat">
+                    <img
+                      src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+                      alt="Fuel"
+                    />
+                    {Math.floor(
+                      gameState.resourcesByBase[selectedBase.id]?.fire ?? 0,
+                    )}
+                  </div>
+
+                  <div className="base-selector-stat">
+                    <img
+                      src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+                      alt="Food"
+                    />
+                    {Math.floor(
+                      gameState.resourcesByBase[selectedBase.id]?.grass ?? 0,
+                    )}
+                  </div>
+                </div>
+
+                <div className="base-selector-stat-column">
+                  <div className="base-selector-stat-heading">ARMIES</div>
+
+                  <div className="base-selector-stat">
+                    ⚔️💧 {selectedBase.armies.water}
+                  </div>
+                  <div className="base-selector-stat">
+                    ⚔️🔥 {selectedBase.armies.fire}
+                  </div>
+                  <div className="base-selector-stat">
+                    ⚔️🌱 {selectedBase.armies.grass}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="base-selector-no-base">No base selected</div>
+          )}
         </div>
       </div>
+
       {showHowToPlay && <HowToPlay onClose={() => setShowHowToPlay(false)} />}
     </main>
   );

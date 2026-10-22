@@ -128,7 +128,12 @@ export default function Tile({
                 }`
           }
         >
-          💰
+          <img
+            src={`${import.meta.env.BASE_URL}assets/basePieces/treasure_chest.png`}
+            alt="Treasure chest"
+            className="treasure-image"
+            draggable={false}
+          />
           {isLootTarget && lootTravelTimeSeconds !== undefined && (
             <div className="loot-travel-time">{lootTravelTimeSeconds}s</div>
           )}

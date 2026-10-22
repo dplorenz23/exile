@@ -53,6 +53,13 @@ function getBaseIcon(tier: number): string {
   }
 }
 
+const BASE_IMAGES = [
+  "base_stage_0_encampment.png",
+  "base_stage_1_outpost.png",
+  "base_stage_2_stronghold.png",
+  "base_stage_3_citadel.png",
+];
+
 export default function BasePiece({
   base,
   baseName,
@@ -83,9 +90,14 @@ export default function BasePiece({
       }
       onClick={onClick}
     >
-      <div className="base-structure">{getBaseIcon(tier)}</div>
-
-      <div className="base-avatar">{player.avatar}</div>
+      <div className="base-structure">
+        <img
+          src={`${import.meta.env.BASE_URL}assets/basePieces/${BASE_IMAGES[tier - 1]}`}
+          alt={`Tier ${tier} base`}
+          className="base-structure-image"
+          draggable={false}
+        />
+      </div>
 
       {baseName && <div className="base-name">{baseName}</div>}
 

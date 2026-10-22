@@ -1,5 +1,8 @@
 import { players } from "../game/gameState";
 import { calculatePlayerScore } from "../game/rules";
+import { Swords, Wrench, Wheat, FlaskConical } from "lucide-react";
+import { CLASS_COLORS } from "../game/characters";
+import type { CharacterClass } from "../game/characters";
 
 import type {
   ArmyMission,
@@ -8,6 +11,13 @@ import type {
   Player,
   PlayerScore,
 } from "../game/types";
+
+const FACTION_ICONS = {
+  soldier: Swords,
+  engineer: Wrench,
+  farmer: Wheat,
+  scientist: FlaskConical,
+};
 
 interface LeaderboardProps {
   bases: Base[];
@@ -18,6 +28,7 @@ interface LeaderboardProps {
   activePlayerIds: number[];
   eliminatedPlayerIds: number[];
   finalScoreByPlayer: Record<number, number>;
+  characterClassByPlayer: Record<number, CharacterClass>;
 }
 
 interface Standing {
@@ -34,6 +45,7 @@ export default function Leaderboard({
   activePlayerIds,
   eliminatedPlayerIds,
   finalScoreByPlayer,
+  characterClassByPlayer,
 }: LeaderboardProps) {
   function getDisplayedScore(
     playerId: number,
@@ -85,6 +97,11 @@ export default function Leaderboard({
       {standings.map((standing, index) => {
         const { player, score } = standing;
 
+        const characterClass = characterClassByPlayer[player.id];
+        const FactionIcon = characterClass
+          ? FACTION_ICONS[characterClass]
+          : null;
+
         const isEliminated = eliminatedPlayerIds.includes(player.id);
 
         const displayedScore = getDisplayedScore(player.id, score.totalScore);
@@ -98,8 +115,26 @@ export default function Leaderboard({
                 : "leaderboard-row"
             }
           >
-            <span>
-              {index + 1}. {player.avatar} {player.name}
+            <span className="leaderboard-player">
+              <span>{index + 1}.</span>
+
+              {FactionIcon && characterClass && (
+                <FactionIcon
+                  size={16}
+                  strokeWidth={2.3}
+                  color={CLASS_COLORS[characterClass]}
+                />
+              )}
+
+              <span
+                style={{
+                  color: characterClass
+                    ? CLASS_COLORS[characterClass]
+                    : undefined,
+                }}
+              >
+                {player.name}
+              </span>
             </span>
 
             <span>{Math.round(displayedScore).toLocaleString()}</span>

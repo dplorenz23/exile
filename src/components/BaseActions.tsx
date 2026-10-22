@@ -633,14 +633,10 @@ export default function BaseActions({
   if (mode === "expand-payment") {
     return (
       <div className="base-actions send-menu">
-        <div className="send-menu-title">Expand Empire</div>
+        <div className="send-menu-title">Expand</div>
 
         <div className="send-menu-message">
           Cost: 🔑{BALANCE.expansion.keyCost} + {expansionCost} resources
-        </div>
-
-        <div className="send-menu-message">
-          Available: 💧{resources.water} 🔥{resources.fire} 🌱{resources.grass}
         </div>
 
         <ResourceSelector
