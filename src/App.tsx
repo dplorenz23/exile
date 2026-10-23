@@ -54,6 +54,8 @@ function App() {
 
   const myClientIdRef = useRef<number | null>(null);
 
+  const pendingNewGameRef = useRef(false);
+
   const [myClientId, setMyClientId] = useState<number | null>(null);
 
   const [isServerConnected, setIsServerConnected] = useState(false);
@@ -408,11 +410,38 @@ function App() {
         }
       }
 
+      function resetGameUI(): void {
+        setIsGameStarted(false);
+
+        setLobbySlots((currentSlots) =>
+          currentSlots.map((slot) => ({
+            ...slot,
+            isReady: false,
+          })),
+        );
+
+        setTargetingMode(null);
+
+        setPendingAttackArmies(null);
+        setPendingTransferArmies(null);
+        setPendingLootArmies(null);
+        setPendingTransferResources(null);
+        setPendingExpansionPayment(null);
+        setPendingRelocationPayment(null);
+      }
+
       if (message.type === "room-left") {
-        sessionStorage.removeItem("exileClientId");
+        const createNewGame = pendingNewGameRef.current;
+        pendingNewGameRef.current = false;
+
+        resetGameUI();
 
         setRoomCode(null);
         setLobbySlots(createLobbySlots(4));
+
+        if (createNewGame) {
+          handleCreateGame();
+        }
       }
 
       if (message.type === "lobby-state") {
@@ -729,24 +758,24 @@ function App() {
     setTargetingMode(null);
   }
 
-  function handlePlayAgain(): void {
-    setIsGameStarted(false);
+  function handleCreateNewGame(): void {
+    if (socketRef.current?.readyState !== WebSocket.OPEN) {
+      return;
+    }
 
-    setLobbySlots((currentSlots) =>
-      currentSlots.map((slot) => ({
-        ...slot,
-        isReady: false,
-      })),
-    );
+    pendingNewGameRef.current = true;
 
-    setTargetingMode(null);
+    socketRef.current.send(JSON.stringify({ type: "leave-lobby" }));
+  }
 
-    setPendingAttackArmies(null);
-    setPendingTransferArmies(null);
-    setPendingLootArmies(null);
-    setPendingTransferResources(null);
-    setPendingExpansionPayment(null);
-    setPendingRelocationPayment(null);
+  function handleExitGame(): void {
+    if (socketRef.current?.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    pendingNewGameRef.current = false;
+
+    socketRef.current.send(JSON.stringify({ type: "leave-lobby" }));
   }
 
   if (!roomCode) {
@@ -822,9 +851,21 @@ function App() {
               ))}
             </div>
 
-            <button className="play-again-button" onClick={handlePlayAgain}>
-              🔄 Play Again
-            </button>
+            <div className="game-over-actions">
+              <button
+                className="game-over-button primary"
+                onClick={handleCreateNewGame}
+              >
+                Create New Game
+              </button>
+
+              <button
+                className="game-over-button secondary"
+                onClick={handleExitGame}
+              >
+                Exit
+              </button>
+            </div>
           </div>
         </div>
       )}

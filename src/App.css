@@ -1467,6 +1467,50 @@ body {
   font-size: 28px;
 }
 
+.game-over-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 24px;
+  flex-wrap: wrap;
+}
+
+.game-over-button {
+  padding: 12px 24px;
+  min-width: 170px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
+}
+
+.game-over-button:hover {
+  transform: translateY(-2px);
+}
+
+.game-over-button.primary {
+  background: #facc15;
+  color: #111827;
+  border: 1px solid #eab308;
+}
+
+.game-over-button.primary:hover {
+  background: #eab308;
+}
+
+.game-over-button.secondary {
+  background: transparent;
+  color: white;
+  border: 1px solid #6b7280;
+}
+
+.game-over-button.secondary:hover {
+  background: #374151;
+}
+
 /* =========================
    ROOM ENTRY - CINEMATIC
    ========================= */

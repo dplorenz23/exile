@@ -38,21 +38,6 @@ function getBaseTier(seconds: number): number {
   return 1;
 }
 
-function getBaseIcon(tier: number): string {
-  switch (tier) {
-    case 1:
-      return "⛺";
-    case 2:
-      return "🏠";
-    case 3:
-      return "🏘️";
-    case 4:
-      return "🏰";
-    default:
-      return "⛺";
-  }
-}
-
 const BASE_IMAGES = [
   "base_stage_0_encampment.png",
   "base_stage_1_outpost.png",
