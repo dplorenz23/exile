@@ -62,6 +62,7 @@ export const BALANCE = {
 
   scoring: {
     baseValue: 500,
+    armyValue: 200,
   },
 
   match: {

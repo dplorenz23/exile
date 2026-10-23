@@ -340,22 +340,50 @@ body {
    MULTIPLIERS
    ========================= */
 
-.tile-multiplier {
+/* Resource colors */
+
+.map-tile--water {
+  --tile-resource-color: #648a9a; /* Muted slate blue */
+}
+
+.map-tile--fire {
+  --tile-resource-color: #a67553; /* Muted copper */
+}
+
+.map-tile--grass {
+  --tile-resource-color: #738b60; /* Muted olive green */
+}
+
+/* Every tile gets a resource-colored border */
+
+.map-tile {
+  box-shadow: inset 0 0 0 1px var(--tile-resource-color);
+  position: relative;
+}
+
+/* Gold corner markers for higher-production tiles */
+
+.map-tile--2x::after,
+.map-tile--3x::after {
+  content: "";
   position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  pointer-events: none;
 
-  right: 6px;
-  bottom: 4px;
+  background-color: #b8a06a;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
 
-  z-index: 3;
+.map-tile--2x::after {
+  width: 16px;
+  height: 16px;
+}
 
-  font-size: clamp(10px, 1.2vw, 16px);
-  font-weight: bold;
-
-  color: rgba(255, 255, 255, 0.9);
-
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
-
-  user-select: none;
+.map-tile--3x::after {
+  width: 30px;
+  height: 30px;
 }
 
 /* =========================
@@ -399,8 +427,21 @@ body {
   cursor: default;
 }
 
+/* All bases belonging to the current player */
+.base-piece--owned .base-structure-image {
+  filter: drop-shadow(0 0 5px var(--player-color))
+    drop-shadow(0 0 10px var(--player-color));
+}
+
+/* Stronger highlight for the selected base */
 .base-piece--selected .base-structure-image {
-  filter: drop-shadow(0 0 3px white) drop-shadow(0 0 7px var(--player-color));
+  filter: drop-shadow(0 0 5px white) drop-shadow(0 0 10px var(--player-color))
+    drop-shadow(0 0 16px var(--player-color));
+}
+
+.base-piece--selected .base-structure-image {
+  filter: drop-shadow(0 0 5px white) drop-shadow(0 0 10px var(--player-color))
+    drop-shadow(0 0 16px var(--player-color));
 }
 
 .base-name {
@@ -733,7 +774,7 @@ body {
   justify-content: center;
   gap: 7px;
 
-  padding: 9px 12px;
+  padding: 9px 10px;
 
   background: transparent;
   color: white;
@@ -781,6 +822,34 @@ body {
   font-weight: 600;
   text-align: center;
   white-space: nowrap;
+}
+
+.game-clock-exit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex: 0 0 40px;
+  align-self: stretch;
+  padding: 0;
+
+  background: transparent;
+  border: none;
+  border-right: 1px solid rgba(184, 146, 83, 0.25);
+  border-radius: 0;
+
+  color: #d66b63;
+  cursor: pointer;
+}
+
+.game-clock-exit:hover {
+  background: rgba(215, 173, 108, 0.12);
+  color: #ff8278;
+}
+
+.game-clock-exit:focus-visible {
+  outline: 2px solid #d66b63;
+  outline-offset: -3px;
 }
 
 /* =========================
@@ -1606,79 +1675,113 @@ body {
 .game-over-overlay {
   position: absolute;
   inset: 0;
-
   z-index: 100;
 
   display: flex;
   align-items: center;
   justify-content: center;
 
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.76);
 }
 
 .game-over-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 
-  padding: 24px 32px;
+  width: min(440px, calc(100vw - 48px));
+  box-sizing: border-box;
+  padding: 28px 30px;
 
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
+  border: 1px solid rgba(184, 146, 83, 0.45);
+  border-radius: 10px;
 
-  background: rgba(10, 14, 18, 0.96);
-  color: white;
+  background: rgba(17, 22, 24, 0.98);
+  color: #e6e2d9;
 
-  font-size: 16px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.6);
 }
 
 .game-over-panel strong {
-  font-size: 28px;
+  color: #e9c58d;
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 20px rgba(215, 173, 108, 0.2);
+}
+
+.game-over-panel > span {
+  color: #b9c2b9;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.game-over-panel h2 {
+  align-self: stretch;
+  margin: 18px 0 0;
+  padding-bottom: 10px;
+
+  border-bottom: 1px solid rgba(184, 146, 83, 0.3);
+
+  color: #d7ad6c;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  text-align: left;
+  text-transform: uppercase;
 }
 
 .game-over-actions {
   display: flex;
   justify-content: center;
   gap: 12px;
-  margin-top: 24px;
+  width: 100%;
+  margin-top: 14px;
   flex-wrap: wrap;
 }
 
 .game-over-button {
-  padding: 12px 24px;
-  min-width: 170px;
-  border-radius: 8px;
-  font-size: 15px;
-  font-weight: 600;
+  flex: 1;
+  min-width: 145px;
+  padding: 11px 16px;
+
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
+
   transition:
     background-color 0.2s,
+    border-color 0.2s,
     transform 0.2s;
 }
 
 .game-over-button:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .game-over-button.primary {
-  background: #facc15;
-  color: #111827;
-  border: 1px solid #eab308;
+  background: #463c2b;
+  color: #e9c58d;
+  border: 1px solid #947548;
 }
 
 .game-over-button.primary:hover {
-  background: #eab308;
+  background: #594a32;
+  border-color: #d7ad6c;
 }
 
 .game-over-button.secondary {
-  background: transparent;
-  color: white;
-  border: 1px solid #6b7280;
+  background: #1b2425;
+  color: #b9c2b9;
+  border: 1px solid #4b5a55;
 }
 
 .game-over-button.secondary:hover {
-  background: #374151;
+  background: #293333;
+  border-color: #78867b;
 }
 
 /* =========================
@@ -2982,6 +3085,76 @@ body {
 }
 
 /* =========================
+   FORFEIT / LEAVE GAME
+   ========================= */
+
+.forfeit-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.forfeit-modal {
+  width: min(360px, calc(100vw - 32px));
+  padding: 24px;
+  background: #111618;
+  border: 1px solid rgba(184, 146, 83, 0.55);
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.65);
+  color: #e6dfd2;
+  text-align: center;
+}
+
+.forfeit-modal h2 {
+  margin: 0 0 14px;
+  color: #d7ad6c;
+  font-size: 22px;
+}
+
+.forfeit-modal p {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.forfeit-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.forfeit-actions button {
+  flex: 1;
+  padding: 11px 12px;
+  border-radius: 6px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.forfeit-cancel {
+  background: #28332d;
+  border: 1px solid #63765b;
+  color: #d9e6d2;
+}
+
+.forfeit-cancel:hover {
+  background: #354638;
+}
+
+.forfeit-confirm {
+  background: #4c2728;
+  border: 1px solid #a65d57;
+  color: #f0b3ad;
+}
+
+.forfeit-confirm:hover {
+  background: #633133;
+}
+
+/* =========================
    FACTIONS LEADERBOARD
    ========================= */
 
@@ -3051,33 +3224,62 @@ body {
 }
 
 .final-standings-list {
-  margin: 24px 0;
+  width: 100%;
+  margin: 4px 0 8px;
 }
 
 .final-standing-row {
   display: grid;
-  grid-template-columns: 40px 1fr 90px;
+  grid-template-columns: 32px minmax(0, 1fr) 72px;
   align-items: center;
-  padding: 10px 12px;
-  font-size: 18px;
+  gap: 8px;
+
+  padding: 11px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+
+  color: #e6e2d9;
+  font-size: 13px;
+}
+
+/* First place receives a distinct victory treatment */
+.final-standing-row:first-child {
+  background: rgba(184, 146, 83, 0.12);
+  border: 1px solid rgba(184, 146, 83, 0.4);
+  border-radius: 6px;
+
+  color: #f0d4a2;
+  font-weight: 700;
+}
+
+.final-standing-row:first-child .final-rank {
+  color: #e9c58d;
+  font-weight: 800;
+}
+
+.final-standing-row:first-child .final-score {
+  color: #e9c58d;
 }
 
 .final-standing-row.eliminated {
   text-decoration: line-through;
-  opacity: 0.6;
+  opacity: 0.45;
 }
 
 .final-rank {
+  color: #9caa9f;
   text-align: left;
 }
 
 .final-player {
+  min-width: 0;
   text-align: left;
 }
 
 .final-score {
+  color: #e9c58d;
   text-align: right;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .leaderboard-player {
@@ -3259,13 +3461,6 @@ body {
   color: #e9c58d;
 }
 
-.game-how-to-button:hover {
-  transform: translateY(-1px);
-
-  background: rgb(255 255 255 / 10%);
-  border-color: var(--exile-gold);
-}
-
 /* =========================
    ILLUSTRATED MAP
    ========================= */
@@ -3278,6 +3473,13 @@ body {
 .game-map .map-tile::before,
 .game-map .map-tile::after {
   display: none;
+}
+
+/* Restore gold multiplier indicators on illustrated map */
+
+.game-map .map-tile--2x::after,
+.game-map .map-tile--3x::after {
+  display: block;
 }
 
 /* Align the interactive grid with the illustrated map */

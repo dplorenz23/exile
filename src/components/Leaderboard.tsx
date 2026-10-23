@@ -40,8 +40,6 @@ export default function Leaderboard({
   bases,
   resourcesByBase,
   armyMissions,
-  armiesTrainedByPlayer,
-  armyResourcesSpentByPlayer,
   activePlayerIds,
   eliminatedPlayerIds,
   finalScoreByPlayer,
@@ -69,8 +67,6 @@ export default function Leaderboard({
         bases,
         resourcesByBase,
         armyMissions,
-        armiesTrainedByPlayer[playerId] ?? 0,
-        armyResourcesSpentByPlayer[playerId] ?? 0,
       );
 
       return {

@@ -26,6 +26,7 @@ interface TileProps {
   relocationTravelTimeSeconds?: number;
   onRelocateTargetClick?: () => void;
   isUnavailableTarget?: boolean;
+  isOwnedBase?: boolean;
 }
 
 export default function Tile({
@@ -52,6 +53,7 @@ export default function Tile({
   relocationTravelTimeSeconds,
   onRelocateTargetClick,
   isUnavailableTarget = false,
+  isOwnedBase = false,
 }: TileProps) {
   const isTop = tile.row === 0;
   const isBottom = tile.row === gridSize - 1;
@@ -77,13 +79,21 @@ export default function Tile({
       ? onTransferTargetClick
       : undefined;
 
+  const resourceNames = {
+    water: "Water",
+    fire: "Fuel",
+    grass: "Food",
+  };
+
+  const resourceName = resourceNames[tile.resource];
+
   return (
     <div
       className={[
         "map-tile",
         `map-tile--${tile.resource}`,
-        `terrain--${tile.terrain}`,
-        tile.flowDirection ? `flow--${tile.flowDirection}` : "",
+        tile.multiplier === 2 ? "map-tile--2x" : "",
+        tile.multiplier === 3 ? "map-tile--3x" : "",
         isExpandTarget ? "map-tile--expand-target" : "",
         isRelocateTarget ? "map-tile--relocate-target" : "",
         isUnavailableTarget ? "map-tile--unavailable-target" : "",
@@ -93,9 +103,7 @@ export default function Tile({
         .join(" ")}
       onClick={isRelocateTarget ? onRelocateTargetClick : onExpandTargetClick}
       title={
-        isAttackTarget
-          ? undefined
-          : `${tile.terrain} | ${tile.resource} | ${tile.multiplier}x`
+        isAttackTarget ? undefined : `${resourceName}: ${tile.multiplier}×`
       }
     >
       {isExpandTarget && expandTravelTimeSeconds !== undefined && (
@@ -108,10 +116,6 @@ export default function Tile({
         </div>
       )}
 
-      {tile.multiplier > 1 && (
-        <span className="tile-multiplier">{tile.multiplier}×</span>
-      )}
-
       {treasure && (
         <div
           className={["treasure", isLootTarget ? "treasure--loot-target" : ""]
@@ -121,7 +125,7 @@ export default function Tile({
           title={
             isLootTarget && lootTravelTimeSeconds !== undefined
               ? `Loot treasure — ${lootTravelTimeSeconds}s travel`
-              : `Treasure — Water: ${treasure.resources.water}, Fire: ${treasure.resources.fire}, Grass: ${treasure.resources.grass}${
+              : `Treasure — Water: ${treasure.resources.water}, Fuel: ${treasure.resources.fire}, Food: ${treasure.resources.grass}${
                   treasure.expansionKeys > 0
                     ? `, Expansion Keys: ${treasure.expansionKeys}`
                     : ""
@@ -150,6 +154,7 @@ export default function Tile({
           isTransferTarget={isTransferTarget}
           travelTimeSeconds={baseTravelTimeSeconds}
           onClick={onBaseClick}
+          isOwned={isOwnedBase}
         />
       )}
     </div>

@@ -658,8 +658,6 @@ function runGameTick(room: GameRoom): void {
         updatedBases,
         updatedResources,
         updatedArmyMissions,
-        updatedArmiesTrainedByPlayer[defendingBase.playerId] ?? 0,
-        updatedArmyResourcesSpentByPlayer[defendingBase.playerId] ?? 0,
       ).totalScore;
 
       const combatResult = resolveCombat(mission.armies, defendingBase.armies);
@@ -1885,8 +1883,6 @@ function runGameTick(room: GameRoom): void {
           updatedBases,
           updatedResources,
           updatedArmyMissions,
-          updatedArmiesTrainedByPlayer[playerId] ?? 0,
-          updatedArmyResourcesSpentByPlayer[playerId] ?? 0,
         ).totalScore,
       }))
       .sort((a, b) => b.score - a.score);
@@ -2531,6 +2527,126 @@ server.on("connection", (socket, request) => {
       }
 
       console.log(`Client ${clientId} started game in room ${room.code}`);
+    }
+
+    /*
+     * ==============================================
+     * GAME ACTION: FORFEIT MATCH
+     * ==============================================
+     */
+
+    if (message.type === "forfeit-match") {
+      const room = getRoomForClient(clientId);
+
+      if (!room?.gameState || room.gameState.winnerPlayerId !== null) {
+        return;
+      }
+
+      const player = room.lobbyPlayers.get(clientId);
+
+      if (!player || player.isBot) {
+        return;
+      }
+
+      const gameState = room.gameState;
+      const playerId = player.playerId;
+
+      if (gameState.eliminatedPlayerIds.includes(playerId)) {
+        return;
+      }
+
+      const finalScore = calculatePlayerScore(
+        playerId,
+        gameState.bases,
+        gameState.resourcesByBase,
+        gameState.armyMissions,
+      ).totalScore;
+
+      const removedBaseIds = new Set(
+        gameState.bases
+          .filter((base) => base.playerId === playerId)
+          .map((base) => base.id),
+      );
+
+      const updatedResources = { ...gameState.resourcesByBase };
+
+      for (const baseId of removedBaseIds) {
+        delete updatedResources[baseId];
+      }
+
+      const eliminatedPlayerIds = [...gameState.eliminatedPlayerIds, playerId];
+
+      const gameEvents = [...gameState.gameEvents];
+
+      let nextGameEventId = gameState.nextGameEventId;
+
+      gameEvents.push({
+        type: "elimination",
+        id: nextGameEventId++,
+        gameSeconds: gameState.gameSeconds,
+        eliminatedPlayerId: playerId,
+      });
+
+      const remainingPlayerIds = Object.keys(gameState.armiesTrainedByPlayer)
+        .map(Number)
+        .filter((id) => !eliminatedPlayerIds.includes(id));
+
+      const winnerPlayerId =
+        remainingPlayerIds.length === 1 ? remainingPlayerIds[0] : null;
+
+      if (winnerPlayerId !== null) {
+        gameEvents.push({
+          type: "victory",
+          id: nextGameEventId++,
+          gameSeconds: gameState.gameSeconds,
+          winnerPlayerId,
+        });
+      }
+
+      room.gameState = {
+        ...gameState,
+        bases: gameState.bases.filter((base) => base.playerId !== playerId),
+        resourcesByBase: updatedResources,
+        armyMissions: gameState.armyMissions.filter(
+          (mission) => mission.playerId !== playerId,
+        ),
+        eliminatedPlayerIds,
+        finalScoreByPlayer: {
+          ...gameState.finalScoreByPlayer,
+          [playerId]: finalScore,
+        },
+        gameEvents,
+        nextGameEventId,
+        winnerPlayerId,
+      };
+
+      broadcastGameState(room);
+
+      // Remove the forfeiting client from this room.
+      room.lobbyPlayers.delete(clientId);
+      roomCodeByClient.delete(clientId);
+
+      if (clientId === room.hostClientId) {
+        const nextHost = Array.from(room.lobbyPlayers.values())
+          .filter((candidate) => !candidate.isBot)
+          .sort((a, b) => a.slotId - b.slotId)[0];
+
+        if (nextHost) {
+          room.hostClientId = nextHost.clientId;
+          nextHost.isHost = true;
+        }
+      }
+
+      socket.send(JSON.stringify({ type: "room-left" }));
+
+      if (room.lobbyPlayers.size === 0) {
+        if (room.gameTimer) {
+          clearInterval(room.gameTimer);
+          room.gameTimer = null;
+        }
+
+        rooms.delete(room.code);
+      }
     }
 
     /*

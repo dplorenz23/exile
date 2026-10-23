@@ -415,8 +415,6 @@ export function calculatePlayerScore(
   bases: Base[],
   resourcesByBase: Record<number, BaseResources>,
   armyMissions: ArmyMission[],
-  armiesTrained: number,
-  armyResourcesSpent: number,
 ): PlayerScore {
   /*
    * ==================================================
@@ -509,12 +507,10 @@ export function calculatePlayerScore(
   const survivingArmies = stationedArmies + armiesInTransit;
 
   /*
-   * Historical average price paid per army.
+   * Each surviving army unit contributes a fixed
+   * amount to the player's military score.
    */
-  const averageArmyCost =
-    armiesTrained > 0 ? armyResourcesSpent / armiesTrained : 0;
-
-  const armyScore = survivingArmies * averageArmyCost;
+  const armyScore = survivingArmies * BALANCE.scoring.armyValue;
 
   return {
     playerId,

@@ -1,4 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import {
+  Swords,
+  Wrench,
+  Wheat,
+  FlaskConical,
+  CircleHelp,
+  DoorOpen,
+} from "lucide-react";
 
 import Lobby from "./components/Lobby";
 import ArmyMovements from "./components/ArmyMovements";
@@ -30,9 +38,17 @@ import type {
   GameState,
 } from "./game/types";
 
+import { CLASS_COLORS } from "./game/characters";
 import type { CharacterClass, PortraitVariant } from "./game/characters";
 
 import "./App.css";
+
+const FACTION_ICONS = {
+  soldier: Swords,
+  engineer: Wrench,
+  farmer: Wheat,
+  scientist: FlaskConical,
+};
 
 function createLobbySlots(playerCount: number): LobbySlot[] {
   return Array.from({ length: playerCount }, (_, index) => ({
@@ -227,6 +243,8 @@ function App() {
 
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 
+  const [showForfeitConfirm, setShowForfeitConfirm] = useState(false);
+
   /*
    * ==========================================================
    * DERIVED PLAYER DATA
@@ -271,8 +289,6 @@ function App() {
             gameState.bases,
             gameState.resourcesByBase,
             gameState.armyMissions,
-            gameState.armiesTrainedByPlayer[player.id] ?? 0,
-            gameState.armyResourcesSpentByPlayer[player.id] ?? 0,
           ).totalScore;
 
       return {
@@ -304,6 +320,21 @@ function App() {
   const [selectedBaseId, setSelectedBaseId] = useState(yourBases[0]?.id ?? 0);
 
   const yourPlayer = players.find((player) => player.id === yourPlayerId);
+
+  const characterClassByPlayer: Partial<Record<number, CharacterClass>> =
+    Object.fromEntries(
+      lobbySlots
+        .filter(
+          (slot) => slot.playerId !== null && slot.characterClass !== null,
+        )
+        .map((slot) => [slot.playerId, slot.characterClass]),
+    );
+
+  const yourCharacterClass = characterClassByPlayer[yourPlayerId];
+
+  const YourFactionIcon = yourCharacterClass
+    ? FACTION_ICONS[yourCharacterClass]
+    : null;
 
   const selectedBase = gameState.bases.find(
     (base) => base.id === selectedBaseId,
@@ -435,6 +466,8 @@ function App() {
         pendingNewGameRef.current = false;
 
         resetGameUI();
+
+        setShowForfeitConfirm(false);
 
         setRoomCode(null);
         setLobbySlots(createLobbySlots(4));
@@ -824,12 +857,6 @@ function App() {
               {winner.id === yourPlayerId ? "Victory!" : `${winner.name} Wins!`}
             </strong>
 
-            <span>
-              {gameState.matchType === "sudden-death"
-                ? `${winner.name} is the last player standing.`
-                : `${winner.name} had the highest score when time expired.`}
-            </span>
-
             <h2>Final Standings</h2>
 
             <div className="final-standings-list">
@@ -921,7 +948,16 @@ function App() {
               aria-label="How to Play"
               title="How to Play"
             >
-              ?
+              <CircleHelp size={18} strokeWidth={2.3} />
+            </button>
+
+            <button
+              className="game-clock-exit"
+              aria-label="Forfeit Match"
+              title="Forfeit Match"
+              onClick={() => setShowForfeitConfirm(true)}
+            >
+              <DoorOpen size={18} strokeWidth={2.3} />
             </button>
 
             <GameClock
@@ -1013,7 +1049,25 @@ function App() {
 
       <div className="base-selector">
         <div className="base-selector-title">
-          <span>{yourPlayer?.name ?? "Your Bases"}</span>
+          <span
+            style={{
+              color: yourCharacterClass
+                ? CLASS_COLORS[yourCharacterClass]
+                : (yourPlayer?.color ?? "#d7ad6c"),
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            {YourFactionIcon && (
+              <YourFactionIcon
+                size={16}
+                strokeWidth={2.3}
+                color={CLASS_COLORS[yourCharacterClass!]}
+              />
+            )}
+            {yourPlayer?.name ?? "Your Bases"}
+          </span>
           <span className="expansion-key-count">🔑 {yourExpansionKeys}</span>
         </div>
 
@@ -1125,6 +1179,44 @@ function App() {
       </div>
 
       {showHowToPlay && <HowToPlay onClose={() => setShowHowToPlay(false)} />}
+
+      {showForfeitConfirm && (
+        <div className="forfeit-overlay">
+          <div
+            className="forfeit-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="forfeit-title"
+          >
+            <h2 id="forfeit-title">Leave Match?</h2>
+
+            <p>
+              Are you sure you want to forfeit this match? Your bases and armies
+              will be lost.
+            </p>
+
+            <div className="forfeit-actions">
+              <button
+                className="forfeit-cancel"
+                onClick={() => setShowForfeitConfirm(false)}
+              >
+                Cancel
+              </button>
+
+              <button
+                className="forfeit-confirm"
+                onClick={() => {
+                  socketRef.current?.send(
+                    JSON.stringify({ type: "forfeit-match" }),
+                  );
+                }}
+              >
+                Forfeit Match
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

@@ -13,6 +13,7 @@ interface BasePieceProps {
   isTransferTarget?: boolean;
   travelTimeSeconds?: number;
   onClick?: () => void;
+  isOwned?: boolean;
 }
 
 function formatTime(seconds: number): string {
@@ -54,6 +55,7 @@ export default function BasePiece({
   isTransferTarget = false,
   travelTimeSeconds,
   onClick,
+  isOwned = false,
 }: BasePieceProps) {
   const tier = getBaseTier(base.timeInLocationSeconds);
 
@@ -62,6 +64,7 @@ export default function BasePiece({
       className={[
         "base-piece",
         `base-piece--tier-${tier}`,
+        isOwned ? "base-piece--owned" : "",
         isSelected ? "base-piece--selected" : "",
         isAttackTarget ? "base-piece--attack-target" : "",
         isTransferTarget ? "base-piece--transfer-target" : "",

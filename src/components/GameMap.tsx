@@ -205,6 +205,7 @@ export default function GameMap({
             player={player}
             treasure={treasure}
             isSelectedBase={base?.id === selectedBaseId}
+            isOwnedBase={base?.playerId === yourPlayerId}
             isAttackTarget={isAttackTarget}
             travelTimeSeconds={attackTravelTimeSeconds}
             onAttackTargetClick={

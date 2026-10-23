@@ -20,15 +20,159 @@ import type { Base, GameState, MatchType, Tile, Treasure } from "./types";
  * starting configuration.
  */
 
-interface StartingPosition {
-  row: number;
-  col: number;
-}
+function createStartingLayout(
+  activePlayerIds: number[],
+  mapId: string,
+): { bases: Base[]; treasures: Treasure[] } {
+  const map = mapId === "map-two" ? mapTwo : mapOne;
 
-const mapTwoStarts: StartingPosition[] = [
-  { row: 0, col: 1 }, // B1
-  { row: 7, col: 2 }, // C8
-];
+  const initialBases = startingBases.filter((base) =>
+    activePlayerIds.includes(base.playerId),
+  );
+
+  const eligibleTiles = map.filter((tile) => tile.multiplier === 1);
+
+  if (eligibleTiles.length < initialBases.length) {
+    throw new Error("Not enough eligible starting tiles.");
+  }
+
+  const resourceTypes = ["water", "fire", "grass"] as const;
+
+  const distance = (
+    a: { row: number; col: number },
+    b: { row: number; col: number },
+  ) => getManhattanDistance(a.row, a.col, b.row, b.col);
+
+  // Lower scores are better.
+  // Compare nearby opportunities, not just the closest tile.
+  const accessScore = (
+    base: Base,
+    tiles: { row: number; col: number }[],
+    count: number,
+  ): number => {
+    const distances = tiles
+      .map((tile) => distance(base, tile))
+      .sort((a, b) => a - b);
+
+    if (distances.length === 0) return 20;
+
+    const nearest = distances.slice(0, count);
+
+    return nearest.reduce((sum, value) => sum + value, 0) / nearest.length;
+  };
+
+  const candidates: {
+    bases: Base[];
+    treasures: Treasure[];
+    score: number;
+  }[] = [];
+
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const shuffled = [...eligibleTiles].sort(() => Math.random() - 0.5);
+
+    const selected: Tile[] = [];
+
+    for (const tile of shuffled) {
+      if (selected.every((other) => distance(tile, other) >= 4)) {
+        selected.push(tile);
+      }
+
+      if (selected.length === initialBases.length) break;
+    }
+
+    if (selected.length !== initialBases.length) continue;
+
+    const bases = initialBases.map((base, index) => ({
+      ...base,
+      row: selected[index].row,
+      col: selected[index].col,
+    }));
+
+    // Generate treasure for this specific candidate layout.
+    const treasures = createStartingTreasures(
+      bases,
+      mapId,
+      activePlayerIds.length,
+    );
+
+    const expectedTreasureCount =
+      activePlayerIds.length * BALANCE.startingTreasure.chestsPerPlayer;
+
+    if (treasures.length !== expectedTreasureCount) continue;
+
+    const playerScores = bases.map((base) => {
+      let score = 0;
+
+      // Access to all three resources.
+      for (const resource of resourceTypes) {
+        const tiles = map.filter((tile) => tile.resource === resource);
+
+        score += accessScore(base, tiles, 3);
+      }
+
+      // Access to boosted production tiles.
+      score +=
+        accessScore(
+          base,
+          map.filter((tile) => tile.multiplier === 2),
+          2,
+        ) * 2;
+
+      score +=
+        accessScore(
+          base,
+          map.filter((tile) => tile.multiplier === 3),
+          2,
+        ) * 3;
+
+      // Access to treasure.
+      score += accessScore(base, treasures, 2) * 2;
+
+      // Access to expansion keys.
+      const keyTreasures = treasures.filter(
+        (treasure) => treasure.expansionKeys > 0,
+      );
+
+      if (keyTreasures.length > 0) {
+        score += accessScore(base, keyTreasures, 1) * 2;
+      }
+
+      return score;
+    });
+
+    const highest = Math.max(...playerScores);
+    const lowest = Math.min(...playerScores);
+
+    const average =
+      playerScores.reduce((sum, score) => sum + score, 0) / playerScores.length;
+
+    // Prioritize fairness, then overall accessibility.
+    const fairnessScore = (highest - lowest) * 5 + average;
+
+    candidates.push({
+      bases,
+      treasures,
+      score: fairnessScore,
+    });
+  }
+
+  if (candidates.length === 0) {
+    throw new Error("Could not generate a valid starting layout.");
+  }
+
+  candidates.sort((a, b) => a.score - b.score);
+
+  // Preserve variety by choosing from the best candidates.
+  const topCandidates = candidates.slice(0, 10);
+
+  const chosen =
+    topCandidates[Math.floor(Math.random() * topCandidates.length)];
+
+  return {
+    bases: chosen.bases,
+    treasures: chosen.treasures,
+  };
+}
 
 function getManhattanDistance(
   rowA: number,
@@ -162,31 +306,8 @@ export function createInitialGameState(
   matchType: MatchType = "30m",
   mapId: string = "exile-island",
 ): GameState {
-  const initialBases = startingBases
-    .filter((base) => activePlayerIds.includes(base.playerId))
-    .map((base, index) => {
-      if (mapId !== "map-two") {
-        return base;
-      }
-
-      const start = mapTwoStarts[index];
-
-      if (!start) {
-        return base;
-      }
-
-      return {
-        ...base,
-        row: start.row,
-        col: start.col,
-      };
-    });
-
-  const initialTreasures = createStartingTreasures(
-    initialBases,
-    mapId,
-    activePlayerIds.length,
-  );
+  const { bases: initialBases, treasures: initialTreasures } =
+    createStartingLayout(activePlayerIds, mapId);
 
   return {
     gameSeconds: 0,
