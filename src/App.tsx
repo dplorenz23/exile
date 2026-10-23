@@ -1093,13 +1093,27 @@ function App() {
                   <div className="base-selector-stat-heading">ARMIES</div>
 
                   <div className="base-selector-stat">
-                    ⚔️💧 {selectedBase.armies.water}
+                    <img
+                      src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+                      alt="Water"
+                    />
+                    {selectedBase.armies.water}
                   </div>
+
                   <div className="base-selector-stat">
-                    ⚔️🔥 {selectedBase.armies.fire}
+                    <img
+                      src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+                      alt="Fuel"
+                    />
+                    {selectedBase.armies.fire}
                   </div>
+
                   <div className="base-selector-stat">
-                    ⚔️🌱 {selectedBase.armies.grass}
+                    <img
+                      src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+                      alt="Food"
+                    />
+                    {selectedBase.armies.grass}
                   </div>
                 </div>
               </div>

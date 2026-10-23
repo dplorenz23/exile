@@ -2,7 +2,9 @@ import { getBaseName } from "../game/gameState";
 
 import type { ArmyMission, Base, Treasure } from "../game/types";
 
-import { formatArmies, formatResources } from "../game/formatResources";
+import ResourceDisplay from "./ResourceDisplay";
+
+import ArmyDisplay from "./ArmyDisplay";
 
 import { BALANCE } from "../game/balance";
 
@@ -155,20 +157,30 @@ export default function ArmyMovements({
           </div>
 
           <div className="army-movement-summary">
-            {formatArmies(mission.armies) !== "None" && (
-              <span>{formatArmies(mission.armies)}</span>
+            {(mission.armies.water > 0 ||
+              mission.armies.fire > 0 ||
+              mission.armies.grass > 0) && (
+              <ArmyDisplay armies={mission.armies} />
             )}
 
-            {formatResources(mission.resources) !== "None" && (
-              <span>Cargo: {formatResources(mission.resources)}</span>
+            {(mission.resources.water > 0 ||
+              mission.resources.fire > 0 ||
+              mission.resources.grass > 0) && (
+              <span>
+                Cargo: <ResourceDisplay resources={mission.resources} />
+              </span>
             )}
 
             {mission.expansionKeys > 0 && (
               <span>Keys: 🔑{mission.expansionKeys}</span>
             )}
 
-            {formatArmies(mission.armies) === "None" &&
-              formatResources(mission.resources) === "None" &&
+            {mission.armies.water === 0 &&
+              mission.armies.fire === 0 &&
+              mission.armies.grass === 0 &&
+              mission.resources.water === 0 &&
+              mission.resources.fire === 0 &&
+              mission.resources.grass === 0 &&
               mission.expansionKeys === 0 && <span>None</span>}
           </div>
         </div>

@@ -5,7 +5,7 @@ import type {
   ResourceType,
 } from "../game/types";
 
-import { formatResources } from "../game/formatResources";
+import ResourceDisplay from "./ResourceDisplay";
 
 interface GameLogProps {
   events: GameEvent[];
@@ -25,40 +25,46 @@ function getCoordinates(row: number, col: number): string {
   return `${column}${row + 1}`;
 }
 
-function formatArmies(armies: ArmyCounts): string {
-  const parts: string[] = [];
-
-  const armyIcons: Record<ResourceType, string> = {
-    water: "⚔️💧",
-    fire: "⚔️🔥",
-    grass: "⚔️🌱",
+function ResourceIcon({ type }: { type: ResourceType }) {
+  const filenames: Record<ResourceType, string> = {
+    water: "water.png",
+    fire: "fuel.png",
+    grass: "food.png",
   };
 
-  (["water", "fire", "grass"] as ResourceType[]).forEach((resource) => {
-    if (armies[resource] > 0) {
-      parts.push(`${armyIcons[resource]}${armies[resource]}`);
-    }
-  });
+  const names: Record<ResourceType, string> = {
+    water: "Water",
+    fire: "Fuel",
+    grass: "Food",
+  };
 
-  return parts.length > 0 ? parts.join(" ") : "None";
+  return (
+    <img
+      src={`${import.meta.env.BASE_URL}assets/resources/${filenames[type]}`}
+      alt={names[type]}
+      title={names[type]}
+      className="comms-resource-icon"
+    />
+  );
 }
 
-function formatCompactArmies(armies: ArmyCounts): string {
-  const parts: string[] = [];
+function formatArmies(armies: ArmyCounts) {
+  return (
+    <span className="comms-resource-list">
+      {(["water", "fire", "grass"] as ResourceType[]).map((resource) =>
+        armies[resource] > 0 ? (
+          <span className="comms-resource-item" key={resource}>
+            <ResourceIcon type={resource} />
+            {armies[resource]}
+          </span>
+        ) : null,
+      )}
+    </span>
+  );
+}
 
-  if (armies.water > 0) {
-    parts.push(`💧${armies.water}`);
-  }
-
-  if (armies.fire > 0) {
-    parts.push(`🔥${armies.fire}`);
-  }
-
-  if (armies.grass > 0) {
-    parts.push(`🌱${armies.grass}`);
-  }
-
-  return parts.length > 0 ? parts.join(" ") : "—";
+function formatCompactArmies(armies: ArmyCounts) {
+  return formatArmies(armies);
 }
 
 function getEventSeconds(event: GameEvent): number {
@@ -183,14 +189,18 @@ export default function GameLog({ events, players }: GameLogProps) {
                       <span>{formatTime(event.gameSeconds)}</span>
                     </div>
 
-                    <div>Taken: {formatResources(event.resourcesLooted)}</div>
+                    <div>
+                      Taken:{" "}
+                      <ResourceDisplay resources={event.resourcesLooted} />
+                    </div>
 
                     {event.expansionKeysLooted > 0 && (
                       <div>Keys: 🔑{event.expansionKeysLooted}</div>
                     )}
 
                     <div>
-                      Remaining: {formatResources(event.resourcesRemaining)}
+                      Remaining:{" "}
+                      <ResourceDisplay resources={event.resourcesRemaining} />
                     </div>
                   </div>
                 );
@@ -212,10 +222,7 @@ export default function GameLog({ events, players }: GameLogProps) {
 
                     <div>Armies: {formatArmies(event.armies)}</div>
 
-                    <div>
-                      Cargo: 💧{event.resources.water} 🔥{event.resources.fire}{" "}
-                      🌱{event.resources.grass}
-                    </div>
+                    <div>Cargo: {formatArmies(event.resources)}</div>
                   </div>
                 );
               }
@@ -278,55 +285,120 @@ export default function GameLog({ events, players }: GameLogProps) {
 
               const defender = getPlayerName(report.defenderPlayerId);
 
+              const attackerSent =
+                report.attackerArmies.water +
+                report.attackerArmies.fire +
+                report.attackerArmies.grass;
+
+              const attackerSurvived =
+                report.attackerSurvivors.water +
+                report.attackerSurvivors.fire +
+                report.attackerSurvivors.grass;
+
+              const defenderDeployed =
+                report.defenderArmies.water +
+                report.defenderArmies.fire +
+                report.defenderArmies.grass;
+
+              const defenderSurvived =
+                report.defenderSurvivors.water +
+                report.defenderSurvivors.fire +
+                report.defenderSurvivors.grass;
+
+              const attackerLost = attackerSent - attackerSurvived;
+              const defenderLost = defenderDeployed - defenderSurvived;
+
               return (
-                <div key={report.id} className="battle-report">
-                  <div className="battle-report-header">
-                    <strong>
-                      {attacker} ({report.attackerBaseName}) attacked {defender}{" "}
-                      ({report.defenderBaseName})
-                    </strong>
+                <details key={report.id} className="battle-report comms-battle">
+                  <summary className="comms-battle-summary">
+                    <div className="comms-battle-heading">
+                      <strong>
+                        ⚔️ {attacker} → {defender}
+                      </strong>
 
-                    <span>
-                      {getCoordinates(report.row, report.col)}
-                      {" · "}
-                      {formatTime(report.gameSeconds)}
-                    </span>
-                  </div>
+                      <span className="comms-battle-time">
+                        {getCoordinates(report.row, report.col)}
+                        {" · "}
+                        {formatTime(report.gameSeconds)}
+                      </span>
+                    </div>
 
-                  <div>
-                    ⚔️·
-                    {formatCompactArmies(report.attackerArmies)}
-                    {" → "}
-                    {formatCompactArmies(report.attackerSurvivors)}
-                    {" | "}
-                    {report.defenderArmies.water +
-                      report.defenderArmies.fire +
-                      report.defenderArmies.grass >
-                    0 ? (
-                      <>
-                        🛡️·
-                        {formatCompactArmies(report.defenderArmies)}
-                        {" → "}
-                        {formatCompactArmies(report.defenderSurvivors)}
-                        {" | "}
-                      </>
-                    ) : null}
-                    🧑‍🌾 {report.militiaSurvived ? "→ 🧑‍🌾" : "→ —"}
-                  </div>
+                    <div className="comms-battle-result">
+                      <span
+                        className={
+                          report.baseDestroyed
+                            ? "comms-result-destroyed"
+                            : "comms-result-defended"
+                        }
+                      >
+                        {report.baseDestroyed ? "💥 Destroyed" : "🛡️ Defended"}
+                      </span>
 
-                  <div>
-                    <strong>
-                      {report.baseDestroyed
-                        ? `💥 ${report.defenderBaseName} destroyed`
-                        : `🛡️ ${report.defenderBaseName} defended`}
-                    </strong>
-                    {" · Loot "}
-                    {formatResources(report.resourcesLooted)}
-                    {" · "}
-                    {report.baseDestroyed ? "Chest " : "Kept "}
-                    {formatResources(report.resourcesRemaining)}
+                      <span>
+                        Attacker −{attackerLost} · Defender −{defenderLost}
+                      </span>
+                    </div>
+                  </summary>
+
+                  <div className="comms-battle-details">
+                    <div className="comms-battle-location">
+                      {report.attackerBaseName} attacked{" "}
+                      {report.defenderBaseName}
+                    </div>
+
+                    <div className="comms-battle-armies">
+                      <div className="comms-battle-side">
+                        <strong>⚔️ ATTACKER</strong>
+
+                        <div>Sent: {attackerSent}</div>
+                        <div>Survived: {attackerSurvived}</div>
+                        <div>Lost: {attackerLost}</div>
+
+                        <div className="comms-battle-units">
+                          {formatCompactArmies(report.attackerArmies)}
+                          {" → "}
+                          {formatCompactArmies(report.attackerSurvivors)}
+                        </div>
+                      </div>
+
+                      <div className="comms-battle-side">
+                        <strong>🛡️ DEFENDER</strong>
+
+                        <div>Deployed: {defenderDeployed}</div>
+                        <div>Survived: {defenderSurvived}</div>
+                        <div>Lost: {defenderLost}</div>
+
+                        <div className="comms-battle-units">
+                          {formatCompactArmies(report.defenderArmies)}
+                          {" → "}
+                          {formatCompactArmies(report.defenderSurvivors)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="comms-battle-footer">
+                      <div>
+                        🧑‍🌾 Militia:{" "}
+                        {report.militiaSurvived ? "Survived" : "Eliminated"}
+                      </div>
+
+                      <div>
+                        Loot taken:{" "}
+                        <ResourceDisplay resources={report.resourcesLooted} />
+                      </div>
+
+                      <div>
+                        {report.baseDestroyed
+                          ? "Chest remaining"
+                          : "Resources kept"}
+                        :{" "}
+                        <ResourceDisplay
+                          resources={report.resourcesRemaining}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </details>
               );
             })
         )}

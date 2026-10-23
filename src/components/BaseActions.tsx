@@ -317,7 +317,12 @@ export default function BaseActions({
           disabled={!canAfford("water")}
           onClick={() => handleTrain("water")}
         >
-          💧 Water Army — {armyCosts.water}
+          <img
+            className="action-resource-icon"
+            src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+            alt="Water"
+          />
+          Water Army — {armyCosts.water}
         </button>
 
         <button
@@ -325,7 +330,12 @@ export default function BaseActions({
           disabled={!canAfford("fire")}
           onClick={() => handleTrain("fire")}
         >
-          🔥 Fire Army — {armyCosts.fire}
+          <img
+            className="action-resource-icon"
+            src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+            alt="Fuel"
+          />
+          Fuel Army — {armyCosts.fire}
         </button>
 
         <button
@@ -333,7 +343,12 @@ export default function BaseActions({
           disabled={!canAfford("grass")}
           onClick={() => handleTrain("grass")}
         >
-          🌱 Grass Army — {armyCosts.grass}
+          <img
+            className="action-resource-icon"
+            src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+            alt="Food"
+          />
+          Food Army — {armyCosts.grass}
         </button>
 
         <button className="base-action-button" onClick={() => setMode("main")}>
@@ -388,7 +403,7 @@ export default function BaseActions({
         <div className="send-menu-title">Select Looting Armies</div>
 
         <ArmySelector
-          icon="⚔️💧"
+          icon="water.png"
           label="Water"
           available={base.armies.water}
           selected={selectedArmies.water}
@@ -397,8 +412,8 @@ export default function BaseActions({
         />
 
         <ArmySelector
-          icon="⚔️🔥"
-          label="Fire"
+          icon="fuel.png"
+          label="Fuel"
           available={base.armies.fire}
           selected={selectedArmies.fire}
           onDecrease={() => changeArmyCount("fire", -1)}
@@ -406,8 +421,8 @@ export default function BaseActions({
         />
 
         <ArmySelector
-          icon="⚔️🌱"
-          label="Grass"
+          icon="food.png"
+          label="Food"
           available={base.armies.grass}
           selected={selectedArmies.grass}
           onDecrease={() => changeArmyCount("grass", -1)}
@@ -455,7 +470,7 @@ export default function BaseActions({
         <div className="send-menu-title">Select Armies</div>
 
         <ArmySelector
-          icon="💧"
+          icon="water.png"
           label="Water"
           available={base.armies.water}
           selected={selectedArmies.water}
@@ -464,8 +479,8 @@ export default function BaseActions({
         />
 
         <ArmySelector
-          icon="🔥"
-          label="Fire"
+          icon="fuel.png"
+          label="Fuel"
           available={base.armies.fire}
           selected={selectedArmies.fire}
           onDecrease={() => changeArmyCount("fire", -1)}
@@ -473,8 +488,8 @@ export default function BaseActions({
         />
 
         <ArmySelector
-          icon="🌱"
-          label="Grass"
+          icon="food.png"
+          label="Food"
           available={base.armies.grass}
           selected={selectedArmies.grass}
           onDecrease={() => changeArmyCount("grass", -1)}
@@ -495,6 +510,7 @@ export default function BaseActions({
       </div>
     );
   }
+
   if (mode === "cargo") {
     return (
       <div className="base-actions send-menu">
@@ -572,7 +588,7 @@ export default function BaseActions({
         <div className="send-menu-title">Select Attacking Armies</div>
 
         <ArmySelector
-          icon="⚔️💧"
+          icon="water.png"
           label="Water"
           available={base.armies.water}
           selected={selectedArmies.water}
@@ -581,7 +597,7 @@ export default function BaseActions({
         />
 
         <ArmySelector
-          icon="⚔️🔥"
+          icon="fuel.png"
           label="Fire"
           available={base.armies.fire}
           selected={selectedArmies.fire}
@@ -590,8 +606,8 @@ export default function BaseActions({
         />
 
         <ArmySelector
-          icon="⚔️🌱"
-          label="Grass"
+          icon="food.png"
+          label="Food"
           available={base.armies.grass}
           selected={selectedArmies.grass}
           onDecrease={() => changeArmyCount("grass", -1)}
@@ -830,7 +846,12 @@ function ArmySelector({
   return (
     <div className="army-selector">
       <div className="army-selector-label">
-        {icon} {label}
+        <img
+          className="army-selector-icon"
+          src={`${import.meta.env.BASE_URL}assets/resources/${icon}`}
+          alt={label}
+        />
+        {label}
         <span>Available: {available}</span>
       </div>
 
@@ -848,6 +869,7 @@ function ArmySelector({
     </div>
   );
 }
+
 interface ResourceSelectorProps {
   resourceType: "water" | "fuel" | "food";
   label: string;
