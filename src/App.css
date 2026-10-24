@@ -922,6 +922,7 @@ body {
 .battle-report {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: 6px;
 
   padding: 10px;
@@ -2898,6 +2899,27 @@ body {
   }
 }
 
+.lobby-selected-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 40px;
+  padding: 10px 16px;
+
+  border: 1px solid var(--faction-color);
+  border-radius: 5px;
+
+  background: color-mix(in srgb, var(--faction-color) 15%, transparent);
+  color: var(--faction-color);
+
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
 /* =========================
    HOW TO PLAY
    ========================= */
@@ -3271,8 +3293,15 @@ body {
 }
 
 .final-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-width: 0;
   text-align: left;
+}
+
+.final-player svg {
+  flex-shrink: 0;
 }
 
 .final-score {

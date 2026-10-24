@@ -158,15 +158,6 @@ function App() {
     );
   }
 
-  function handleChangePortrait(variant: PortraitVariant): void {
-    socketRef.current?.send(
-      JSON.stringify({
-        type: "change-portrait",
-        variant,
-      }),
-    );
-  }
-
   function handleLeaveSlot(slotId: number): void {
     const slot = lobbySlots.find((slot) => slot.slotId === slotId);
 
@@ -331,6 +322,14 @@ function App() {
     );
 
   const yourCharacterClass = characterClassByPlayer[yourPlayerId];
+
+  function getFactionName(playerId: number): string {
+    const faction = characterClassByPlayer[playerId];
+
+    return faction
+      ? faction.charAt(0).toUpperCase() + faction.slice(1)
+      : `Player ${playerId}`;
+  }
 
   const YourFactionIcon = yourCharacterClass
     ? FACTION_ICONS[yourCharacterClass]
@@ -834,7 +833,6 @@ function App() {
         onStartGame={handleStartGame}
         onCharacterChange={handleCharacterChange}
         onSelectCharacter={handleSelectCharacter}
-        onChangePortrait={handleChangePortrait}
         onLeaveSlot={handleLeaveSlot}
         roomCode={roomCode}
         onAddBot={handleAddBot}
@@ -854,7 +852,9 @@ function App() {
         <div className="game-over-overlay">
           <div className="game-over-panel">
             <strong>
-              {winner.id === yourPlayerId ? "Victory!" : `${winner.name} Wins!`}
+              {winner.id === yourPlayerId
+                ? "Victory!"
+                : `${getFactionName(winner.id)} Wins!`}
             </strong>
 
             <h2>Final Standings</h2>
@@ -870,7 +870,33 @@ function App() {
                   <span className="final-rank">{index + 1}.</span>
 
                   <span className="final-player">
-                    {player.avatar} {player.name}
+                    {(() => {
+                      const faction = characterClassByPlayer[player.id];
+                      const FactionIcon = faction
+                        ? FACTION_ICONS[faction]
+                        : null;
+
+                      return (
+                        <>
+                          {FactionIcon && (
+                            <FactionIcon
+                              size={18}
+                              strokeWidth={2.3}
+                              color={CLASS_COLORS[faction!]}
+                            />
+                          )}
+                          <span
+                            style={{
+                              color: faction
+                                ? CLASS_COLORS[faction]
+                                : undefined,
+                            }}
+                          >
+                            {getFactionName(player.id)}
+                          </span>
+                        </>
+                      );
+                    })()}
                   </span>
 
                   <span className="final-score">{Math.round(score)}</span>
@@ -908,7 +934,11 @@ function App() {
       )}
 
       {/* Top-left */}
-      <GameLog events={gameState.gameEvents} players={players} />
+      <GameLog
+        events={gameState.gameEvents}
+        players={players}
+        characterClassByPlayer={characterClassByPlayer}
+      />
 
       {/* Top-center */}
       <ResourceBar
@@ -1066,7 +1096,10 @@ function App() {
                 color={CLASS_COLORS[yourCharacterClass!]}
               />
             )}
-            {yourPlayer?.name ?? "Your Bases"}
+            {yourCharacterClass
+              ? yourCharacterClass.charAt(0).toUpperCase() +
+                yourCharacterClass.slice(1)
+              : "Your Bases"}
           </span>
           <span className="expansion-key-count">🔑 {yourExpansionKeys}</span>
         </div>

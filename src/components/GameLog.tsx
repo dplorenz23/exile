@@ -7,9 +7,13 @@ import type {
 
 import ResourceDisplay from "./ResourceDisplay";
 
+import { CLASSES } from "../game/characters";
+import type { CharacterClass } from "../game/characters";
+
 interface GameLogProps {
   events: GameEvent[];
   players: Player[];
+  characterClassByPlayer: Partial<Record<number, CharacterClass>>;
 }
 
 function formatTime(seconds: number): string {
@@ -102,12 +106,16 @@ function getMissionFailureMessage(
   }
 }
 
-export default function GameLog({ events, players }: GameLogProps) {
+export default function GameLog({
+  events,
+  characterClassByPlayer,
+}: GameLogProps) {
   function getPlayerName(playerId: number): string {
-    return (
-      players.find((player) => player.id === playerId)?.name ??
-      `Player ${playerId}`
-    );
+    const faction = characterClassByPlayer[playerId];
+
+    return faction && CLASSES.includes(faction)
+      ? faction.charAt(0).toUpperCase() + faction.slice(1)
+      : `Player ${playerId}`;
   }
 
   return (
@@ -377,11 +385,6 @@ export default function GameLog({ events, players }: GameLogProps) {
                     </div>
 
                     <div className="comms-battle-footer">
-                      <div>
-                        🧑‍🌾 Militia:{" "}
-                        {report.militiaSurvived ? "Survived" : "Eliminated"}
-                      </div>
-
                       <div>
                         Loot taken:{" "}
                         <ResourceDisplay resources={report.resourcesLooted} />

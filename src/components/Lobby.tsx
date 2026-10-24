@@ -6,7 +6,7 @@ import { maps } from "../game/gameState";
 
 import type { LobbySlot, MatchConfig, Player, MatchType } from "../game/types";
 
-import type { CharacterClass, PortraitVariant } from "../game/characters";
+import type { CharacterClass } from "../game/characters";
 import { CLASSES, CLASS_COLORS } from "../game/characters";
 
 import HowToPlay from "./HowToPlay";
@@ -17,13 +17,6 @@ const FACTION_ICONS = {
   farmer: Wheat,
   scientist: FlaskConical,
 };
-
-function getCharacterPortrait(
-  characterClass: CharacterClass,
-  variant: PortraitVariant = "A",
-): string {
-  return `${import.meta.env.BASE_URL}assets/characters/${characterClass}-${variant.toLowerCase()}.png`;
-}
 
 /*
  * Displays the multiplayer lobby and sends player/host actions
@@ -60,8 +53,6 @@ interface LobbyProps {
   onRemoveBot: (botClientId: number) => void;
 
   onSelectCharacter: (characterClass: CharacterClass) => void;
-
-  onChangePortrait: (variant: PortraitVariant) => void;
 }
 
 export default function Lobby({
@@ -78,7 +69,6 @@ export default function Lobby({
   onAddBot,
   onRemoveBot,
   onSelectCharacter,
-  onChangePortrait,
 }: LobbyProps) {
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 
@@ -95,11 +85,6 @@ export default function Lobby({
     );
 
     if (!taken) onSelectCharacter(characterClass);
-  }
-
-  function handlePortraitSelection(variant: PortraitVariant): void {
-    if (!mySlot?.characterClass || mySlot.isReady) return;
-    onChangePortrait(variant);
   }
 
   const occupiedSlots = slots.filter((slot) => slot.playerId !== null);
@@ -203,7 +188,6 @@ export default function Lobby({
                   slot.clientId !== myClientId &&
                   slot.characterClass === characterClass,
               );
-              const portrait = isSelected ? (mySlot?.portrait ?? "A") : "A";
 
               return (
                 <div
@@ -219,10 +203,10 @@ export default function Lobby({
                   }
                 >
                   <div className="lobby-character-art">
-                    <img
-                      src={getCharacterPortrait(characterClass, portrait)}
-                      alt={`${characterClass} ${portrait === "A" ? "female" : "male"} survivor`}
-                      className="lobby-character-image"
+                    <FactionIcon
+                      size={100}
+                      strokeWidth={1.3}
+                      color={CLASS_COLORS[characterClass]}
                     />
                   </div>
 
@@ -233,36 +217,14 @@ export default function Lobby({
                     </h3>
 
                     {isSelected ? (
-                      <>
-                        <span>SELECTED</span>
-                        <div className="lobby-card-actions">
-                          <div className="lobby-portrait-toggle">
-                            <button
-                              type="button"
-                              className={portrait === "A" ? "active" : ""}
-                              disabled={mySlot?.isReady}
-                              onClick={() => handlePortraitSelection("A")}
-                            >
-                              Female
-                            </button>
-                            <button
-                              type="button"
-                              className={portrait === "B" ? "active" : ""}
-                              disabled={mySlot?.isReady}
-                              onClick={() => handlePortraitSelection("B")}
-                            >
-                              Male
-                            </button>
-                          </div>
-                        </div>
-                      </>
+                      <span className="lobby-selected-badge">SELECTED</span>
                     ) : (
                       <button
                         type="button"
                         disabled={taken || !mySlot || mySlot.isReady}
                         onClick={() => handleClassSelection(characterClass)}
                       >
-                        {taken ? "Taken" : "Choose Class"}
+                        {taken ? "Taken" : "Choose Faction"}
                       </button>
                     )}
                   </div>
@@ -292,8 +254,18 @@ export default function Lobby({
                     {player ? (
                       <>
                         <div className="lobby-player-identity">
-                          <strong>
-                            {player.name}
+                          <strong
+                            style={{
+                              color: slot.characterClass
+                                ? CLASS_COLORS[slot.characterClass]
+                                : undefined,
+                            }}
+                          >
+                            {slot.characterClass
+                              ? slot.characterClass.charAt(0).toUpperCase() +
+                                slot.characterClass.slice(1)
+                              : "Choosing Faction"}
+
                             {slot.isBot && (
                               <span className="lobby-bot-badge"> BOT</span>
                             )}
@@ -303,15 +275,6 @@ export default function Lobby({
                             <span className="lobby-host-badge">👑 Host</span>
                           )}
                         </div>
-
-                        {slot.isReady && slot.characterClass && (
-                          <span
-                            className="lobby-player-faction"
-                            style={{ color: CLASS_COLORS[slot.characterClass] }}
-                          >
-                            {slot.characterClass.toUpperCase()}
-                          </span>
-                        )}
 
                         <span className="lobby-player-status">
                           {slot.isReady ? "✓ Ready" : "Not Ready"}

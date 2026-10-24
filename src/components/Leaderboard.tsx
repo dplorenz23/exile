@@ -87,7 +87,14 @@ export default function Leaderboard({
     <div className="leaderboard">
       <div className="leaderboard-title">
         <span>⚑ FACTIONS</span>
-        <span className="leaderboard-count">{standings.length} ACTIVE</span>
+        <span className="leaderboard-count">
+          {
+            standings.filter(
+              ({ player }) => !eliminatedPlayerIds.includes(player.id),
+            ).length
+          }{" "}
+          ALIVE
+        </span>
       </div>
 
       {standings.map((standing, index) => {
@@ -129,7 +136,10 @@ export default function Leaderboard({
                     : undefined,
                 }}
               >
-                {player.name}
+                {characterClass
+                  ? characterClass.charAt(0).toUpperCase() +
+                    characterClass.slice(1)
+                  : "Choosing Faction"}
               </span>
             </span>
 
