@@ -1,3 +1,7 @@
+/* EXiLE — cleaned stylesheet, October 26, 2026.
+   Conservative cleanup: removes duplicate/overridden rules while preserving
+   the existing desktop layouts. Laptop responsiveness remains a future task. */
+
 @import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap");
 
 * {
@@ -59,8 +63,6 @@ body {
    ========================= */
 
 .game-map {
-  height: min(82vw, 82vh);
-
   aspect-ratio: var(--map-columns) / var(--map-rows);
 
   display: grid;
@@ -76,6 +78,7 @@ body {
 
 .map-tile {
   position: relative;
+  box-shadow: inset 0 0 0 1px var(--tile-resource-color);
 
   display: flex;
   align-items: center;
@@ -354,13 +357,6 @@ body {
   --tile-resource-color: #738b60; /* Muted olive green */
 }
 
-/* Every tile gets a resource-colored border */
-
-.map-tile {
-  box-shadow: inset 0 0 0 1px var(--tile-resource-color);
-  position: relative;
-}
-
 /* Gold corner markers for higher-production tiles */
 
 .map-tile--2x::after,
@@ -439,11 +435,6 @@ body {
     drop-shadow(0 0 16px var(--player-color));
 }
 
-.base-piece--selected .base-structure-image {
-  filter: drop-shadow(0 0 5px white) drop-shadow(0 0 10px var(--player-color))
-    drop-shadow(0 0 16px var(--player-color));
-}
-
 .base-name {
   position: absolute;
 
@@ -462,9 +453,6 @@ body {
   white-space: nowrap;
 
   border-radius: 3px;
-
-  background: rgba(10, 14, 18, 0.8);
-  color: white;
 
   font-size: clamp(8px, 0.8vw, 11px);
   font-weight: 700;
@@ -1551,8 +1539,8 @@ body {
 .attack-travel-time {
   position: absolute;
 
-  top: -8px;
-  right: -8px;
+  top: 4px;
+  right: 4px;
 
   z-index: 10;
 
@@ -1580,8 +1568,8 @@ body {
 .loot-travel-time {
   position: absolute;
 
-  top: -10px;
-  right: -10px;
+  top: 4px;
+  right: 4px;
 
   padding: 3px 6px;
 
@@ -1662,12 +1650,6 @@ body {
   font-weight: bold;
 
   pointer-events: none;
-}
-
-.attack-travel-time,
-.loot-travel-time {
-  top: 4px;
-  right: 4px;
 }
 
 .map-tile--unavailable-target {
@@ -2670,13 +2652,6 @@ body {
    HOW TO PLAY
    ========================= */
 
-.lobby-start-buttons {
-  width: 100%;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
 .lobby-how-to-button {
   min-height: 48px;
 
@@ -2703,10 +2678,6 @@ body {
 
   background: rgb(255 255 255 / 9%);
   border-color: rgb(255 255 255 / 28%);
-}
-
-.lobby-start-buttons .lobby-play-button {
-  width: 100%;
 }
 
 .how-to-overlay {
@@ -3062,19 +3033,10 @@ body {
    ========================= */
 
 @media (min-width: 1501px) and (max-width: 2100px) {
-  .game-map {
-    height: min(76vw, 76vh);
-  }
-
   .battle-reports,
   .battle-reports-button,
   .battle-reports-panel {
     width: 380px;
-  }
-
-  .leaderboard {
-    right: 280px;
-    width: 175px;
   }
 }
 
@@ -3085,10 +3047,6 @@ body {
 @media (max-width: 1500px) and (max-height: 950px) {
   .app {
     padding: 20px;
-  }
-
-  .game-map {
-    height: min(68vw, 68vh);
   }
 
   /* Top-left Game Log */
@@ -3126,16 +3084,11 @@ body {
   /* Top-right */
 
   .game-clock {
-    top: 12px;
-    right: 16px;
     padding: 7px 12px;
     font-size: 16px;
   }
 
   .leaderboard {
-    top: 16px;
-    right: 240px;
-    width: 160px;
     padding: 8px;
   }
 
@@ -3146,16 +3099,8 @@ body {
   /* Right-side army movement panel */
 
   .army-movements {
-    top: 62px;
-    right: 16px;
-
     width: 300px;
-    height: 410px;
-
     padding: 8px 10px;
-
-    overflow-y: auto;
-    overflow-x: hidden;
   }
 
   /* Bottom-right Actions */
