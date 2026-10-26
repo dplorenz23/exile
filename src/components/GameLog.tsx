@@ -7,7 +7,7 @@ import type {
 
 import ResourceDisplay from "./ResourceDisplay";
 
-import { CLASSES } from "../game/characters";
+import { CLASSES, CLASS_COLORS } from "../game/characters";
 import type { CharacterClass } from "../game/characters";
 
 interface GameLogProps {
@@ -118,6 +118,21 @@ export default function GameLog({
       : `Player ${playerId}`;
   }
 
+  function factionLabel(playerId: number, label = getPlayerName(playerId)) {
+    const faction = characterClassByPlayer[playerId];
+    return (
+      <span
+        style={
+          faction && CLASSES.includes(faction)
+            ? { color: CLASS_COLORS[faction] }
+            : undefined
+        }
+      >
+        {label}
+      </span>
+    );
+  }
+
   return (
     <div className="battle-reports">
       <div className="battle-reports-button">
@@ -150,13 +165,12 @@ export default function GameLog({
             })
             .map((event) => {
               if (event.type === "expansion") {
-                const playerName = getPlayerName(event.playerId);
-
                 return (
                   <div key={event.id} className="battle-report">
                     <div className="battle-report-header">
                       <strong>
-                        🏕️ {playerName} established {event.baseName} at{" "}
+                        🏕️ {factionLabel(event.playerId)} established{" "}
+                        {event.baseName} at{" "}
                         {getCoordinates(event.row, event.col)}.
                       </strong>
 
@@ -167,13 +181,12 @@ export default function GameLog({
               }
 
               if (event.type === "relocation") {
-                const playerName = getPlayerName(event.playerId);
-
                 return (
                   <div key={event.id} className="battle-report">
                     <div className="battle-report-header">
                       <strong>
-                        📦 {playerName} relocated {event.baseName} from{" "}
+                        📦 {factionLabel(event.playerId)} relocated{" "}
+                        {event.baseName} from{" "}
                         {getCoordinates(event.fromRow, event.fromCol)} to{" "}
                         {getCoordinates(event.toRow, event.toCol)}.
                       </strong>
@@ -184,13 +197,11 @@ export default function GameLog({
                 );
               }
               if (event.type === "loot") {
-                const playerName = getPlayerName(event.playerId);
-
                 return (
                   <div key={event.id} className="battle-report">
                     <div className="battle-report-header">
                       <strong>
-                        💰 {playerName} looted treasure at{" "}
+                        💰 {factionLabel(event.playerId)} looted treasure at{" "}
                         {getCoordinates(event.row, event.col)}.
                       </strong>
 
@@ -215,14 +226,12 @@ export default function GameLog({
               }
 
               if (event.type === "transfer") {
-                const playerName = getPlayerName(event.playerId);
-
                 return (
                   <div key={event.id} className="battle-report">
                     <div className="battle-report-header">
                       <strong>
-                        🔄 {playerName} transferred from {event.fromBaseName} to{" "}
-                        {event.toBaseName}.
+                        🔄 {factionLabel(event.playerId)} transferred from{" "}
+                        {event.fromBaseName} to {event.toBaseName}.
                       </strong>
 
                       <span>{formatTime(event.gameSeconds)}</span>
@@ -236,19 +245,16 @@ export default function GameLog({
               }
 
               if (event.type === "elimination") {
-                const eliminatedName = getPlayerName(event.eliminatedPlayerId);
-
-                const eliminatedByName =
-                  event.eliminatedByPlayerId !== undefined
-                    ? getPlayerName(event.eliminatedByPlayerId)
-                    : undefined;
-
                 return (
                   <div key={event.id} className="battle-report">
                     <div className="battle-report-header">
                       <strong>
-                        ☠️ {eliminatedName} has been eliminated
-                        {eliminatedByName ? ` by ${eliminatedByName}` : ""}.
+                        ☠️ {factionLabel(event.eliminatedPlayerId)} has been
+                        eliminated
+                        {event.eliminatedByPlayerId !== undefined ? (
+                          <> by {factionLabel(event.eliminatedByPlayerId)}</>
+                        ) : null}
+                        .
                       </strong>
 
                       <span>{formatTime(event.gameSeconds)}</span>
@@ -258,12 +264,12 @@ export default function GameLog({
               }
 
               if (event.type === "victory") {
-                const winnerName = getPlayerName(event.winnerPlayerId);
-
                 return (
                   <div key={event.id} className="battle-report">
                     <div className="battle-report-header">
-                      <strong>🏆 {winnerName} wins the game.</strong>
+                      <strong>
+                        🏆 {factionLabel(event.winnerPlayerId)} wins the game.
+                      </strong>
 
                       <span>{formatTime(event.gameSeconds)}</span>
                     </div>
@@ -273,13 +279,15 @@ export default function GameLog({
 
               if (event.type === "mission-failed") {
                 const playerName = getPlayerName(event.playerId);
-
                 const message = getMissionFailureMessage(event, playerName);
 
                 return (
                   <div key={event.id} className="battle-report">
                     <div className="battle-report-header">
-                      <strong>⚠️ {message}</strong>
+                      <strong>
+                        ⚠️ {factionLabel(event.playerId)}
+                        {message.slice(playerName.length)}
+                      </strong>
 
                       <span>{formatTime(event.gameSeconds)}</span>
                     </div>
@@ -288,10 +296,6 @@ export default function GameLog({
               }
 
               const report = event.report;
-
-              const attacker = getPlayerName(report.attackerPlayerId);
-
-              const defender = getPlayerName(report.defenderPlayerId);
 
               const attackerSent =
                 report.attackerArmies.water +
@@ -321,7 +325,8 @@ export default function GameLog({
                   <summary className="comms-battle-summary">
                     <div className="comms-battle-heading">
                       <strong>
-                        ⚔️ {attacker} → {defender}
+                        ⚔️ {factionLabel(report.attackerPlayerId)} →{" "}
+                        {factionLabel(report.defenderPlayerId)}
                       </strong>
 
                       <span className="comms-battle-time">
@@ -350,8 +355,15 @@ export default function GameLog({
 
                   <div className="comms-battle-details">
                     <div className="comms-battle-location">
-                      {report.attackerBaseName} attacked{" "}
-                      {report.defenderBaseName}
+                      {factionLabel(
+                        report.attackerPlayerId,
+                        report.attackerBaseName,
+                      )}{" "}
+                      attacked{" "}
+                      {factionLabel(
+                        report.defenderPlayerId,
+                        report.defenderBaseName,
+                      )}
                     </div>
 
                     <div className="comms-battle-armies">
