@@ -3,23 +3,24 @@ import { createInitialGameState } from "../../src/game/createInitialGameState";
 import { mapOne } from "../../src/game/maps/mapOne";
 import { mapTwo } from "../../src/game/maps/mapTwo";
 import {
-  getArmyCost,
   getLocationMultiplier,
   getSecondaryProduction,
-  resolveCombat,
+  resolveUnitCombat,
   calculateLoot,
   calculatePlayerScore,
   getExpansionCost,
 } from "../../src/game/rules";
 
 import type {
-  ArmyCounts,
   ArmyMission,
   BaseResources,
   GameState,
   MatchType,
   ResourceType,
+  UnitType,
+  UnitCounts,
 } from "../../src/game/types";
+import { emptyUnitCounts } from "../../src/game/types";
 
 import { CLASSES } from "../../src/game/characters";
 import type { CharacterClass } from "../../src/game/characters";
@@ -65,7 +66,6 @@ type LobbyPlayer = {
   isHost: boolean;
   isBot: boolean;
   characterClass: CharacterClass | null;
-  portrait: PortraitVariant;
 };
 
 type GameRoom = {
@@ -216,17 +216,22 @@ function isValidResourcePayment(payment: BaseResources): boolean {
   );
 }
 
-function isArmyCounts(value: unknown): value is ArmyCounts {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+function isUnitCounts(value: unknown): value is UnitCounts {
+  if (typeof value !== "object" || value === null) {
     return false;
   }
 
-  const armies = value as Record<string, unknown>;
+  const counts = value as Record<string, unknown>;
 
   return (
-    isNonNegativeInteger(armies.water) &&
-    isNonNegativeInteger(armies.fire) &&
-    isNonNegativeInteger(armies.grass)
+    Number.isSafeInteger(counts.guardian) &&
+    Number.isSafeInteger(counts.marksman) &&
+    Number.isSafeInteger(counts.medic) &&
+    Number.isSafeInteger(counts.spy) &&
+    (counts.guardian as number) >= 0 &&
+    (counts.marksman as number) >= 0 &&
+    (counts.medic as number) >= 0 &&
+    (counts.spy as number) >= 0
   );
 }
 
@@ -252,7 +257,7 @@ function startArmyTraining(
   room: GameRoom,
   playerId: number,
   baseId: number,
-  resource: ResourceType,
+  unitType: UnitType,
 ): boolean {
   const gameState = room.gameState;
 
@@ -262,21 +267,7 @@ function startArmyTraining(
 
   const base = gameState.bases.find((base) => base.id === baseId);
 
-  if (!base) {
-    return false;
-  }
-
-  /*
-   * Player may only train at their own base.
-   */
-  if (base.playerId !== playerId) {
-    return false;
-  }
-
-  /*
-   * Base can only train one army at a time.
-   */
-  if (base.training) {
+  if (!base || base.playerId !== playerId || base.training) {
     return false;
   }
 
@@ -286,9 +277,13 @@ function startArmyTraining(
     return false;
   }
 
-  const cost = getArmyCost(base.armiesBuilt[resource]);
+  const cost = BALANCE.units[unitType].cost;
 
-  if (resources[resource] < cost) {
+  if (
+    resources.water < cost.water ||
+    resources.fire < cost.fire ||
+    resources.grass < cost.grass
+  ) {
     return false;
   }
 
@@ -300,7 +295,7 @@ function startArmyTraining(
     return {
       ...currentBase,
       training: {
-        resource,
+        unitType,
         secondsRemaining: BALANCE.armies.trainingSeconds,
       },
     };
@@ -308,10 +303,10 @@ function startArmyTraining(
 
   const updatedResources = {
     ...gameState.resourcesByBase,
-
     [baseId]: {
-      ...resources,
-      [resource]: resources[resource] - cost,
+      water: resources.water - cost.water,
+      fire: resources.fire - cost.fire,
+      grass: resources.grass - cost.grass,
     },
   };
 
@@ -349,23 +344,25 @@ function tryBotTrainArmy(room: GameRoom, bot: LobbyPlayer): boolean {
     return false;
   }
 
-  const resourceTypes: ResourceType[] = ["water", "fire", "grass"];
+  const unitTypes: UnitType[] = ["guardian", "marksman", "medic", "spy"];
 
-  const affordableResources = resourceTypes.filter((resource) => {
-    const cost = getArmyCost(base.armiesBuilt[resource]);
+  const affordableUnits = unitTypes.filter((unitType) => {
+    const cost = BALANCE.units[unitType].cost;
 
-    return resources[resource] >= cost;
+    return (
+      resources.water >= cost.water &&
+      resources.fire >= cost.fire &&
+      resources.grass >= cost.grass
+    );
   });
 
-  if (affordableResources.length === 0) {
+  if (affordableUnits.length === 0) {
     return false;
   }
 
-  affordableResources.sort((a, b) => base.armiesBuilt[a] - base.armiesBuilt[b]);
+  affordableUnits.sort((a, b) => base.armiesBuilt[a] - base.armiesBuilt[b]);
 
-  const resource = affordableResources[0];
-
-  return startArmyTraining(room, bot.playerId, base.id, resource);
+  return startArmyTraining(room, bot.playerId, base.id, affordableUnits[0]);
 }
 
 function runBotTick(room: GameRoom): void {
@@ -477,21 +474,20 @@ function runGameTick(room: GameRoom): void {
       const secondsRemaining = base.training.secondsRemaining - 1;
 
       if (secondsRemaining <= 0) {
-        const resource = base.training.resource;
+        const unitType = base.training.unitType;
 
         updatedArmies = {
           ...base.armies,
-
-          [resource]: base.armies[resource] + 1,
+          [unitType]: base.armies[unitType] + 1,
         };
 
         updatedArmiesBuilt = {
           ...base.armiesBuilt,
-
-          [resource]: base.armiesBuilt[resource] + 1,
+          [unitType]: base.armiesBuilt[unitType] + 1,
         };
 
-        const completedArmyCost = getArmyCost(base.armiesBuilt[resource]);
+        const cost = BALANCE.units[unitType].cost;
+        const completedArmyCost = cost.water + cost.fire + cost.grass;
 
         updatedArmiesTrainedByPlayer[base.playerId] =
           (updatedArmiesTrainedByPlayer[base.playerId] ?? 0) + 1;
@@ -660,14 +656,18 @@ function runGameTick(room: GameRoom): void {
         updatedArmyMissions,
       ).totalScore;
 
-      const combatResult = resolveCombat(mission.armies, defendingBase.armies);
+      const combatResult = resolveUnitCombat(
+        mission.armies,
+        defendingBase.armies,
+      );
 
       const survivingAttackers = combatResult.attackerSurvivors;
 
       const totalSurvivors =
-        survivingAttackers.water +
-        survivingAttackers.fire +
-        survivingAttackers.grass;
+        survivingAttackers.guardian +
+        survivingAttackers.marksman +
+        survivingAttackers.medic +
+        survivingAttackers.spy;
 
       const returningExpansionKeys =
         combatResult.baseDestroyed && totalSurvivors > 0 ? 1 : 0;
@@ -846,6 +846,9 @@ function runGameTick(room: GameRoom): void {
          * Leftover resources will become
          * treasure in the next step.
          */
+      }
+
+      if (combatResult.baseDestroyed) {
         delete updatedResources[defendingBase.id];
       }
 
@@ -905,11 +908,12 @@ function runGameTick(room: GameRoom): void {
             ...resourcesRemaining,
           },
 
-          militiaSurvived: combatResult.militiaSurvived,
-
           baseDestroyed: combatResult.baseDestroyed,
 
           eliminatedPlayerId,
+
+          attackerRetreated: combatResult.attackerRetreated,
+          roundsFought: combatResult.roundsFought,
         },
       });
 
@@ -1010,7 +1014,10 @@ function runGameTick(room: GameRoom): void {
       }
 
       const totalArmies =
-        mission.armies.water + mission.armies.fire + mission.armies.grass;
+        mission.armies.guardian +
+        mission.armies.marksman +
+        mission.armies.medic +
+        mission.armies.spy;
 
       const lootCapacity = totalArmies * BALANCE.armies.cargoCapacity;
 
@@ -1135,11 +1142,10 @@ function runGameTick(room: GameRoom): void {
           ...base,
 
           armies: {
-            water: base.armies.water + mission.armies.water,
-
-            fire: base.armies.fire + mission.armies.fire,
-
-            grass: base.armies.grass + mission.armies.grass,
+            guardian: base.armies.guardian + mission.armies.guardian,
+            marksman: base.armies.marksman + mission.armies.marksman,
+            medic: base.armies.medic + mission.armies.medic,
+            spy: base.armies.spy + mission.armies.spy,
           },
         };
       });
@@ -1273,17 +1279,8 @@ function runGameTick(room: GameRoom): void {
 
         isRelocating: false,
 
-        armies: {
-          water: 0,
-          fire: 0,
-          grass: 0,
-        },
-
-        armiesBuilt: {
-          water: 0,
-          fire: 0,
-          grass: 0,
-        },
+        armies: emptyUnitCounts(),
+        armiesBuilt: emptyUnitCounts(),
 
         training: null,
 
@@ -1713,11 +1710,10 @@ function runGameTick(room: GameRoom): void {
           ...base,
 
           armies: {
-            water: base.armies.water + mission.armies.water,
-
-            fire: base.armies.fire + mission.armies.fire,
-
-            grass: base.armies.grass + mission.armies.grass,
+            guardian: base.armies.guardian + mission.armies.guardian,
+            marksman: base.armies.marksman + mission.armies.marksman,
+            medic: base.armies.medic + mission.armies.medic,
+            spy: base.armies.spy + mission.armies.spy,
           },
         };
       });
@@ -1816,11 +1812,10 @@ function runGameTick(room: GameRoom): void {
           ...base,
 
           armies: {
-            water: base.armies.water + mission.armies.water,
-
-            fire: base.armies.fire + mission.armies.fire,
-
-            grass: base.armies.grass + mission.armies.grass,
+            guardian: base.armies.guardian + mission.armies.guardian,
+            marksman: base.armies.marksman + mission.armies.marksman,
+            medic: base.armies.medic + mission.armies.medic,
+            spy: base.armies.spy + mission.armies.spy,
           },
         };
       });
@@ -2165,6 +2160,7 @@ server.on("connection", (socket, request) => {
         isReady: false,
         isHost: true,
         isBot: false,
+        characterClass: null,
       };
 
       const room: GameRoom = {
@@ -2258,7 +2254,6 @@ server.on("connection", (socket, request) => {
         isHost: false,
         isBot: false,
         characterClass: null,
-        portrait: "A",
       };
 
       room.lobbyPlayers.set(clientId, lobbyPlayer);
@@ -2319,7 +2314,6 @@ server.on("connection", (socket, request) => {
         isHost: false,
         isBot: true,
         characterClass: availableClass,
-        portrait: "A",
       };
 
       room.lobbyPlayers.set(botClientId, botPlayer);
@@ -2673,17 +2667,22 @@ server.on("connection", (socket, request) => {
 
       const baseId = Number(message.baseId);
 
-      if (!isResourceType(message.resource)) {
+      const unitType = message.unitType;
+
+      if (
+        unitType !== "guardian" &&
+        unitType !== "marksman" &&
+        unitType !== "medic" &&
+        unitType !== "spy"
+      ) {
         return;
       }
-
-      const resource = message.resource;
 
       const trainingStarted = startArmyTraining(
         room,
         player.playerId,
         baseId,
-        resource,
+        unitType,
       );
 
       if (!trainingStarted) {
@@ -2718,7 +2717,7 @@ server.on("connection", (socket, request) => {
 
       const destinationBaseId = Number(message.destinationBaseId);
 
-      if (!isArmyCounts(message.armies)) {
+      if (!isUnitCounts(message.armies)) {
         return;
       }
 
@@ -2755,19 +2754,18 @@ server.on("connection", (socket, request) => {
       /*
        * Validate army quantities.
        */
-      if (armies.water < 0 || armies.fire < 0 || armies.grass < 0) {
-        return;
-      }
 
       if (
-        armies.water > originBase.armies.water ||
-        armies.fire > originBase.armies.fire ||
-        armies.grass > originBase.armies.grass
+        armies.guardian > originBase.armies.guardian ||
+        armies.marksman > originBase.armies.marksman ||
+        armies.medic > originBase.armies.medic ||
+        armies.spy > originBase.armies.spy
       ) {
         return;
       }
 
-      const totalArmies = armies.water + armies.fire + armies.grass;
+      const totalArmies =
+        armies.guardian + armies.marksman + armies.medic + armies.spy;
 
       if (totalArmies === 0) {
         return;
@@ -2824,11 +2822,10 @@ server.on("connection", (socket, request) => {
           ...base,
 
           armies: {
-            water: base.armies.water - armies.water,
-
-            fire: base.armies.fire - armies.fire,
-
-            grass: base.armies.grass - armies.grass,
+            guardian: base.armies.guardian - armies.guardian,
+            marksman: base.armies.marksman - armies.marksman,
+            medic: base.armies.medic - armies.medic,
+            spy: base.armies.spy - armies.spy,
           },
         };
       });
@@ -2924,7 +2921,7 @@ server.on("connection", (socket, request) => {
 
       const destinationBaseId = Number(message.destinationBaseId);
 
-      if (!isArmyCounts(message.armies)) {
+      if (!isUnitCounts(message.armies)) {
         return;
       }
 
@@ -2957,19 +2954,18 @@ server.on("connection", (socket, request) => {
       /*
        * Validate army quantities.
        */
-      if (armies.water < 0 || armies.fire < 0 || armies.grass < 0) {
-        return;
-      }
 
       if (
-        armies.water > originBase.armies.water ||
-        armies.fire > originBase.armies.fire ||
-        armies.grass > originBase.armies.grass
+        armies.guardian > originBase.armies.guardian ||
+        armies.marksman > originBase.armies.marksman ||
+        armies.medic > originBase.armies.medic ||
+        armies.spy > originBase.armies.spy
       ) {
         return;
       }
 
-      const totalArmies = armies.water + armies.fire + armies.grass;
+      const totalArmies =
+        armies.guardian + armies.marksman + armies.medic + armies.spy;
 
       if (totalArmies === 0) {
         return;
@@ -2993,11 +2989,10 @@ server.on("connection", (socket, request) => {
           ...base,
 
           armies: {
-            water: base.armies.water - armies.water,
-
-            fire: base.armies.fire - armies.fire,
-
-            grass: base.armies.grass - armies.grass,
+            guardian: base.armies.guardian - armies.guardian,
+            marksman: base.armies.marksman - armies.marksman,
+            medic: base.armies.medic - armies.medic,
+            spy: base.armies.spy - armies.spy,
           },
         };
       });
@@ -3077,7 +3072,7 @@ server.on("connection", (socket, request) => {
 
       const treasureId = Number(message.treasureId);
 
-      if (!isArmyCounts(message.armies)) {
+      if (!isUnitCounts(message.armies)) {
         return;
       }
 
@@ -3099,19 +3094,17 @@ server.on("connection", (socket, request) => {
         return;
       }
 
-      if (armies.water < 0 || armies.fire < 0 || armies.grass < 0) {
-        return;
-      }
-
       if (
-        armies.water > originBase.armies.water ||
-        armies.fire > originBase.armies.fire ||
-        armies.grass > originBase.armies.grass
+        armies.guardian > originBase.armies.guardian ||
+        armies.marksman > originBase.armies.marksman ||
+        armies.medic > originBase.armies.medic ||
+        armies.spy > originBase.armies.spy
       ) {
         return;
       }
 
-      const totalArmies = armies.water + armies.fire + armies.grass;
+      const totalArmies =
+        armies.guardian + armies.marksman + armies.medic + armies.spy;
 
       if (totalArmies === 0) {
         return;
@@ -3132,11 +3125,10 @@ server.on("connection", (socket, request) => {
           ...base,
 
           armies: {
-            water: base.armies.water - armies.water,
-
-            fire: base.armies.fire - armies.fire,
-
-            grass: base.armies.grass - armies.grass,
+            guardian: base.armies.guardian - armies.guardian,
+            marksman: base.armies.marksman - armies.marksman,
+            medic: base.armies.medic - armies.medic,
+            spy: base.armies.spy - armies.spy,
           },
         };
       });
@@ -3385,11 +3377,7 @@ server.on("connection", (socket, request) => {
         destinationRow,
         destinationCol,
 
-        armies: {
-          water: 0,
-          fire: 0,
-          grass: 0,
-        },
+        armies: emptyUnitCounts(),
 
         /*
          * Expansion payment travels
@@ -3582,11 +3570,7 @@ server.on("connection", (socket, request) => {
 
           isRelocating: true,
 
-          armies: {
-            water: 0,
-            fire: 0,
-            grass: 0,
-          },
+          armies: emptyUnitCounts(),
         };
       });
 
@@ -3794,32 +3778,7 @@ server.on("connection", (socket, request) => {
       if (alreadyClaimed) return;
 
       player.characterClass = requestedClass as CharacterClass;
-      player.portrait = "A";
       player.isReady = false;
-
-      broadcastLobby(room);
-    }
-
-    /*
-     * ==============================================
-     * LOBBY ACTION: CHANGE PORTRAIT
-     * ==============================================
-     */
-
-    if (message.type === "change-portrait") {
-      const room = getRoomForClient(clientId);
-
-      if (!room || room.gameState !== null) return;
-
-      const player = room.lobbyPlayers.get(clientId);
-
-      if (!player || player.isBot || player.isReady) return;
-
-      if (message.variant !== "A" && message.variant !== "B") return;
-
-      if (player.characterClass === null) return;
-
-      player.portrait = message.variant;
 
       broadcastLobby(room);
     }

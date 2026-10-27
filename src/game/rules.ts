@@ -9,6 +9,8 @@ import type {
   Base,
   BaseResources,
   PlayerScore,
+  UnitCounts,
+  UnitType,
 } from "./types";
 
 /*
@@ -293,6 +295,276 @@ export function resolveCombat(
 
 /*
  * ============================================================
+ * NEW UNIT COMBAT
+ * ============================================================
+ */
+
+interface CombatUnit {
+  type: UnitType;
+  health: number;
+}
+
+export interface UnitCombatResult {
+  attackerSurvivors: UnitCounts;
+  defenderSurvivors: UnitCounts;
+  attackerWon: boolean;
+  baseDestroyed: boolean;
+  attackerRetreated: boolean;
+  roundsFought: number;
+}
+
+const UNIT_PRIORITY: UnitType[] = ["guardian", "marksman", "spy", "medic"];
+
+function createCombatUnits(counts: UnitCounts): CombatUnit[] {
+  const units: CombatUnit[] = [];
+
+  for (const type of UNIT_PRIORITY) {
+    for (let i = 0; i < counts[type]; i++) {
+      units.push({
+        type,
+        health: BALANCE.units[type].health,
+      });
+    }
+  }
+
+  return units;
+}
+
+function countCombatUnits(units: CombatUnit[]): UnitCounts {
+  const counts: UnitCounts = {
+    guardian: 0,
+    marksman: 0,
+    medic: 0,
+    spy: 0,
+  };
+
+  for (const unit of units) {
+    if (unit.health > 0) {
+      counts[unit.type] += 1;
+    }
+  }
+
+  return counts;
+}
+
+/*
+ * Apply damage in targeting-priority order.
+ * Excess damage carries over to the next soldier.
+ */
+function applyCombatDamage(targets: CombatUnit[], damage: number): void {
+  for (const type of UNIT_PRIORITY) {
+    for (const target of targets) {
+      if (damage <= 0) {
+        return;
+      }
+
+      if (target.type !== type || target.health <= 0) {
+        continue;
+      }
+
+      const applied = Math.min(target.health, damage);
+
+      target.health -= applied;
+      damage -= applied;
+    }
+  }
+}
+
+/*
+ * Each surviving Medic heals the most wounded
+ * living friendly soldier, including itself.
+ */
+function healCombatUnits(units: CombatUnit[]): void {
+  const medics = units.filter(
+    (unit) => unit.type === "medic" && unit.health > 0,
+  );
+
+  for (let i = 0; i < medics.length; i++) {
+    let mostWounded: CombatUnit | undefined;
+    let largestWound = 0;
+
+    for (const unit of units) {
+      if (unit.health <= 0) {
+        continue;
+      }
+
+      const missingHealth = BALANCE.units[unit.type].health - unit.health;
+
+      if (missingHealth > largestWound) {
+        largestWound = missingHealth;
+        mostWounded = unit;
+      }
+    }
+
+    if (!mostWounded) {
+      continue;
+    }
+
+    mostWounded.health = Math.min(
+      BALANCE.units[mostWounded.type].health,
+      mostWounded.health + BALANCE.units.medic.healing,
+    );
+  }
+}
+
+/*
+ * Estimate how many rounds each army needs to defeat
+ * the other, based on remaining HP and attack damage.
+ *
+ * Retreat if the defender can eliminate the attacker
+ * at least twice as quickly as the attacker can
+ * eliminate the defender.
+ */
+function shouldAttackersRetreat(
+  attackers: CombatUnit[],
+  defenders: CombatUnit[],
+): boolean {
+  const remainingHealth = (units: CombatUnit[]) =>
+    units.reduce((total, unit) => total + Math.max(0, unit.health), 0);
+
+  const damagePerRound = (units: CombatUnit[]) =>
+    units.reduce(
+      (total, unit) =>
+        total + (unit.health > 0 ? BALANCE.units[unit.type].attack : 0),
+      0,
+    );
+
+  const attackerHealth = remainingHealth(attackers);
+  const defenderHealth = remainingHealth(defenders);
+
+  const attackerDamage = damagePerRound(attackers);
+  const defenderDamage = damagePerRound(defenders);
+
+  if (attackerDamage === 0) {
+    return true;
+  }
+
+  if (defenderDamage === 0) {
+    return false;
+  }
+
+  const roundsForAttackersToWin = defenderHealth / attackerDamage;
+  const roundsForDefendersToWin = attackerHealth / defenderDamage;
+
+  return (
+    roundsForAttackersToWin >=
+    roundsForDefendersToWin * BALANCE.combat.retreatDisadvantageRatio
+  );
+}
+
+/*
+ * Resolve combat with simultaneous damage.
+ *
+ * Both sides attack based on their living units
+ * at the beginning of each round.
+ *
+ * Healing occurs after damage.
+ * Dead units cannot be healed.
+ *
+ * The defender wins ties.
+ */
+
+export function resolveUnitCombat(
+  attackingUnits: UnitCounts,
+  defendingUnits: UnitCounts,
+): UnitCombatResult {
+  const attackers = createCombatUnits(attackingUnits);
+  const defenders = createCombatUnits(defendingUnits);
+
+  let roundsFought = 0;
+  let attackerRetreated = false;
+
+  while (
+    attackers.some((unit) => unit.health > 0) &&
+    defenders.some((unit) => unit.health > 0)
+  ) {
+    roundsFought += 1;
+
+    /*
+     * Both sides calculate damage before either
+     * side takes casualties.
+     */
+    const attackerDamage = attackers.reduce(
+      (total, unit) =>
+        total + (unit.health > 0 ? BALANCE.units[unit.type].attack : 0),
+      0,
+    );
+
+    const defenderDamage = defenders.reduce(
+      (total, unit) =>
+        total + (unit.health > 0 ? BALANCE.units[unit.type].attack : 0),
+      0,
+    );
+
+    /*
+     * Simultaneous attacks.
+     */
+    applyCombatDamage(defenders, attackerDamage);
+    applyCombatDamage(attackers, defenderDamage);
+
+    /*
+     * Surviving Medics heal after damage.
+     */
+    healCombatUnits(attackers);
+    healCombatUnits(defenders);
+
+    /*
+     * Check for elimination before retreat.
+     */
+    const attackersAlive = attackers.some((unit) => unit.health > 0);
+
+    const defendersAlive = defenders.some((unit) => unit.health > 0);
+
+    if (!attackersAlive || !defendersAlive) {
+      break;
+    }
+
+    /*
+     * The first round is mandatory.
+     * Starting at its end, retreat if the
+     * defender has a major advantage.
+     */
+    if (shouldAttackersRetreat(attackers, defenders)) {
+      attackerRetreated = true;
+      break;
+    }
+
+    /*
+     * Prevent extended battles and Medic stalemates.
+     */
+    if (roundsFought >= BALANCE.combat.maxRounds) {
+      attackerRetreated = true;
+      break;
+    }
+  }
+
+  const attackerSurvivors = countCombatUnits(attackers);
+  const defenderSurvivors = countCombatUnits(defenders);
+
+  const attackerRemaining = Object.values(attackerSurvivors).reduce(
+    (total, count) => total + count,
+    0,
+  );
+
+  const defenderRemaining = Object.values(defenderSurvivors).reduce(
+    (total, count) => total + count,
+    0,
+  );
+
+  const attackerWon = attackerRemaining > 0 && defenderRemaining === 0;
+
+  return {
+    attackerSurvivors,
+    defenderSurvivors,
+    attackerWon,
+    baseDestroyed: attackerWon,
+    attackerRetreated,
+    roundsFought,
+  };
+}
+
+/*
+ * ============================================================
  * RAID LOOT
  * ============================================================
  *
@@ -495,12 +767,22 @@ export function calculatePlayerScore(
       return total;
     }
 
-    return total + base.armies.water + base.armies.fire + base.armies.grass;
+    return (
+      total +
+      base.armies.guardian +
+      base.armies.marksman +
+      base.armies.medic +
+      base.armies.spy
+    );
   }, 0);
 
   const armiesInTransit = playerMissions.reduce(
     (total, mission) =>
-      total + mission.armies.water + mission.armies.fire + mission.armies.grass,
+      total +
+      mission.armies.guardian +
+      mission.armies.marksman +
+      mission.armies.medic +
+      mission.armies.spy,
     0,
   );
 

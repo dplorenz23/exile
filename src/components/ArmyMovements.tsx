@@ -157,9 +157,10 @@ export default function ArmyMovements({
           </div>
 
           <div className="army-movement-summary">
-            {(mission.armies.water > 0 ||
-              mission.armies.fire > 0 ||
-              mission.armies.grass > 0) && (
+            {(mission.armies.guardian > 0 ||
+              mission.armies.marksman > 0 ||
+              mission.armies.medic > 0 ||
+              mission.armies.spy > 0) && (
               <ArmyDisplay armies={mission.armies} />
             )}
 
@@ -175,9 +176,10 @@ export default function ArmyMovements({
               <span>Keys: 🔑{mission.expansionKeys}</span>
             )}
 
-            {mission.armies.water === 0 &&
-              mission.armies.fire === 0 &&
-              mission.armies.grass === 0 &&
+            {mission.armies.guardian === 0 &&
+              mission.armies.marksman === 0 &&
+              mission.armies.medic === 0 &&
+              mission.armies.spy === 0 &&
               mission.resources.water === 0 &&
               mission.resources.fire === 0 &&
               mission.resources.grass === 0 &&

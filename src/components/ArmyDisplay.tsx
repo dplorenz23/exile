@@ -1,14 +1,15 @@
-import type { ArmyCounts } from "../game/types";
+import type { UnitCounts } from "../game/types";
 
 interface ArmyDisplayProps {
-  armies: ArmyCounts;
+  armies: UnitCounts;
 }
 
 export default function ArmyDisplay({ armies }: ArmyDisplayProps) {
   const armyTypes = [
-    { key: "water", image: "water.png", label: "Water" },
-    { key: "fire", image: "fuel.png", label: "Fuel" },
-    { key: "grass", image: "food.png", label: "Food" },
+    { key: "guardian", label: "Guardian" },
+    { key: "marksman", label: "Marksman" },
+    { key: "medic", label: "Medic" },
+    { key: "spy", label: "Spy" },
   ] as const;
 
   const visibleArmies = armyTypes.filter(({ key }) => armies[key] > 0);
@@ -19,13 +20,9 @@ export default function ArmyDisplay({ armies }: ArmyDisplayProps) {
 
   return (
     <span className="resource-display">
-      {visibleArmies.map(({ key, image, label }) => (
+      {visibleArmies.map(({ key, label }) => (
         <span className="resource-display-item" key={key}>
-          <img
-            src={`${import.meta.env.BASE_URL}assets/resources/${image}`}
-            alt={`${label} Army`}
-            title={`${label} Army`}
-          />
+          <span title={label}>{label}</span>
           {armies[key]}
         </span>
       ))}

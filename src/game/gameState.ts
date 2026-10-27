@@ -1,3 +1,4 @@
+import { emptyUnitCounts } from "./types";
 import type { Base, BaseResources, MatchType, Player } from "./types";
 import { BALANCE } from "../../src/game/balance";
 /*
@@ -120,17 +121,8 @@ export const bases: Base[] = [
     col: 3,
     timeInLocationSeconds: 0,
 
-    armies: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    armiesBuilt: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
+    armies: emptyUnitCounts(),
+    armiesBuilt: emptyUnitCounts(),
 
     training: null,
     relocations: 0,
@@ -144,17 +136,8 @@ export const bases: Base[] = [
     col: 7,
     timeInLocationSeconds: 0,
 
-    armies: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    armiesBuilt: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
+    armies: emptyUnitCounts(),
+    armiesBuilt: emptyUnitCounts(),
 
     training: null,
     relocations: 0,
@@ -168,17 +151,8 @@ export const bases: Base[] = [
     col: 3,
     timeInLocationSeconds: 0,
 
-    armies: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    armiesBuilt: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
+    armies: emptyUnitCounts(),
+    armiesBuilt: emptyUnitCounts(),
 
     training: null,
     relocations: 0,
@@ -192,17 +166,8 @@ export const bases: Base[] = [
     col: 0,
     timeInLocationSeconds: 0,
 
-    armies: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
-
-    armiesBuilt: {
-      water: 0,
-      fire: 0,
-      grass: 0,
-    },
+    armies: emptyUnitCounts(),
+    armiesBuilt: emptyUnitCounts(),
 
     training: null,
     relocations: 0,

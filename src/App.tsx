@@ -32,14 +32,14 @@ import type {
   LobbySlot,
   MatchConfig,
   MatchType,
-  ArmyCounts,
+  UnitCounts,
+  UnitType,
   BaseResources,
-  ResourceType,
   GameState,
 } from "./game/types";
 
 import { CLASS_COLORS } from "./game/characters";
-import type { CharacterClass, PortraitVariant } from "./game/characters";
+import type { CharacterClass } from "./game/characters";
 
 import "./App.css";
 
@@ -360,9 +360,9 @@ function App() {
   >(null);
 
   const [pendingAttackArmies, setPendingAttackArmies] =
-    useState<ArmyCounts | null>(null);
+    useState<UnitCounts | null>(null);
 
-  const [pendingLootArmies, setPendingLootArmies] = useState<ArmyCounts | null>(
+  const [pendingLootArmies, setPendingLootArmies] = useState<UnitCounts | null>(
     null,
   );
 
@@ -370,7 +370,7 @@ function App() {
     useState<BaseResources | null>(null);
 
   const [pendingTransferArmies, setPendingTransferArmies] =
-    useState<ArmyCounts | null>(null);
+    useState<UnitCounts | null>(null);
 
   const [pendingTransferResources, setPendingTransferResources] =
     useState<BaseResources | null>(null);
@@ -565,7 +565,7 @@ function App() {
    * We remember those armies, then let the player choose
    * the destination directly from the map.
    */
-  function handleStartAttackTargeting(armies: ArmyCounts): void {
+  function handleStartAttackTargeting(armies: UnitCounts): void {
     setPendingAttackArmies({
       ...armies,
     });
@@ -589,7 +589,7 @@ function App() {
    */
   function handleAttackArmies(
     destinationBaseId: number,
-    armies: ArmyCounts,
+    armies: UnitCounts,
   ): void {
     socketRef.current?.send(
       JSON.stringify({
@@ -609,7 +609,7 @@ function App() {
    * Remember which armies were selected, then allow
    * the player to choose a treasure chest on the map.
    */
-  function handleStartLootTargeting(armies: ArmyCounts): void {
+  function handleStartLootTargeting(armies: UnitCounts): void {
     setPendingLootArmies({
       ...armies,
     });
@@ -678,7 +678,7 @@ function App() {
    */
   function handleTransferArmies(
     destinationBaseId: number,
-    armies: ArmyCounts,
+    armies: UnitCounts,
     transferredResources: BaseResources,
   ): void {
     socketRef.current?.send(
@@ -700,12 +700,12 @@ function App() {
    * Starts a training order at the selected base.
    *
    */
-  function handleTrainArmy(resource: ResourceType): void {
+  function handleTrainArmy(unitType: UnitType): void {
     socketRef.current?.send(
       JSON.stringify({
         type: "train-army",
         baseId: selectedBaseId,
-        resource,
+        unitType,
       }),
     );
   }
@@ -747,7 +747,7 @@ function App() {
   }
 
   function handleStartTransferTargeting(
-    armies: ArmyCounts,
+    armies: UnitCounts,
     resources: BaseResources,
   ): void {
     setPendingTransferArmies({
@@ -1143,64 +1143,26 @@ function App() {
 
               <div className="base-selector-stats">
                 <div className="base-selector-stat-column">
-                  <div className="base-selector-stat-heading">RESOURCES</div>
-
-                  <div className="base-selector-stat">
-                    <img
-                      src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
-                      alt="Water"
-                    />
-                    {Math.floor(
-                      gameState.resourcesByBase[selectedBase.id]?.water ?? 0,
-                    )}
-                  </div>
-
-                  <div className="base-selector-stat">
-                    <img
-                      src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
-                      alt="Fuel"
-                    />
-                    {Math.floor(
-                      gameState.resourcesByBase[selectedBase.id]?.fire ?? 0,
-                    )}
-                  </div>
-
-                  <div className="base-selector-stat">
-                    <img
-                      src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
-                      alt="Food"
-                    />
-                    {Math.floor(
-                      gameState.resourcesByBase[selectedBase.id]?.grass ?? 0,
-                    )}
-                  </div>
-                </div>
-
-                <div className="base-selector-stat-column">
                   <div className="base-selector-stat-heading">ARMIES</div>
 
                   <div className="base-selector-stat">
-                    <img
-                      src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
-                      alt="Water"
-                    />
-                    {selectedBase.armies.water}
+                    <span>Guardian</span>
+                    {selectedBase.armies.guardian}
                   </div>
 
                   <div className="base-selector-stat">
-                    <img
-                      src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
-                      alt="Fuel"
-                    />
-                    {selectedBase.armies.fire}
+                    <span>Marksman</span>
+                    {selectedBase.armies.marksman}
                   </div>
 
                   <div className="base-selector-stat">
-                    <img
-                      src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
-                      alt="Food"
-                    />
-                    {selectedBase.armies.grass}
+                    <span>Medic</span>
+                    {selectedBase.armies.medic}
+                  </div>
+
+                  <div className="base-selector-stat">
+                    <span>Spy</span>
+                    {selectedBase.armies.spy}
                   </div>
                 </div>
               </div>

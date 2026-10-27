@@ -1,9 +1,4 @@
-import type {
-  ArmyCounts,
-  GameEvent,
-  Player,
-  ResourceType,
-} from "../game/types";
+import type { UnitCounts, GameEvent, Player } from "../game/types";
 
 import ResourceDisplay from "./ResourceDisplay";
 
@@ -29,45 +24,32 @@ function getCoordinates(row: number, col: number): string {
   return `${column}${row + 1}`;
 }
 
-function ResourceIcon({ type }: { type: ResourceType }) {
-  const filenames: Record<ResourceType, string> = {
-    water: "water.png",
-    fire: "fuel.png",
-    grass: "food.png",
-  };
+function formatArmies(armies: UnitCounts) {
+  const unitTypes = [
+    { key: "guardian", label: "Guardian" },
+    { key: "marksman", label: "Marksman" },
+    { key: "medic", label: "Medic" },
+    { key: "spy", label: "Spy" },
+  ] as const;
 
-  const names: Record<ResourceType, string> = {
-    water: "Water",
-    fire: "Fuel",
-    grass: "Food",
-  };
+  const visibleUnits = unitTypes.filter(({ key }) => armies[key] > 0);
 
-  return (
-    <img
-      src={`${import.meta.env.BASE_URL}assets/resources/${filenames[type]}`}
-      alt={names[type]}
-      title={names[type]}
-      className="comms-resource-icon"
-    />
-  );
-}
+  if (visibleUnits.length === 0) {
+    return <span>None</span>;
+  }
 
-function formatArmies(armies: ArmyCounts) {
   return (
     <span className="comms-resource-list">
-      {(["water", "fire", "grass"] as ResourceType[]).map((resource) =>
-        armies[resource] > 0 ? (
-          <span className="comms-resource-item" key={resource}>
-            <ResourceIcon type={resource} />
-            {armies[resource]}
-          </span>
-        ) : null,
-      )}
+      {visibleUnits.map(({ key, label }) => (
+        <span className="comms-resource-item" key={key} title={label}>
+          {label}: {armies[key]}
+        </span>
+      ))}
     </span>
   );
 }
 
-function formatCompactArmies(armies: ArmyCounts) {
+function formatCompactArmies(armies: UnitCounts) {
   return formatArmies(armies);
 }
 
@@ -239,7 +221,9 @@ export default function GameLog({
 
                     <div>Armies: {formatArmies(event.armies)}</div>
 
-                    <div>Cargo: {formatArmies(event.resources)}</div>
+                    <div>
+                      Cargo: <ResourceDisplay resources={event.resources} />
+                    </div>
                   </div>
                 );
               }
@@ -297,25 +281,14 @@ export default function GameLog({
 
               const report = event.report;
 
-              const attackerSent =
-                report.attackerArmies.water +
-                report.attackerArmies.fire +
-                report.attackerArmies.grass;
+              const countUnits = (armies: UnitCounts): number =>
+                armies.guardian + armies.marksman + armies.medic + armies.spy;
 
-              const attackerSurvived =
-                report.attackerSurvivors.water +
-                report.attackerSurvivors.fire +
-                report.attackerSurvivors.grass;
+              const attackerSent = countUnits(report.attackerArmies);
+              const attackerSurvived = countUnits(report.attackerSurvivors);
 
-              const defenderDeployed =
-                report.defenderArmies.water +
-                report.defenderArmies.fire +
-                report.defenderArmies.grass;
-
-              const defenderSurvived =
-                report.defenderSurvivors.water +
-                report.defenderSurvivors.fire +
-                report.defenderSurvivors.grass;
+              const defenderDeployed = countUnits(report.defenderArmies);
+              const defenderSurvived = countUnits(report.defenderSurvivors);
 
               const attackerLost = attackerSent - attackerSurvived;
               const defenderLost = defenderDeployed - defenderSurvived;

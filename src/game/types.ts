@@ -20,6 +20,24 @@ export interface MatchConfig {
 
 export type ResourceType = "water" | "fire" | "grass";
 
+export type UnitType = "guardian" | "marksman" | "medic" | "spy";
+
+export interface UnitCounts {
+  guardian: number;
+  marksman: number;
+  medic: number;
+  spy: number;
+}
+
+export function emptyUnitCounts(): UnitCounts {
+  return {
+    guardian: 0,
+    marksman: 0,
+    medic: 0,
+    spy: 0,
+  };
+}
+
 export type TerrainType =
   | "meadow"
   | "forest"
@@ -126,7 +144,7 @@ export interface ArmyCounts {
 }
 
 export interface TrainingOrder {
-  resource: ResourceType;
+  unitType: UnitType;
   secondsRemaining: number;
 }
 
@@ -140,11 +158,11 @@ export interface Base {
   timeInLocationSeconds: number;
   isRelocating: boolean;
 
-  armies: ArmyCounts;
+  armies: UnitCounts;
 
   // Historical number of armies produced by this base.
   // Losing armies later does not reduce future training cost.
-  armiesBuilt: ArmyCounts;
+  armiesBuilt: UnitCounts;
 
   // Null means this base is not currently training.
   training: TrainingOrder | null;
@@ -187,7 +205,7 @@ export interface ArmyMission {
 
   playerId: number;
 
-  armies: ArmyCounts;
+  armies: UnitCounts;
   resources: ResourceCounts;
 
   secondsRemaining: number;
@@ -237,8 +255,10 @@ export interface BattleReport {
   row: number;
   col: number;
 
-  attackerArmies: ArmyCounts;
-  defenderArmies: ArmyCounts;
+  attackerArmies: UnitCounts;
+  defenderArmies: UnitCounts;
+  attackerSurvivors: UnitCounts;
+  defenderSurvivors: UnitCounts;
 
   defenderBaseName: string;
   attackerBaseName: string;
@@ -246,13 +266,12 @@ export interface BattleReport {
   resourcesLooted: ResourceCounts;
   resourcesRemaining: ResourceCounts;
 
-  attackerSurvivors: ArmyCounts;
-  defenderSurvivors: ArmyCounts;
-
-  militiaSurvived: boolean;
   baseDestroyed: boolean;
 
   eliminatedPlayerId?: number;
+
+  attackerRetreated: boolean;
+  roundsFought: number;
 }
 
 export type GameEvent =
@@ -314,7 +333,7 @@ export type GameEvent =
       fromBaseName: string;
       toBaseName: string;
 
-      armies: ArmyCounts;
+      armies: UnitCounts;
       resources: BaseResources;
     }
   | {

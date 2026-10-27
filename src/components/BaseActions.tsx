@@ -3,17 +3,14 @@ import { useState } from "react";
 import { BALANCE } from "../game/balance";
 
 import type {
-  ArmyCounts,
   Base,
   BaseResources,
   ResourceType,
+  UnitCounts,
+  UnitType,
 } from "../game/types";
 
-import {
-  getArmyCost,
-  getExpansionCost,
-  getSpendableResourceTotal,
-} from "../game/rules";
+import { getExpansionCost, getSpendableResourceTotal } from "../game/rules";
 
 /*
  * Controls the action menus for the currently selected base.
@@ -31,16 +28,16 @@ interface BaseActionsProps {
   expansionKeys: number;
   expansionsCompleted: number;
 
-  onTrainArmy: (resource: ResourceType) => void;
+  onTrainArmy: (unitType: UnitType) => void;
 
-  onStartAttackTargeting: (armies: ArmyCounts) => void;
+  onStartAttackTargeting: (armies: UnitCounts) => void;
 
-  onStartLootTargeting: (armies: ArmyCounts) => void;
+  onStartLootTargeting: (armies: UnitCounts) => void;
 
   onStartExpandTargeting: (payment: BaseResources) => void;
 
   onStartTransferTargeting: (
-    armies: ArmyCounts,
+    armies: UnitCounts,
     resources: BaseResources,
   ) => void;
 
@@ -75,10 +72,11 @@ export default function BaseActions({
     | "relocate-payment"
   >("main");
 
-  const [selectedArmies, setSelectedArmies] = useState<ArmyCounts>({
-    water: 0,
-    fire: 0,
-    grass: 0,
+  const [selectedArmies, setSelectedArmies] = useState<UnitCounts>({
+    guardian: 0,
+    marksman: 0,
+    medic: 0,
+    spy: 0,
   });
 
   const [selectedResources, setSelectedResources] = useState<BaseResources>({
@@ -108,21 +106,30 @@ export default function BaseActions({
 
   const currentBase = base;
 
+  const unitTypes = [
+    { key: "guardian", label: "Guardian" },
+    { key: "marksman", label: "Marksman" },
+    { key: "medic", label: "Medic" },
+    { key: "spy", label: "Spy" },
+  ] as const;
+
   const deploymentLimitReached =
     activeDeployments >= BALANCE.missions.maxActivePerPlayer;
 
   const armyCosts = {
-    water: getArmyCost(base.armiesBuilt.water),
-
-    fire: getArmyCost(base.armiesBuilt.fire),
-
-    grass: getArmyCost(base.armiesBuilt.grass),
+    guardian: BALANCE.units.guardian.cost,
+    marksman: BALANCE.units.marksman.cost,
+    medic: BALANCE.units.medic.cost,
+    spy: BALANCE.units.spy.cost,
   };
 
   const isTraining = base.training !== null;
 
   const totalSelected =
-    selectedArmies.water + selectedArmies.fire + selectedArmies.grass;
+    selectedArmies.guardian +
+    selectedArmies.marksman +
+    selectedArmies.medic +
+    selectedArmies.spy;
 
   const cargoCapacity = totalSelected * BALANCE.armies.cargoCapacity;
 
@@ -147,27 +154,33 @@ export default function BaseActions({
 
   const canAffordRelocation = spendableResources >= relocationCost;
 
-  function canAfford(resource: ResourceType): boolean {
-    return resources[resource] >= armyCosts[resource];
+  function canAfford(unitType: UnitType): boolean {
+    const cost = armyCosts[unitType];
+
+    return (
+      resources.water >= cost.water &&
+      resources.fire >= cost.fire &&
+      resources.grass >= cost.grass
+    );
   }
 
-  function handleTrain(resource: ResourceType): void {
-    onTrainArmy(resource);
+  function handleTrain(unitType: UnitType): void {
+    onTrainArmy(unitType);
     setMode("main");
   }
 
-  function changeArmyCount(resource: ResourceType, change: number): void {
+  function changeArmyCount(unitType: UnitType, change: number): void {
     setSelectedArmies((current) => {
-      const maximum = currentBase.armies[resource];
+      const maximum = currentBase.armies[unitType];
 
       const newValue = Math.max(
         0,
-        Math.min(maximum, current[resource] + change),
+        Math.min(maximum, current[unitType] + change),
       );
 
       return {
         ...current,
-        [resource]: newValue,
+        [unitType]: newValue,
       };
     });
   }
@@ -270,9 +283,10 @@ export default function BaseActions({
 
   function resetSend(): void {
     setSelectedArmies({
-      water: 0,
-      fire: 0,
-      grass: 0,
+      guardian: 0,
+      marksman: 0,
+      medic: 0,
+      spy: 0,
     });
 
     setSelectedResources({
@@ -293,8 +307,8 @@ export default function BaseActions({
         <div className="training-status">
           <strong>
             Training{" "}
-            {base.training.resource.charAt(0).toUpperCase() +
-              base.training.resource.slice(1)}{" "}
+            {base.training.unitType.charAt(0).toUpperCase() +
+              base.training.unitType.slice(1)}{" "}
             Army
           </strong>
 
@@ -310,46 +324,22 @@ export default function BaseActions({
   if (mode === "train") {
     return (
       <div className="base-actions train-menu">
-        <div className="train-menu-title">Train Army</div>
+        <div className="train-menu-title">Recruit Unit</div>
 
-        <button
-          className="base-action-button"
-          disabled={!canAfford("water")}
-          onClick={() => handleTrain("water")}
-        >
-          <img
-            className="action-resource-icon"
-            src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
-            alt="Water"
-          />
-          Water Army — {armyCosts.water}
-        </button>
+        {unitTypes.map(({ key, label }) => {
+          const cost = armyCosts[key];
 
-        <button
-          className="base-action-button"
-          disabled={!canAfford("fire")}
-          onClick={() => handleTrain("fire")}
-        >
-          <img
-            className="action-resource-icon"
-            src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
-            alt="Fuel"
-          />
-          Fuel Army — {armyCosts.fire}
-        </button>
-
-        <button
-          className="base-action-button"
-          disabled={!canAfford("grass")}
-          onClick={() => handleTrain("grass")}
-        >
-          <img
-            className="action-resource-icon"
-            src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
-            alt="Food"
-          />
-          Food Army — {armyCosts.grass}
-        </button>
+          return (
+            <button
+              key={key}
+              className="base-action-button"
+              disabled={!canAfford(key)}
+              onClick={() => handleTrain(key)}
+            >
+              {label} — 💧{cost.water} 🔥{cost.fire} 🌱{cost.grass}
+            </button>
+          );
+        })}
 
         <button className="base-action-button" onClick={() => setMode("main")}>
           Cancel
@@ -402,32 +392,16 @@ export default function BaseActions({
       <div className="base-actions send-menu">
         <div className="send-menu-title">Select Looting Armies</div>
 
-        <ArmySelector
-          icon="water.png"
-          label="Water"
-          available={base.armies.water}
-          selected={selectedArmies.water}
-          onDecrease={() => changeArmyCount("water", -1)}
-          onIncrease={() => changeArmyCount("water", 1)}
-        />
-
-        <ArmySelector
-          icon="fuel.png"
-          label="Fuel"
-          available={base.armies.fire}
-          selected={selectedArmies.fire}
-          onDecrease={() => changeArmyCount("fire", -1)}
-          onIncrease={() => changeArmyCount("fire", 1)}
-        />
-
-        <ArmySelector
-          icon="food.png"
-          label="Food"
-          available={base.armies.grass}
-          selected={selectedArmies.grass}
-          onDecrease={() => changeArmyCount("grass", -1)}
-          onIncrease={() => changeArmyCount("grass", 1)}
-        />
+        {unitTypes.map(({ key, label }) => (
+          <ArmySelector
+            key={key}
+            label={label}
+            available={base.armies[key]}
+            selected={selectedArmies[key]}
+            onDecrease={() => changeArmyCount(key, -1)}
+            onIncrease={() => changeArmyCount(key, 1)}
+          />
+        ))}
 
         <button
           className="base-action-button"
@@ -436,9 +410,10 @@ export default function BaseActions({
             onStartLootTargeting(selectedArmies);
 
             setSelectedArmies({
-              water: 0,
-              fire: 0,
-              grass: 0,
+              guardian: 0,
+              marksman: 0,
+              medic: 0,
+              spy: 0,
             });
 
             setMode("main");
@@ -469,32 +444,16 @@ export default function BaseActions({
       <div className="base-actions send-menu">
         <div className="send-menu-title">Select Armies</div>
 
-        <ArmySelector
-          icon="water.png"
-          label="Water"
-          available={base.armies.water}
-          selected={selectedArmies.water}
-          onDecrease={() => changeArmyCount("water", -1)}
-          onIncrease={() => changeArmyCount("water", 1)}
-        />
-
-        <ArmySelector
-          icon="fuel.png"
-          label="Fuel"
-          available={base.armies.fire}
-          selected={selectedArmies.fire}
-          onDecrease={() => changeArmyCount("fire", -1)}
-          onIncrease={() => changeArmyCount("fire", 1)}
-        />
-
-        <ArmySelector
-          icon="food.png"
-          label="Food"
-          available={base.armies.grass}
-          selected={selectedArmies.grass}
-          onDecrease={() => changeArmyCount("grass", -1)}
-          onIncrease={() => changeArmyCount("grass", 1)}
-        />
+        {unitTypes.map(({ key, label }) => (
+          <ArmySelector
+            key={key}
+            label={label}
+            available={base.armies[key]}
+            selected={selectedArmies[key]}
+            onDecrease={() => changeArmyCount(key, -1)}
+            onIncrease={() => changeArmyCount(key, 1)}
+          />
+        ))}
 
         <button
           className="base-action-button"
@@ -553,9 +512,10 @@ export default function BaseActions({
             onStartTransferTargeting(selectedArmies, selectedResources);
 
             setSelectedArmies({
-              water: 0,
-              fire: 0,
-              grass: 0,
+              guardian: 0,
+              marksman: 0,
+              medic: 0,
+              spy: 0,
             });
 
             setSelectedResources({
@@ -587,32 +547,16 @@ export default function BaseActions({
       <div className="base-actions send-menu">
         <div className="send-menu-title">Select Attacking Armies</div>
 
-        <ArmySelector
-          icon="water.png"
-          label="Water"
-          available={base.armies.water}
-          selected={selectedArmies.water}
-          onDecrease={() => changeArmyCount("water", -1)}
-          onIncrease={() => changeArmyCount("water", 1)}
-        />
-
-        <ArmySelector
-          icon="fuel.png"
-          label="Fire"
-          available={base.armies.fire}
-          selected={selectedArmies.fire}
-          onDecrease={() => changeArmyCount("fire", -1)}
-          onIncrease={() => changeArmyCount("fire", 1)}
-        />
-
-        <ArmySelector
-          icon="food.png"
-          label="Food"
-          available={base.armies.grass}
-          selected={selectedArmies.grass}
-          onDecrease={() => changeArmyCount("grass", -1)}
-          onIncrease={() => changeArmyCount("grass", 1)}
-        />
+        {unitTypes.map(({ key, label }) => (
+          <ArmySelector
+            key={key}
+            label={label}
+            available={base.armies[key]}
+            selected={selectedArmies[key]}
+            onDecrease={() => changeArmyCount(key, -1)}
+            onIncrease={() => changeArmyCount(key, 1)}
+          />
+        ))}
 
         <button
           className="base-action-button"
@@ -621,9 +565,10 @@ export default function BaseActions({
             onStartAttackTargeting(selectedArmies);
 
             setSelectedArmies({
-              water: 0,
-              fire: 0,
-              grass: 0,
+              guardian: 0,
+              marksman: 0,
+              medic: 0,
+              spy: 0,
             });
 
             setMode("main");
@@ -800,7 +745,11 @@ export default function BaseActions({
         className="base-action-button"
         disabled={
           deploymentLimitReached ||
-          base.armies.water + base.armies.fire + base.armies.grass === 0
+          base.armies.guardian +
+            base.armies.marksman +
+            base.armies.medic +
+            base.armies.spy ===
+            0
         }
         onClick={() => setMode("mission")}
       >
@@ -827,7 +776,6 @@ export default function BaseActions({
 }
 
 interface ArmySelectorProps {
-  icon: string;
   label: string;
   available: number;
   selected: number;
@@ -836,7 +784,6 @@ interface ArmySelectorProps {
 }
 
 function ArmySelector({
-  icon,
   label,
   available,
   selected,
@@ -846,11 +793,6 @@ function ArmySelector({
   return (
     <div className="army-selector">
       <div className="army-selector-label">
-        <img
-          className="army-selector-icon"
-          src={`${import.meta.env.BASE_URL}assets/resources/${icon}`}
-          alt={label}
-        />
         {label}
         <span>Available: {available}</span>
       </div>
