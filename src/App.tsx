@@ -18,6 +18,7 @@ import ResourceBar from "./components/ResourceBar";
 import Leaderboard from "./components/Leaderboard";
 import RoomEntry from "./components/RoomEntry";
 import HowToPlay from "./components/HowToPlay";
+import UnitIcon from "./components/UnitIcon";
 
 import { players, getBaseName } from "./game/gameState";
 
@@ -77,6 +78,8 @@ function App() {
   const [isServerConnected, setIsServerConnected] = useState(false);
 
   const [yourPlayerId, setYourPlayerId] = useState(1);
+
+  const [showFinalStandings, setShowFinalStandings] = useState(true);
 
   /*
    * ==========================================================
@@ -499,6 +502,7 @@ function App() {
         const newGameState: GameState = message.gameState;
 
         setGameState(newGameState);
+        setShowFinalStandings(true);
 
         const myLobbyPlayer = message.players.find(
           (player: { clientId: number; playerId: number }) =>
@@ -848,7 +852,7 @@ function App() {
    */
   return (
     <main className="app">
-      {winner && (
+      {winner && showFinalStandings && (
         <div className="game-over-overlay">
           <div className="game-over-panel">
             <strong>
@@ -911,7 +915,12 @@ function App() {
               >
                 Create New Game
               </button>
-
+              <button
+                className="game-over-button secondary"
+                onClick={() => setShowFinalStandings(false)}
+              >
+                Return to Game
+              </button>
               <button
                 className="game-over-button secondary"
                 onClick={handleExitGame}
@@ -921,6 +930,21 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {winner && !showFinalStandings && (
+        <button
+          className="game-over-button secondary"
+          onClick={() => setShowFinalStandings(true)}
+          style={{
+            position: "fixed",
+            top: "12px",
+            right: "12px",
+            zIndex: 1000,
+          }}
+        >
+          View Results
+        </button>
       )}
 
       {youAreEliminated && !winner && (
@@ -1002,6 +1026,11 @@ function App() {
             )}
             bases={gameState.bases}
             treasures={gameState.treasures}
+            getFactionName={getFactionName}
+            getFactionColor={(playerId) => {
+              const faction = characterClassByPlayer[playerId];
+              return faction ? CLASS_COLORS[faction] : undefined;
+            }}
           />
         </div>
       </div>
@@ -1145,24 +1174,32 @@ function App() {
                 <div className="base-selector-stat-column">
                   <div className="base-selector-stat-heading">ARMIES</div>
 
-                  <div className="base-selector-stat">
-                    <span>Guardian</span>
-                    {selectedBase.armies.guardian}
-                  </div>
-
-                  <div className="base-selector-stat">
-                    <span>Marksman</span>
-                    {selectedBase.armies.marksman}
-                  </div>
-
-                  <div className="base-selector-stat">
-                    <span>Medic</span>
-                    {selectedBase.armies.medic}
-                  </div>
-
-                  <div className="base-selector-stat">
-                    <span>Spy</span>
-                    {selectedBase.armies.spy}
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: "6px",
+                      width: "100%",
+                    }}
+                  >
+                    {(["guardian", "marksman", "medic", "spy"] as const).map(
+                      (type) => (
+                        <span
+                          key={type}
+                          title={type.charAt(0).toUpperCase() + type.slice(1)}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <UnitIcon type={type} size={16} />
+                          {selectedBase.armies[type]}
+                        </span>
+                      ),
+                    )}
                   </div>
                 </div>
               </div>

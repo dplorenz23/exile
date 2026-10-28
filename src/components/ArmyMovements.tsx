@@ -12,6 +12,8 @@ interface ArmyMovementsProps {
   missions: ArmyMission[];
   bases: Base[];
   treasures: Treasure[];
+  getFactionName: (playerId: number) => string;
+  getFactionColor: (playerId: number) => string | undefined;
 }
 
 /*
@@ -51,6 +53,8 @@ export default function ArmyMovements({
   missions,
   bases,
   treasures,
+  getFactionName,
+  getFactionColor,
 }: ArmyMovementsProps) {
   function getMissionBaseName(baseId: number): string {
     const base = bases.find((base) => base.id === baseId);
@@ -59,7 +63,10 @@ export default function ArmyMovements({
       return "Unknown Base";
     }
 
-    return getBaseName(base.playerId, base.baseSlot);
+    return `${getFactionName(base.playerId)} ${getBaseName(
+      base.playerId,
+      base.baseSlot,
+    )}`;
   }
 
   function getCoordinateName(row?: number, col?: number): string {
@@ -120,6 +127,37 @@ export default function ArmyMovements({
       : getMissionBaseName(mission.destinationBaseId);
   }
 
+  function getMissionEndpointColor(
+    mission: ArmyMission,
+    endpoint: "origin" | "destination",
+  ): string | undefined {
+    const baseId =
+      endpoint === "origin"
+        ? mission.phase === "returning"
+          ? mission.destinationBaseId
+          : mission.originBaseId
+        : mission.phase === "returning"
+          ? mission.originBaseId
+          : mission.destinationBaseId;
+
+    if (
+      (mission.type === "loot" &&
+        endpoint === "destination" &&
+        mission.phase !== "returning") ||
+      (mission.type === "loot" &&
+        endpoint === "origin" &&
+        mission.phase === "returning") ||
+      mission.type === "expand" ||
+      mission.type === "relocate"
+    ) {
+      return undefined;
+    }
+
+    const base = bases.find((base) => base.id === baseId);
+
+    return base ? getFactionColor(base.playerId) : undefined;
+  }
+
   return (
     <div className="army-movements">
       <div className="army-movements-title">
@@ -151,9 +189,15 @@ export default function ArmyMovements({
           </div>
 
           <div className="army-movement-route">
-            {getMissionOrigin(mission)}
+            <span style={{ color: getMissionEndpointColor(mission, "origin") }}>
+              {getMissionOrigin(mission)}
+            </span>
             {" → "}
-            {getMissionDestination(mission)}
+            <span
+              style={{ color: getMissionEndpointColor(mission, "destination") }}
+            >
+              {getMissionDestination(mission)}
+            </span>
           </div>
 
           <div className="army-movement-summary">

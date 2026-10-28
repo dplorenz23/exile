@@ -602,7 +602,6 @@ body {
 }
 
 .base-selector-details {
-  min-height: 150px;
   box-sizing: border-box;
 
   padding: 12px;
@@ -634,7 +633,7 @@ body {
 
 .base-selector-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 16px;
 }
 
@@ -887,7 +886,7 @@ body {
 .battle-reports-panel {
   margin-top: 8px;
   width: 100%;
-  height: calc(100vh - 365px);
+  height: calc(100vh - 295px);
   box-sizing: border-box;
 
   overflow-y: auto;

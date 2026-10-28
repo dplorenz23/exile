@@ -12,6 +12,8 @@ import type {
 
 import { getExpansionCost, getSpendableResourceTotal } from "../game/rules";
 
+import UnitIcon from "./UnitIcon";
+
 /*
  * Controls the action menus for the currently selected base.
  *
@@ -185,6 +187,15 @@ export default function BaseActions({
     });
   }
 
+  const selectAllArmies = () => {
+    setSelectedArmies({
+      guardian: base.armies.guardian,
+      marksman: base.armies.marksman,
+      medic: base.armies.medic,
+      spy: base.armies.spy,
+    });
+  };
+
   function changeResourceCount(resource: ResourceType, change: number): void {
     setSelectedResources((current) => {
       const currentValue = current[resource];
@@ -308,8 +319,7 @@ export default function BaseActions({
           <strong>
             Training{" "}
             {base.training.unitType.charAt(0).toUpperCase() +
-              base.training.unitType.slice(1)}{" "}
-            Army
+              base.training.unitType.slice(1)}
           </strong>
 
           <span>{base.training.secondsRemaining}s remaining</span>
@@ -336,7 +346,28 @@ export default function BaseActions({
               disabled={!canAfford(key)}
               onClick={() => handleTrain(key)}
             >
-              {label} — 💧{cost.water} 🔥{cost.fire} 🌱{cost.grass}
+              <UnitIcon type={key} size={18} /> {label} —{" "}
+              <img
+                className="action-resource-icon"
+                src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+                alt="Water"
+                title="Water"
+              />
+              {cost.water}{" "}
+              <img
+                className="action-resource-icon"
+                src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+                alt="Fuel"
+                title="Fuel"
+              />
+              {cost.fire}{" "}
+              <img
+                className="action-resource-icon"
+                src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+                alt="Food"
+                title="Food"
+              />
+              {cost.grass}
             </button>
           );
         })}
@@ -391,6 +422,9 @@ export default function BaseActions({
     return (
       <div className="base-actions send-menu">
         <div className="send-menu-title">Select Looting Armies</div>
+        <button className="base-action-button" onClick={selectAllArmies}>
+          Select All
+        </button>
 
         {unitTypes.map(({ key, label }) => (
           <ArmySelector
@@ -400,6 +434,12 @@ export default function BaseActions({
             selected={selectedArmies[key]}
             onDecrease={() => changeArmyCount(key, -1)}
             onIncrease={() => changeArmyCount(key, 1)}
+            onSelectAll={() =>
+              setSelectedArmies((prev) => ({
+                ...prev,
+                [key]: base.armies[key],
+              }))
+            }
           />
         ))}
 
@@ -443,6 +483,9 @@ export default function BaseActions({
     return (
       <div className="base-actions send-menu">
         <div className="send-menu-title">Select Armies</div>
+        <button className="base-action-button" onClick={selectAllArmies}>
+          Select All
+        </button>
 
         {unitTypes.map(({ key, label }) => (
           <ArmySelector
@@ -452,6 +495,12 @@ export default function BaseActions({
             selected={selectedArmies[key]}
             onDecrease={() => changeArmyCount(key, -1)}
             onIncrease={() => changeArmyCount(key, 1)}
+            onSelectAll={() =>
+              setSelectedArmies((prev) => ({
+                ...prev,
+                [key]: base.armies[key],
+              }))
+            }
           />
         ))}
 
@@ -546,6 +595,9 @@ export default function BaseActions({
     return (
       <div className="base-actions send-menu">
         <div className="send-menu-title">Select Attacking Armies</div>
+        <button className="base-action-button" onClick={selectAllArmies}>
+          Select All
+        </button>
 
         {unitTypes.map(({ key, label }) => (
           <ArmySelector
@@ -555,6 +607,12 @@ export default function BaseActions({
             selected={selectedArmies[key]}
             onDecrease={() => changeArmyCount(key, -1)}
             onIncrease={() => changeArmyCount(key, 1)}
+            onSelectAll={() =>
+              setSelectedArmies((prev) => ({
+                ...prev,
+                [key]: base.armies[key],
+              }))
+            }
           />
         ))}
 
@@ -781,6 +839,7 @@ interface ArmySelectorProps {
   selected: number;
   onDecrease: () => void;
   onIncrease: () => void;
+  onSelectAll: () => void;
 }
 
 function ArmySelector({
@@ -789,11 +848,19 @@ function ArmySelector({
   selected,
   onDecrease,
   onIncrease,
+  onSelectAll,
 }: ArmySelectorProps) {
+  const unitType = label.toLowerCase() as UnitType;
+
   return (
     <div className="army-selector">
       <div className="army-selector-label">
-        {label}
+        <span
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+        >
+          <UnitIcon type={unitType} size={16} />
+          {label}
+        </span>
         <span>Available: {available}</span>
       </div>
 
@@ -806,6 +873,13 @@ function ArmySelector({
 
         <button disabled={selected >= available} onClick={onIncrease}>
           +
+        </button>
+        <button
+          disabled={selected >= available}
+          onClick={onSelectAll}
+          title={`Select all available ${label}`}
+        >
+          All
         </button>
       </div>
     </div>

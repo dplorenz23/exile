@@ -1,6 +1,7 @@
 import type { UnitCounts, GameEvent, Player } from "../game/types";
 
 import ResourceDisplay from "./ResourceDisplay";
+import UnitIcon from "./UnitIcon";
 
 import { CLASSES, CLASS_COLORS } from "../game/characters";
 import type { CharacterClass } from "../game/characters";
@@ -42,7 +43,8 @@ function formatArmies(armies: UnitCounts) {
     <span className="comms-resource-list">
       {visibleUnits.map(({ key, label }) => (
         <span className="comms-resource-item" key={key} title={label}>
-          {label}: {armies[key]}
+          <UnitIcon type={key} size={14} />
+          {armies[key]}
         </span>
       ))}
     </span>
