@@ -16,6 +16,50 @@ export const BALANCE = {
     secondaryByLevel: [0, 1, 1, 2],
   },
 
+  research: {
+    military: {
+      attackBonusPerLevel: 0.15,
+      healthBonusPerLevel: 0.15,
+      costs: {
+        2: { water: 50, fire: 150, grass: 50 },
+        3: { water: 100, fire: 300, grass: 100 },
+        4: { water: 150, fire: 450, grass: 150 },
+      },
+    },
+
+    production: {
+      bonusPerLevel: 0.15,
+      costs: {
+        2: { water: 50, fire: 50, grass: 150 },
+        3: { water: 100, fire: 100, grass: 300 },
+        4: { water: 150, fire: 150, grass: 450 },
+      },
+    },
+
+    efficiency: {
+      costReductionPerLevel: 0.1,
+      costs: {
+        2: { water: 150, fire: 50, grass: 50 },
+        3: { water: 300, fire: 100, grass: 100 },
+        4: { water: 450, fire: 150, grass: 150 },
+      },
+    },
+  },
+
+  baseUpgrades: {
+    costs: {
+      2: { water: 100, fire: 100, grass: 100 },
+      3: { water: 200, fire: 200, grass: 200 },
+      4: { water: 300, fire: 300, grass: 300 },
+    },
+
+    upgradeSeconds: {
+      2: 10,
+      3: 20,
+      4: 30,
+    },
+  },
+
   startingTreasure: {
     chestsPerPlayer: 1,
 

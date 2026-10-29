@@ -348,6 +348,17 @@ export function createInitialGameState(
       }),
     ),
 
+    researchByPlayer: Object.fromEntries(
+      activePlayerIds.map((playerId) => [
+        playerId,
+        {
+          military: 1,
+          production: 1,
+          efficiency: 1,
+        },
+      ]),
+    ),
+
     expansionKeysByPlayer: Object.fromEntries(
       activePlayerIds.map((playerId) => [playerId, 1]),
     ),

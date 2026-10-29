@@ -315,14 +315,20 @@ export interface UnitCombatResult {
 
 const UNIT_PRIORITY: UnitType[] = ["guardian", "marksman", "spy", "medic"];
 
-function createCombatUnits(counts: UnitCounts): CombatUnit[] {
+function createCombatUnits(
+  counts: UnitCounts,
+  militaryLevel: number = 1,
+): CombatUnit[] {
   const units: CombatUnit[] = [];
+
+  const healthMultiplier =
+    1 + (militaryLevel - 1) * BALANCE.research.military.healthBonusPerLevel;
 
   for (const type of UNIT_PRIORITY) {
     for (let i = 0; i < counts[type]; i++) {
       units.push({
         type,
-        health: BALANCE.units[type].health,
+        health: BALANCE.units[type].health * healthMultiplier,
       });
     }
   }
@@ -374,7 +380,10 @@ function applyCombatDamage(targets: CombatUnit[], damage: number): void {
  * Each surviving Medic heals the most wounded
  * living friendly soldier, including itself.
  */
-function healCombatUnits(units: CombatUnit[]): void {
+function healCombatUnits(units: CombatUnit[], militaryLevel: number = 1): void {
+  const healthMultiplier =
+    1 + (militaryLevel - 1) * BALANCE.research.military.healthBonusPerLevel;
+
   const medics = units.filter(
     (unit) => unit.type === "medic" && unit.health > 0,
   );
@@ -388,7 +397,9 @@ function healCombatUnits(units: CombatUnit[]): void {
         continue;
       }
 
-      const missingHealth = BALANCE.units[unit.type].health - unit.health;
+      const maxHealth = BALANCE.units[unit.type].health * healthMultiplier;
+
+      const missingHealth = maxHealth - unit.health;
 
       if (missingHealth > largestWound) {
         largestWound = missingHealth;
@@ -400,8 +411,10 @@ function healCombatUnits(units: CombatUnit[]): void {
       continue;
     }
 
+    const maxHealth = BALANCE.units[mostWounded.type].health * healthMultiplier;
+
     mostWounded.health = Math.min(
-      BALANCE.units[mostWounded.type].health,
+      maxHealth,
       mostWounded.health + BALANCE.units.medic.healing,
     );
   }
@@ -467,9 +480,20 @@ function shouldAttackersRetreat(
 export function resolveUnitCombat(
   attackingUnits: UnitCounts,
   defendingUnits: UnitCounts,
+  attackerMilitaryLevel: number = 1,
+  defenderMilitaryLevel: number = 1,
 ): UnitCombatResult {
-  const attackers = createCombatUnits(attackingUnits);
-  const defenders = createCombatUnits(defendingUnits);
+  const attackers = createCombatUnits(attackingUnits, attackerMilitaryLevel);
+
+  const defenders = createCombatUnits(defendingUnits, defenderMilitaryLevel);
+
+  const attackerAttackMultiplier =
+    1 +
+    (attackerMilitaryLevel - 1) * BALANCE.research.military.attackBonusPerLevel;
+
+  const defenderAttackMultiplier =
+    1 +
+    (defenderMilitaryLevel - 1) * BALANCE.research.military.attackBonusPerLevel;
 
   let roundsFought = 0;
   let attackerRetreated = false;
@@ -486,13 +510,19 @@ export function resolveUnitCombat(
      */
     const attackerDamage = attackers.reduce(
       (total, unit) =>
-        total + (unit.health > 0 ? BALANCE.units[unit.type].attack : 0),
+        total +
+        (unit.health > 0
+          ? BALANCE.units[unit.type].attack * attackerAttackMultiplier
+          : 0),
       0,
     );
 
     const defenderDamage = defenders.reduce(
       (total, unit) =>
-        total + (unit.health > 0 ? BALANCE.units[unit.type].attack : 0),
+        total +
+        (unit.health > 0
+          ? BALANCE.units[unit.type].attack * defenderAttackMultiplier
+          : 0),
       0,
     );
 
@@ -505,8 +535,8 @@ export function resolveUnitCombat(
     /*
      * Surviving Medics heal after damage.
      */
-    healCombatUnits(attackers);
-    healCombatUnits(defenders);
+    healCombatUnits(attackers, attackerMilitaryLevel);
+    healCombatUnits(defenders, defenderMilitaryLevel);
 
     /*
      * Check for elimination before retreat.

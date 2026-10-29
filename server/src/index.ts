@@ -3,8 +3,6 @@ import { createInitialGameState } from "../../src/game/createInitialGameState";
 import { mapOne } from "../../src/game/maps/mapOne";
 import { mapTwo } from "../../src/game/maps/mapTwo";
 import {
-  getLocationMultiplier,
-  getSecondaryProduction,
   resolveUnitCombat,
   calculateLoot,
   calculatePlayerScore,
@@ -19,6 +17,7 @@ import type {
   ResourceType,
   UnitType,
   UnitCounts,
+  ResearchType,
 } from "../../src/game/types";
 import { emptyUnitCounts } from "../../src/game/types";
 
@@ -181,10 +180,6 @@ function broadcastLobby(room: GameRoom): void {
  * VALIDATION HELPERS
  * ==================================================
  */
-function isResourceType(value: unknown): value is ResourceType {
-  return value === "water" || value === "fire" || value === "grass";
-}
-
 function isNonNegativeInteger(value: unknown): value is number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
 }
@@ -267,7 +262,13 @@ function startArmyTraining(
 
   const base = gameState.bases.find((base) => base.id === baseId);
 
-  if (!base || base.playerId !== playerId || base.training) {
+  if (
+    !base ||
+    base.playerId !== playerId ||
+    base.training ||
+    base.isRelocating ||
+    base.upgradeCompletesAt !== null
+  ) {
     return false;
   }
 
@@ -277,7 +278,19 @@ function startArmyTraining(
     return false;
   }
 
-  const cost = BALANCE.units[unitType].cost;
+  const efficiencyLevel = gameState.researchByPlayer[playerId]?.efficiency ?? 1;
+
+  const discount =
+    1 -
+    (efficiencyLevel - 1) * BALANCE.research.efficiency.costReductionPerLevel;
+
+  const baseCost = BALANCE.units[unitType].cost;
+
+  const cost = {
+    water: Math.ceil(baseCost.water * discount),
+    fire: Math.ceil(baseCost.fire * discount),
+    grass: Math.ceil(baseCost.grass * discount),
+  };
 
   if (
     resources.water < cost.water ||
@@ -297,6 +310,7 @@ function startArmyTraining(
       training: {
         unitType,
         secondsRemaining: BALANCE.armies.trainingSeconds,
+        resourcesSpent: cost.water + cost.fire + cost.grass,
       },
     };
   });
@@ -319,6 +333,163 @@ function startArmyTraining(
   return true;
 }
 
+function purchaseResearch(
+  room: GameRoom,
+  playerId: number,
+  baseId: number,
+  researchType: ResearchType,
+): boolean {
+  const gameState = room.gameState;
+
+  if (!gameState) {
+    return false;
+  }
+
+  const base = gameState.bases.find((base) => base.id === baseId);
+
+  if (
+    !base ||
+    base.playerId !== playerId ||
+    base.isRelocating ||
+    base.upgradeCompletesAt !== null
+  ) {
+    return false;
+  }
+
+  const research = gameState.researchByPlayer[playerId];
+
+  if (!research) {
+    return false;
+  }
+
+  const currentLevel = research[researchType];
+
+  if (currentLevel >= 4) {
+    return false;
+  }
+
+  const nextLevel = (currentLevel + 1) as 2 | 3 | 4;
+
+  // Research is limited by the highest surviving base level.
+  const highestBaseLevel = Math.max(
+    0,
+    ...gameState.bases
+      .filter((base) => base.playerId === playerId && !base.isRelocating)
+      .map((base) => base.level),
+  );
+
+  if (nextLevel > highestBaseLevel) {
+    return false;
+  }
+
+  const efficiencyLevel = research.efficiency;
+
+  const discount =
+    1 -
+    (efficiencyLevel - 1) * BALANCE.research.efficiency.costReductionPerLevel;
+
+  const baseCost = BALANCE.research[researchType].costs[nextLevel];
+
+  const cost = {
+    water: Math.ceil(baseCost.water * discount),
+    fire: Math.ceil(baseCost.fire * discount),
+    grass: Math.ceil(baseCost.grass * discount),
+  };
+
+  const resources = gameState.resourcesByBase[baseId];
+
+  if (
+    !resources ||
+    resources.water < cost.water ||
+    resources.fire < cost.fire ||
+    resources.grass < cost.grass
+  ) {
+    return false;
+  }
+
+  room.gameState = {
+    ...gameState,
+
+    researchByPlayer: {
+      ...gameState.researchByPlayer,
+      [playerId]: {
+        ...research,
+        [researchType]: nextLevel,
+      },
+    },
+
+    resourcesByBase: {
+      ...gameState.resourcesByBase,
+      [baseId]: {
+        water: resources.water - cost.water,
+        fire: resources.fire - cost.fire,
+        grass: resources.grass - cost.grass,
+      },
+    },
+  };
+
+  return true;
+}
+
+function startBaseUpgrade(
+  room: GameRoom,
+  playerId: number,
+  baseId: number,
+): boolean {
+  const gameState = room.gameState;
+  if (!gameState) return false;
+
+  const base = gameState.bases.find((base) => base.id === baseId);
+
+  if (
+    !base ||
+    base.playerId !== playerId ||
+    base.isRelocating ||
+    base.upgradeCompletesAt !== null ||
+    base.training !== null ||
+    base.level >= 4
+  ) {
+    return false;
+  }
+
+  const nextLevel = (base.level + 1) as 2 | 3 | 4;
+  const cost = BALANCE.baseUpgrades.costs[nextLevel];
+  const resources = gameState.resourcesByBase[baseId];
+
+  if (
+    !resources ||
+    resources.water < cost.water ||
+    resources.fire < cost.fire ||
+    resources.grass < cost.grass
+  ) {
+    return false;
+  }
+
+  room.gameState = {
+    ...gameState,
+    bases: gameState.bases.map((currentBase) =>
+      currentBase.id === baseId
+        ? {
+            ...currentBase,
+            upgradeCompletesAt:
+              Date.now() +
+              BALANCE.baseUpgrades.upgradeSeconds[nextLevel] * 1000,
+          }
+        : currentBase,
+    ),
+    resourcesByBase: {
+      ...gameState.resourcesByBase,
+      [baseId]: {
+        water: resources.water - cost.water,
+        fire: resources.fire - cost.fire,
+        grass: resources.grass - cost.grass,
+      },
+    },
+  };
+
+  return true;
+}
+
 /*
  * ==================================================
  * BOT HELPERS
@@ -332,7 +503,12 @@ function tryBotTrainArmy(room: GameRoom, bot: LobbyPlayer): boolean {
     return false;
   }
 
-  const base = gameState.bases.find((base) => base.playerId === bot.playerId);
+  const base = gameState.bases.find(
+    (base) =>
+      base.playerId === bot.playerId &&
+      !base.isRelocating &&
+      base.upgradeCompletesAt === null,
+  );
 
   if (!base || base.training) {
     return false;
@@ -455,7 +631,32 @@ function runGameTick(room: GameRoom): void {
     ...gameState.armyResourcesSpentByPlayer,
   };
 
+  const completedUpgrades: {
+    playerId: number;
+    baseName: string;
+    level: 2 | 3 | 4;
+  }[] = [];
+
   let updatedBases = gameState.bases.map((base) => {
+    // Complete base upgrades when their construction timer expires.
+    if (
+      base.upgradeCompletesAt !== null &&
+      Date.now() >= base.upgradeCompletesAt
+    ) {
+      const newLevel = (base.level + 1) as 2 | 3 | 4;
+
+      completedUpgrades.push({
+        playerId: base.playerId,
+        baseName: `Base ${base.baseSlot}`,
+        level: newLevel,
+      });
+
+      base = {
+        ...base,
+        level: newLevel,
+        upgradeCompletesAt: null,
+      };
+    }
     /*
      * A relocating base still exists, but it does
      * not age or train while moving.
@@ -486,8 +687,7 @@ function runGameTick(room: GameRoom): void {
           [unitType]: base.armiesBuilt[unitType] + 1,
         };
 
-        const cost = BALANCE.units[unitType].cost;
-        const completedArmyCost = cost.water + cost.fire + cost.grass;
+        const completedArmyCost = base.training.resourcesSpent;
 
         updatedArmiesTrainedByPlayer[base.playerId] =
           (updatedArmiesTrainedByPlayer[base.playerId] ?? 0) + 1;
@@ -537,6 +737,19 @@ function runGameTick(room: GameRoom): void {
   const updatedGameEvents = [...gameState.gameEvents];
 
   let nextGameEventId = gameState.nextGameEventId;
+
+  completedUpgrades.forEach((upgrade) => {
+    updatedGameEvents.push({
+      type: "base-upgrade",
+      id: nextGameEventId,
+      gameSeconds: gameState.gameSeconds + 1,
+      playerId: upgrade.playerId,
+      baseName: upgrade.baseName,
+      level: upgrade.level,
+    });
+
+    nextGameEventId += 1;
+  });
 
   const updatedEliminatedPlayerIds = [...gameState.eliminatedPlayerIds];
 
@@ -659,6 +872,8 @@ function runGameTick(room: GameRoom): void {
       const combatResult = resolveUnitCombat(
         mission.armies,
         defendingBase.armies,
+        gameState.researchByPlayer[mission.playerId]?.military ?? 1,
+        gameState.researchByPlayer[defendingBase.playerId]?.military ?? 1,
       );
 
       const survivingAttackers = combatResult.attackerSurvivors;
@@ -1276,6 +1491,9 @@ function runGameTick(room: GameRoom): void {
         col: mission.destinationCol,
 
         timeInLocationSeconds: 0,
+
+        level: 1,
+        upgradeCompletesAt: null,
 
         isRelocating: false,
 
@@ -1928,17 +2146,24 @@ function runGameTick(room: GameRoom): void {
     }
 
     const primaryProduction =
-      getLocationMultiplier(base.timeInLocationSeconds) * tile.multiplier;
+      BALANCE.production.primaryByLevel[base.level - 1] * tile.multiplier;
 
-    const secondaryProduction = getSecondaryProduction(
-      base.timeInLocationSeconds,
-    );
+    const secondaryProduction =
+      BALANCE.production.secondaryByLevel[base.level - 1];
+
+    const productionResearchLevel =
+      gameState.researchByPlayer[base.playerId]?.production ?? 1;
+
+    const productionMultiplier =
+      1 +
+      (productionResearchLevel - 1) * BALANCE.research.production.bonusPerLevel;
 
     const producedResources = {
       ...currentResources,
     };
 
-    producedResources[tile.resource] += primaryProduction;
+    producedResources[tile.resource] +=
+      primaryProduction * productionMultiplier;
 
     if (secondaryProduction > 0) {
       const secondaryResources: ResourceType[] = [
@@ -1948,7 +2173,8 @@ function runGameTick(room: GameRoom): void {
       ].filter((resource) => resource !== tile.resource) as ResourceType[];
 
       secondaryResources.forEach((resource) => {
-        producedResources[resource] += secondaryProduction;
+        producedResources[resource] +=
+          secondaryProduction * productionMultiplier;
       });
     }
 
@@ -2694,6 +2920,87 @@ server.on("connection", (socket, request) => {
 
     /*
      * ==============================================
+     * GAME ACTION: PURCHASE RESEARCH
+     * ==============================================
+     */
+    if (message.type === "purchase-research") {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
+        return;
+      }
+
+      const player = room.lobbyPlayers.get(clientId);
+
+      if (!player) {
+        return;
+      }
+
+      const researchType = message.researchType;
+
+      if (
+        researchType !== "military" &&
+        researchType !== "production" &&
+        researchType !== "efficiency"
+      ) {
+        return;
+      }
+
+      const baseId = Number(message.baseId);
+
+      if (!Number.isInteger(baseId) || baseId <= 0) {
+        return;
+      }
+
+      const purchased = purchaseResearch(
+        room,
+        player.playerId,
+        baseId,
+        researchType,
+      );
+
+      if (!purchased) {
+        return;
+      }
+
+      broadcastGameState(room);
+    }
+
+    /*
+     * ==============================================
+     * GAME ACTION: UPGRADE BASE
+     * ==============================================
+     */
+    if (message.type === "upgrade-base") {
+      const room = getRoomForClient(clientId);
+
+      if (!room || !room.gameState) {
+        return;
+      }
+
+      const player = room.lobbyPlayers.get(clientId);
+
+      if (!player) {
+        return;
+      }
+
+      const baseId = Number(message.baseId);
+
+      if (!Number.isInteger(baseId) || baseId <= 0) {
+        return;
+      }
+
+      const upgradeStarted = startBaseUpgrade(room, player.playerId, baseId);
+
+      if (!upgradeStarted) {
+        return;
+      }
+
+      broadcastGameState(room);
+    }
+
+    /*
+     * ==============================================
      * GAME ACTION: TRANSFER
      * ==============================================
      */
@@ -2746,6 +3053,8 @@ server.on("connection", (socket, request) => {
        */
       if (
         originBase.playerId !== player.playerId ||
+        originBase.isRelocating ||
+        originBase.upgradeCompletesAt !== null ||
         destinationBase.playerId !== player.playerId
       ) {
         return;
@@ -2946,6 +3255,8 @@ server.on("connection", (socket, request) => {
        */
       if (
         originBase.playerId !== player.playerId ||
+        originBase.isRelocating ||
+        originBase.upgradeCompletesAt !== null ||
         destinationBase.playerId === player.playerId
       ) {
         return;
@@ -3090,7 +3401,11 @@ server.on("connection", (socket, request) => {
         return;
       }
 
-      if (originBase.playerId !== player.playerId) {
+      if (
+        originBase.playerId !== player.playerId ||
+        originBase.isRelocating ||
+        originBase.upgradeCompletesAt !== null
+      ) {
         return;
       }
 
@@ -3250,7 +3565,11 @@ server.on("connection", (socket, request) => {
       /*
        * Requester must own the origin base.
        */
-      if (originBase.playerId !== player.playerId) {
+      if (
+        originBase.playerId !== player.playerId ||
+        originBase.isRelocating ||
+        originBase.upgradeCompletesAt !== null
+      ) {
         return;
       }
 
@@ -3476,7 +3795,11 @@ server.on("connection", (socket, request) => {
       /*
        * Requester must own this base.
        */
-      if (originBase.playerId !== player.playerId) {
+      if (
+        originBase.playerId !== player.playerId ||
+        originBase.isRelocating ||
+        originBase.upgradeCompletesAt !== null
+      ) {
         return;
       }
 

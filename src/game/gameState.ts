@@ -58,24 +58,44 @@ export const players: Player[] = [
     name: "Survivor 1",
     color: "#4f8cff",
     avatar: "🎖️",
+    research: {
+      military: 1,
+      production: 1,
+      efficiency: 1,
+    },
   },
   {
     id: 2,
     name: "Survivor 2",
     color: "#e05a47",
     avatar: "🔧",
+    research: {
+      military: 1,
+      production: 1,
+      efficiency: 1,
+    },
   },
   {
     id: 3,
     name: "Survivor 3",
     color: "#d8b640",
     avatar: "🌾",
+    research: {
+      military: 1,
+      production: 1,
+      efficiency: 1,
+    },
   },
   {
     id: 4,
     name: "Survivor 4",
     color: "#9b6bd6",
     avatar: "🔬",
+    research: {
+      military: 1,
+      production: 1,
+      efficiency: 1,
+    },
   },
 ];
 
@@ -120,6 +140,8 @@ export const bases: Base[] = [
     row: 0,
     col: 3,
     timeInLocationSeconds: 0,
+    level: 1,
+    upgradeCompletesAt: null,
 
     armies: emptyUnitCounts(),
     armiesBuilt: emptyUnitCounts(),
@@ -135,6 +157,8 @@ export const bases: Base[] = [
     row: 3,
     col: 7,
     timeInLocationSeconds: 0,
+    level: 1,
+    upgradeCompletesAt: null,
 
     armies: emptyUnitCounts(),
     armiesBuilt: emptyUnitCounts(),
@@ -150,6 +174,8 @@ export const bases: Base[] = [
     row: 7,
     col: 3,
     timeInLocationSeconds: 0,
+    level: 1,
+    upgradeCompletesAt: null,
 
     armies: emptyUnitCounts(),
     armiesBuilt: emptyUnitCounts(),
@@ -165,6 +191,8 @@ export const bases: Base[] = [
     row: 4,
     col: 0,
     timeInLocationSeconds: 0,
+    level: 1,
+    upgradeCompletesAt: null,
 
     armies: emptyUnitCounts(),
     armiesBuilt: emptyUnitCounts(),

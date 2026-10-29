@@ -72,6 +72,7 @@ const eventPriority: Record<GameEvent["type"], number> = {
   loot: 3,
   transfer: 3,
   "mission-failed": 3,
+  "base-upgrade": 3,
 };
 
 function getMissionFailureMessage(
@@ -245,6 +246,14 @@ export default function GameLog({
 
                       <span>{formatTime(event.gameSeconds)}</span>
                     </div>
+                  </div>
+                );
+              }
+
+              if (event.type === "base-upgrade") {
+                return (
+                  <div key={event.id}>
+                    {event.baseName} upgraded to Level {event.level}
                   </div>
                 );
               }

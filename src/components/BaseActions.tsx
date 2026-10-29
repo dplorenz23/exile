@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { FlaskConical, Building2, Users, RadioTower } from "lucide-react";
 
 import { BALANCE } from "../game/balance";
 
 import type {
   Base,
   BaseResources,
+  PlayerResearch,
+  ResearchType,
   ResourceType,
   UnitCounts,
   UnitType,
@@ -29,6 +32,9 @@ interface BaseActionsProps {
   ownedBases: Base[];
   expansionKeys: number;
   expansionsCompleted: number;
+  research: PlayerResearch;
+  onPurchaseResearch: (researchType: ResearchType) => void;
+  onUpgradeBase: () => void;
 
   onTrainArmy: (unitType: UnitType) => void;
 
@@ -54,6 +60,9 @@ export default function BaseActions({
   ownedBases,
   expansionKeys,
   expansionsCompleted,
+  research,
+  onPurchaseResearch,
+  onUpgradeBase,
   onTrainArmy,
   onStartAttackTargeting,
   onStartLootTargeting,
@@ -72,7 +81,21 @@ export default function BaseActions({
     | "loot-armies"
     | "expand-payment"
     | "relocate-payment"
+    | "research"
+    | "base-management"
   >("main");
+
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  useEffect(() => {
+    if (!base || base.upgradeCompletesAt === null) return;
+
+    const interval = window.setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 250);
+
+    return () => window.clearInterval(interval);
+  }, [base?.upgradeCompletesAt]);
 
   const [selectedArmies, setSelectedArmies] = useState<UnitCounts>({
     guardian: 0,
@@ -106,6 +129,8 @@ export default function BaseActions({
     return null;
   }
 
+  const isUpgrading = base.upgradeCompletesAt !== null;
+
   const currentBase = base;
 
   const unitTypes = [
@@ -118,11 +143,26 @@ export default function BaseActions({
   const deploymentLimitReached =
     activeDeployments >= BALANCE.missions.maxActivePerPlayer;
 
+  const trainingCostMultiplier =
+    1 -
+    (research.efficiency - 1) *
+      BALANCE.research.efficiency.costReductionPerLevel;
+
+  const discountedUnitCost = (unitType: UnitType): BaseResources => {
+    const cost = BALANCE.units[unitType].cost;
+
+    return {
+      water: Math.ceil(cost.water * trainingCostMultiplier),
+      fire: Math.ceil(cost.fire * trainingCostMultiplier),
+      grass: Math.ceil(cost.grass * trainingCostMultiplier),
+    };
+  };
+
   const armyCosts = {
-    guardian: BALANCE.units.guardian.cost,
-    marksman: BALANCE.units.marksman.cost,
-    medic: BALANCE.units.medic.cost,
-    spy: BALANCE.units.spy.cost,
+    guardian: discountedUnitCost("guardian"),
+    marksman: discountedUnitCost("marksman"),
+    medic: discountedUnitCost("medic"),
+    spy: discountedUnitCost("spy"),
   };
 
   const isTraining = base.training !== null;
@@ -143,18 +183,20 @@ export default function BaseActions({
   const expansionCost = getExpansionCost(expansionsCompleted);
 
   const canExpand =
+    !isUpgrading &&
     ownedBases.length < BALANCE.expansion.maxBases &&
     expansionKeys >= BALANCE.expansion.keyCost &&
     spendableResources >= expansionCost;
-
-  const totalExpansionPayment =
-    expansionPayment.water + expansionPayment.fire + expansionPayment.grass;
 
   const relocationCost =
     BALANCE.relocation.baseCost +
     base.relocations * BALANCE.relocation.costIncrease;
 
-  const canAffordRelocation = spendableResources >= relocationCost;
+  const canAffordRelocation =
+    !isUpgrading && spendableResources >= relocationCost;
+
+  const totalExpansionPayment =
+    expansionPayment.water + expansionPayment.fire + expansionPayment.grass;
 
   function canAfford(unitType: UnitType): boolean {
     const cost = armyCosts[unitType];
@@ -649,6 +691,137 @@ export default function BaseActions({
     );
   }
 
+  const highestBaseLevel = Math.max(...ownedBases.map((b) => b.level));
+
+  const researchTypes = [
+    { key: "military", label: "Military" },
+    { key: "production", label: "Production" },
+    { key: "efficiency", label: "Efficiency" },
+  ] as const;
+
+  /*
+   * Research menu.
+   */
+  if (mode === "research") {
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">Research</div>
+
+        {researchTypes.map(({ key, label }) => {
+          const currentLevel = research[key];
+
+          if (currentLevel >= 4) {
+            return (
+              <button key={key} className="base-action-button" disabled>
+                {label} — Level 4 (MAX)
+              </button>
+            );
+          }
+
+          const nextLevel = (currentLevel + 1) as 2 | 3 | 4;
+          const baseCost = BALANCE.research[key].costs[nextLevel];
+
+          const multiplier =
+            1 -
+            (research.efficiency - 1) *
+              BALANCE.research.efficiency.costReductionPerLevel;
+
+          const cost = {
+            water: Math.ceil(baseCost.water * multiplier),
+            fire: Math.ceil(baseCost.fire * multiplier),
+            grass: Math.ceil(baseCost.grass * multiplier),
+          };
+
+          const canPurchase =
+            nextLevel <= highestBaseLevel &&
+            !base.isRelocating &&
+            base.upgradeCompletesAt === null &&
+            resources.water >= cost.water &&
+            resources.fire >= cost.fire &&
+            resources.grass >= cost.grass;
+
+          return (
+            <button
+              key={key}
+              className="base-action-button"
+              disabled={!canPurchase}
+              onClick={() => onPurchaseResearch(key)}
+            >
+              {label} L{currentLevel} → L{nextLevel} — 💧{cost.water} 🔥
+              {cost.fire} 🌱{cost.grass}
+            </button>
+          );
+        })}
+
+        <button className="base-action-button" onClick={() => setMode("main")}>
+          Back
+        </button>
+      </div>
+    );
+  }
+
+  const upgradeSecondsRemaining =
+    base.upgradeCompletesAt !== null
+      ? Math.max(0, Math.ceil((base.upgradeCompletesAt - currentTime) / 1000))
+      : 0;
+
+  const nextBaseLevel = (base.level + 1) as 2 | 3 | 4;
+
+  const upgradeCost =
+    base.level < 4 ? BALANCE.baseUpgrades.costs[nextBaseLevel] : null;
+
+  const canUpgradeBase =
+    upgradeCost !== null &&
+    base.upgradeCompletesAt === null &&
+    !base.isRelocating &&
+    base.training === null &&
+    resources.water >= upgradeCost.water &&
+    resources.fire >= upgradeCost.fire &&
+    resources.grass >= upgradeCost.grass;
+
+  /*
+   * Base Management menu.
+   */
+  if (mode === "base-management") {
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">Base Management</div>
+
+        <button
+          className="base-action-button"
+          disabled={!canUpgradeBase}
+          onClick={onUpgradeBase}
+        >
+          {base.upgradeCompletesAt !== null
+            ? `Upgrading Base... ${upgradeSecondsRemaining}s remaining`
+            : upgradeCost
+              ? `Upgrade Base L${base.level} → L${nextBaseLevel} — 💧${upgradeCost.water} 🔥${upgradeCost.fire} 🌱${upgradeCost.grass} (${BALANCE.baseUpgrades.upgradeSeconds[nextBaseLevel]}s)`
+              : "Base Level 4 (MAX)"}
+        </button>
+
+        <button
+          className="base-action-button"
+          disabled={!canExpand || deploymentLimitReached}
+          onClick={() => setMode("expand-payment")}
+        >
+          Expand
+        </button>
+
+        <button
+          className="base-action-button"
+          disabled={!canAffordRelocation || deploymentLimitReached}
+          onClick={() => setMode("relocate-payment")}
+        >
+          Relocate
+        </button>
+
+        <button className="base-action-button" onClick={() => setMode("main")}>
+          Back
+        </button>
+      </div>
+    );
+  }
+
   if (mode === "expand-payment") {
     return (
       <div className="base-actions send-menu">
@@ -707,7 +880,10 @@ export default function BaseActions({
           Choose Location
         </button>
 
-        <button className="base-action-button" onClick={() => setMode("main")}>
+        <button
+          className="base-action-button"
+          onClick={() => setMode("base-management")}
+        >
           Back
         </button>
       </div>
@@ -781,7 +957,7 @@ export default function BaseActions({
               grass: 0,
             });
 
-            setMode("main");
+            setMode("base-management");
           }}
         >
           Back
@@ -793,15 +969,21 @@ export default function BaseActions({
   /*
    * Main actions.
    */
+
   return (
     <div className="base-actions">
-      <button className="base-action-button" onClick={() => setMode("train")}>
-        🪖 RECRUIT
+      <button
+        className="base-action-button"
+        disabled={isUpgrading}
+        onClick={() => setMode("train")}
+      >
+        <Users size={18} /> RECRUIT
       </button>
 
       <button
         className="base-action-button"
         disabled={
+          isUpgrading ||
           deploymentLimitReached ||
           base.armies.guardian +
             base.armies.marksman +
@@ -811,23 +993,22 @@ export default function BaseActions({
         }
         onClick={() => setMode("mission")}
       >
-        📡 DEPLOY ARMY
+        <RadioTower size={18} /> DEPLOY ARMY
       </button>
 
       <button
         className="base-action-button"
-        disabled={!canExpand || deploymentLimitReached}
-        onClick={() => setMode("expand-payment")}
+        disabled={isUpgrading}
+        onClick={() => setMode("research")}
       >
-        🏕️ EXPAND ({expansionCost}+🔑)
+        <FlaskConical size={18} /> RESEARCH
       </button>
 
       <button
         className="base-action-button"
-        disabled={!canAffordRelocation || deploymentLimitReached}
-        onClick={() => setMode("relocate-payment")}
+        onClick={() => setMode("base-management")}
       >
-        🚚 RELOCATE ({relocationCost})
+        <Building2 size={18} /> BASE MANAGEMENT
       </button>
     </div>
   );

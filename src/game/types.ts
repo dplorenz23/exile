@@ -146,6 +146,7 @@ export interface ArmyCounts {
 export interface TrainingOrder {
   unitType: UnitType;
   secondsRemaining: number;
+  resourcesSpent: number;
 }
 
 export interface Base {
@@ -156,6 +157,13 @@ export interface Base {
   col: number;
 
   timeInLocationSeconds: number;
+
+  level: 1 | 2 | 3 | 4;
+
+  // Null when no upgrade is underway.
+  // Unix timestamp in milliseconds when construction finishes.
+  upgradeCompletesAt: number | null;
+
   isRelocating: boolean;
 
   armies: UnitCounts;
@@ -173,11 +181,21 @@ export interface Base {
   baseSlot: 1 | 2 | 3;
 }
 
+export interface PlayerResearch {
+  military: 1 | 2 | 3 | 4;
+  production: 1 | 2 | 3 | 4;
+  efficiency: 1 | 2 | 3 | 4;
+}
+
+export type ResearchType = keyof PlayerResearch;
+
 export interface Player {
   id: number;
   name: string;
   color: string;
   avatar: string;
+
+  research: PlayerResearch;
 }
 
 export type MissionType =
@@ -352,6 +370,14 @@ export type GameEvent =
       col?: number;
     }
   | {
+      type: "base-upgrade";
+      id: number;
+      gameSeconds: number;
+      playerId: number;
+      baseName: string;
+      level: 2 | 3 | 4;
+    }
+  | {
       type: "elimination";
 
       id: number;
@@ -399,6 +425,8 @@ export type GameState = {
   bases: Base[];
 
   resourcesByBase: Record<number, BaseResources>;
+
+  researchByPlayer: Record<number, PlayerResearch>;
 
   expansionKeysByPlayer: Record<number, number>;
 

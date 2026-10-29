@@ -37,6 +37,7 @@ import type {
   UnitType,
   BaseResources,
   GameState,
+  ResearchType,
 } from "./game/types";
 
 import { CLASS_COLORS } from "./game/characters";
@@ -713,6 +714,38 @@ function App() {
       }),
     );
   }
+
+  /*
+   * ==========================================================
+   * PURCHASE RESEARCH
+   * ==========================================================
+   *
+   * Purchases a research item for the selected base.
+   *
+   */
+  function handlePurchaseResearch(researchType: ResearchType): void {
+    if (!selectedBase) return;
+
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "purchase-research",
+        baseId: selectedBaseId,
+        researchType,
+      }),
+    );
+  }
+
+  function handleUpgradeBase(): void {
+    if (!selectedBase) return;
+
+    socketRef.current?.send(
+      JSON.stringify({
+        type: "upgrade-base",
+        baseId: selectedBaseId,
+      }),
+    );
+  }
+
   /*
    * ==========================================================
    * EXPANSION
@@ -932,21 +965,6 @@ function App() {
         </div>
       )}
 
-      {winner && !showFinalStandings && (
-        <button
-          className="game-over-button secondary"
-          onClick={() => setShowFinalStandings(true)}
-          style={{
-            position: "fixed",
-            top: "12px",
-            right: "12px",
-            zIndex: 1000,
-          }}
-        >
-          View Results
-        </button>
-      )}
-
       {youAreEliminated && !winner && (
         <div className="game-over-overlay">
           <div className="game-over-panel">
@@ -1007,9 +1025,15 @@ function App() {
 
             <button
               className="game-clock-exit"
-              aria-label="Forfeit Match"
-              title="Forfeit Match"
-              onClick={() => setShowForfeitConfirm(true)}
+              aria-label={winner ? "Exit Game" : "Forfeit Match"}
+              title={winner ? "Exit Game" : "Forfeit Match"}
+              onClick={() => {
+                if (winner) {
+                  handleExitGame();
+                } else {
+                  setShowForfeitConfirm(true);
+                }
+              }}
             >
               <DoorOpen size={18} strokeWidth={2.3} />
             </button>
@@ -1043,6 +1067,15 @@ function App() {
         ownedBases={yourBases}
         expansionKeys={yourExpansionKeys}
         expansionsCompleted={yourExpansionsCompleted}
+        research={
+          gameState.researchByPlayer[selectedBase?.playerId ?? 0] ?? {
+            military: 1,
+            production: 1,
+            efficiency: 1,
+          }
+        }
+        onPurchaseResearch={handlePurchaseResearch}
+        onUpgradeBase={handleUpgradeBase}
         activeDeployments={
           gameState.armyMissions.filter(
             (mission) => mission.playerId === selectedBase?.playerId,
@@ -1172,7 +1205,7 @@ function App() {
 
               <div className="base-selector-stats">
                 <div className="base-selector-stat-column">
-                  <div className="base-selector-stat-heading">ARMIES</div>
+                  <div className="base-selector-stat-heading">ARMY</div>
 
                   <div
                     style={{
