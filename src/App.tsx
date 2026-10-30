@@ -491,7 +491,6 @@ function App() {
             isHost: player.isHost,
             isBot: player.isBot,
             characterClass: player.characterClass,
-            portrait: player.portrait,
           })),
         );
 

@@ -1,5 +1,5 @@
 import { emptyUnitCounts } from "./types";
-import type { Base, BaseResources, MatchType, Player } from "./types";
+import type { Base, BaseResources, Player } from "./types";
 import { BALANCE } from "../../src/game/balance";
 /*
  * Static game configuration used when creating a new match.
@@ -17,11 +17,6 @@ interface MapConfig {
   columns: number;
 }
 
-interface MatchTypeConfig {
-  name: string;
-  durationMinutes: number | null;
-}
-
 export const maps: MapConfig[] = [
   {
     id: "exile-island",
@@ -32,17 +27,6 @@ export const maps: MapConfig[] = [
     columns: 8,
   },
 ];
-
-export const matchTypes: Record<MatchType, MatchTypeConfig> = {
-  "30m": {
-    name: "30 Minutes",
-    durationMinutes: 30,
-  },
-  "sudden-death": {
-    name: "Sudden Death",
-    durationMinutes: null,
-  },
-};
 
 export const players: Player[] = [
   {
