@@ -360,7 +360,7 @@ function App() {
    * The server still validates and creates the actual mission.
    */
   const [targetingMode, setTargetingMode] = useState<
-    "attack" | "loot" | "expand" | "transfer" | "relocate" | null
+    "attack" | "spy" | "loot" | "expand" | "transfer" | "relocate" | null
   >(null);
 
   const [pendingAttackArmies, setPendingAttackArmies] =
@@ -598,12 +598,26 @@ function App() {
   ): void {
     socketRef.current?.send(
       JSON.stringify({
-        type: "attack-army",
+        type: targetingMode === "spy" ? "spy-army" : "attack-army",
         originBaseId: selectedBaseId,
         destinationBaseId,
         armies,
       }),
     );
+  }
+
+  /*
+   * ==========================================================
+   * START SPY TARGETING
+   * ==========================================================
+   *
+   */
+  function handleStartSpyTargeting(armies: UnitCounts): void {
+    setPendingAttackArmies({
+      ...armies,
+    });
+
+    setTargetingMode("spy");
   }
 
   /*
@@ -1084,6 +1098,7 @@ function App() {
         }
         onTrainArmy={handleTrainArmy}
         onStartAttackTargeting={handleStartAttackTargeting}
+        onStartSpyTargeting={handleStartSpyTargeting}
         onStartLootTargeting={handleStartLootTargeting}
         onStartExpandTargeting={handleStartExpandTargeting}
         onStartTransferTargeting={handleStartTransferTargeting}
@@ -1095,6 +1110,8 @@ function App() {
         <div className="targeting-banner">
           <span>
             {targetingMode === "attack" && "Choose an enemy base to attack"}
+
+            {targetingMode === "spy" && "Choose an enemy base to spy on"}
 
             {targetingMode === "loot" && "Choose a treasure chest to loot"}
 

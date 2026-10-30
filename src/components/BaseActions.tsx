@@ -50,6 +50,8 @@ interface BaseActionsProps {
 
   onStartAttackTargeting: (armies: UnitCounts) => void;
 
+  onStartSpyTargeting: (armies: UnitCounts) => void;
+
   onStartLootTargeting: (armies: UnitCounts) => void;
 
   onStartExpandTargeting: (payment: BaseResources) => void;
@@ -76,6 +78,7 @@ export default function BaseActions({
   onUpgradeBase,
   onTrainArmy,
   onStartAttackTargeting,
+  onStartSpyTargeting,
   onStartLootTargeting,
   onStartExpandTargeting,
   onStartTransferTargeting,
@@ -87,6 +90,7 @@ export default function BaseActions({
     | "train"
     | "mission"
     | "attack-armies"
+    | "spy-armies"
     | "transfer-armies"
     | "cargo"
     | "loot-armies"
@@ -489,6 +493,23 @@ export default function BaseActions({
           💰 Loot
         </button>
 
+        <button
+          className="base-action-button"
+          disabled={base.armies.spy === 0}
+          onClick={() => {
+            setSelectedArmies({
+              guardian: 0,
+              marksman: 0,
+              medic: 0,
+              spy: 0,
+            });
+
+            setMode("spy-armies");
+          }}
+        >
+          👁️ Spy
+        </button>
+
         <button className="base-action-button" onClick={resetSend}>
           Cancel
         </button>
@@ -669,6 +690,62 @@ export default function BaseActions({
       </div>
     );
   }
+
+  /*
+   * Select Spies for a reconnaissance mission.
+   */
+  if (mode === "spy-armies") {
+    return (
+      <div className="base-actions send-menu">
+        <div className="send-menu-title">Select Spies</div>
+
+        <ArmySelector
+          label="Spy"
+          available={base.armies.spy}
+          selected={selectedArmies.spy}
+          onDecrease={() => changeArmyCount("spy", -1)}
+          onIncrease={() => changeArmyCount("spy", 1)}
+          onSelectAll={() =>
+            setSelectedArmies({
+              guardian: 0,
+              marksman: 0,
+              medic: 0,
+              spy: base.armies.spy,
+            })
+          }
+        />
+
+        <button
+          className="base-action-button"
+          disabled={selectedArmies.spy === 0}
+          onClick={() => {
+            onStartSpyTargeting({
+              guardian: 0,
+              marksman: 0,
+              medic: 0,
+              spy: selectedArmies.spy,
+            });
+
+            resetSend();
+          }}
+        >
+          Choose Target
+        </button>
+
+        <button
+          className="base-action-button"
+          onClick={() => setMode("mission")}
+        >
+          Back
+        </button>
+
+        <button className="base-action-button" onClick={resetSend}>
+          Cancel
+        </button>
+      </div>
+    );
+  }
+
   /*
    * Select armies for an attack.
    */

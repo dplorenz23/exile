@@ -202,6 +202,7 @@ export type MissionType =
   | "transfer"
   | "attack"
   | "loot"
+  | "spy"
   | "expand"
   | "relocate";
 
@@ -385,6 +386,29 @@ export type GameEvent =
 
       eliminatedPlayerId: number;
       eliminatedByPlayerId?: number;
+    }
+  | {
+      type: "spy-report";
+
+      id: number;
+      gameSeconds: number;
+
+      playerId: number;
+      defenderPlayerId: number;
+
+      row: number;
+      col: number;
+
+      intelLevel: 0 | 1 | 2 | 3 | 4;
+
+      resources?: BaseResources;
+      armyCount?: number;
+      armies?: UnitCounts;
+      research?: {
+        military: number;
+        production: number;
+        efficiency: number;
+      };
     }
   | {
       type: "victory";

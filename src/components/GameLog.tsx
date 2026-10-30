@@ -73,6 +73,7 @@ const eventPriority: Record<GameEvent["type"], number> = {
   transfer: 3,
   "mission-failed": 3,
   "base-upgrade": 3,
+  "spy-report": 3,
 };
 
 function getMissionFailureMessage(
@@ -302,6 +303,63 @@ export default function GameLog({
                       <span>{formatTime(event.gameSeconds)}</span>
                     </div>
                   </div>
+                );
+              }
+
+              if (event.type === "spy-report") {
+                return (
+                  <details
+                    key={event.id}
+                    className="battle-report comms-battle"
+                  >
+                    <summary className="comms-battle-summary">
+                      <div className="comms-battle-heading">
+                        <strong>
+                          👁️ {factionLabel(event.playerId)} →{" "}
+                          {factionLabel(event.defenderPlayerId)}
+                        </strong>
+
+                        <span className="comms-battle-time">
+                          {getCoordinates(event.row, event.col)}
+                          {" · "}
+                          {formatTime(event.gameSeconds)}
+                        </span>
+                      </div>
+
+                      <div className="comms-battle-result">
+                        {event.intelLevel > 0
+                          ? `Intelligence Level ${event.intelLevel}`
+                          : "No intelligence gathered"}
+                      </div>
+                    </summary>
+
+                    <div className="comms-battle-details">
+                      {event.resources && (
+                        <div>
+                          Resources:{" "}
+                          <ResourceDisplay resources={event.resources} />
+                        </div>
+                      )}
+
+                      {event.armyCount !== undefined && (
+                        <div>Army count: {event.armyCount}</div>
+                      )}
+
+                      {event.armies && (
+                        <div>
+                          Army composition: {formatCompactArmies(event.armies)}
+                        </div>
+                      )}
+
+                      {event.research && (
+                        <div>
+                          Research: Military {event.research.military} ·
+                          Production {event.research.production} · Efficiency{" "}
+                          {event.research.efficiency}
+                        </div>
+                      )}
+                    </div>
+                  </details>
                 );
               }
 

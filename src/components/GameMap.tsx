@@ -16,7 +16,14 @@ interface GameMapProps {
   bases: Base[];
   treasures: Treasure[];
   mapTiles: MapTile[];
-  targetingMode: "attack" | "loot" | "expand" | "transfer" | "relocate" | null;
+  targetingMode:
+    | "attack"
+    | "spy"
+    | "loot"
+    | "expand"
+    | "transfer"
+    | "relocate"
+    | null;
   yourPlayerId: number;
   originBase?: Base;
   onAttackTargetSelected: (destinationBaseId: number) => void;
@@ -169,7 +176,7 @@ export default function GameMap({
          * During attack targeting, any enemy base is valid.
          */
         const isAttackTarget =
-          targetingMode === "attack" &&
+          (targetingMode === "attack" || targetingMode === "spy") &&
           base !== undefined &&
           base.playerId !== yourPlayerId;
 

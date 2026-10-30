@@ -782,6 +782,7 @@ function runGameTick(room: GameRoom): void {
       mission.type !== "transfer" &&
       mission.type !== "attack" &&
       mission.type !== "loot" &&
+      mission.type !== "spy" &&
       mission.type !== "expand" &&
       mission.type !== "relocate"
     ) {
@@ -804,6 +805,127 @@ function runGameTick(room: GameRoom): void {
 
     /*
      * ==================================================
+     * SPY ARRIVAL
+     * ==================================================
+     */
+    if (mission.type === "spy" && mission.phase === "outbound") {
+      const defendingBase = updatedBases.find(
+        (base) => base.id === mission.destinationBaseId,
+      );
+
+      const spyAdvantage =
+        mission.armies.spy - (defendingBase?.armies.spy ?? 0);
+
+      const detectionChance = Math.min(1, Math.max(0, -spyAdvantage) * 0.1);
+
+      const detected =
+        defendingBase !== undefined &&
+        spyAdvantage < 0 &&
+        Math.random() < detectionChance;
+
+      if (detected) {
+        // Reuse the normal Attack Arrival handler below.
+        mission.type = "attack";
+      } else {
+        // Publish intelligence immediately upon arrival.
+        // The dedicated COMMS report will be added next.
+        if (defendingBase && spyAdvantage > 0) {
+          const intelLevel = Math.min(4, spyAdvantage);
+
+          const resources = updatedResources[defendingBase.id] ?? {
+            water: 0,
+            fire: 0,
+            grass: 0,
+          };
+
+          const armyCount =
+            defendingBase.armies.guardian +
+            defendingBase.armies.marksman +
+            defendingBase.armies.medic +
+            defendingBase.armies.spy;
+
+          updatedGameEvents.push({
+            type: "spy-report",
+
+            id: nextGameEventId,
+            gameSeconds: gameState.gameSeconds + 1,
+
+            playerId: mission.playerId,
+            defenderPlayerId: defendingBase.playerId,
+
+            row: defendingBase.row,
+            col: defendingBase.col,
+
+            intelLevel: intelLevel as 1 | 2 | 3 | 4,
+
+            ...(intelLevel >= 1 && {
+              resources: { ...resources },
+            }),
+
+            ...(intelLevel >= 2 && {
+              armyCount,
+            }),
+
+            ...(intelLevel >= 3 && {
+              armies: { ...defendingBase.armies },
+            }),
+
+            ...(intelLevel >= 4 && {
+              research: {
+                military:
+                  gameState.researchByPlayer[defendingBase.playerId]
+                    ?.military ?? 1,
+                production:
+                  gameState.researchByPlayer[defendingBase.playerId]
+                    ?.production ?? 1,
+                efficiency:
+                  gameState.researchByPlayer[defendingBase.playerId]
+                    ?.efficiency ?? 1,
+              },
+            }),
+          });
+
+          nextGameEventId += 1;
+        }
+
+        if (defendingBase && spyAdvantage <= 0) {
+          updatedGameEvents.push({
+            type: "spy-report",
+
+            id: nextGameEventId,
+            gameSeconds: gameState.gameSeconds + 1,
+
+            playerId: mission.playerId,
+            defenderPlayerId: defendingBase.playerId,
+
+            row: defendingBase.row,
+            col: defendingBase.col,
+
+            intelLevel: 0,
+          });
+
+          nextGameEventId += 1;
+        }
+
+        // Return safely if not detected.
+        const distance = defendingBase
+          ? Math.abs(mission.originRow! - defendingBase.row) +
+            Math.abs(mission.originCol! - defendingBase.col)
+          : Math.abs(mission.originRow! - mission.destinationRow!) +
+            Math.abs(mission.originCol! - mission.destinationCol!);
+
+        updatedArmyMissions.push({
+          ...mission,
+          phase: "returning",
+          secondsRemaining: distance * BALANCE.missions.travelSecondsPerTile,
+        });
+
+        return;
+      }
+    }
+
+    /*
+     * ==================================================
      * ATTACK ARRIVAL
      * ==================================================
      */
@@ -811,6 +933,19 @@ function runGameTick(room: GameRoom): void {
       const defendingBase = updatedBases.find(
         (base) => base.id === mission.destinationBaseId,
       );
+
+      if (!defendingBase) {
+        updatedGameEvents.push({
+          type: "mission-failed",
+          id: nextGameEventId,
+          gameSeconds: gameState.gameSeconds + 1,
+          playerId: mission.playerId,
+          missionType: "spy",
+          reason: "destination-unavailable",
+        });
+
+        nextGameEventId += 1;
+      }
 
       const originBase = updatedBases.find(
         (base) => base.id === mission.originBaseId,
@@ -3224,11 +3359,11 @@ server.on("connection", (socket, request) => {
 
     /*
      * ==============================================
-     * GAME ACTION: ATTACK
+     * GAME ACTION: ATTACK OR SPY
      * ==============================================
      */
 
-    if (message.type === "attack-army") {
+    if (message.type === "attack-army" || message.type === "spy-army") {
       const room = getRoomForClient(clientId);
 
       if (!room || !room.gameState) {
@@ -3252,6 +3387,16 @@ server.on("connection", (socket, request) => {
       }
 
       const armies = message.armies;
+
+      if (
+        message.type === "spy-army" &&
+        (armies.spy < 1 ||
+          armies.guardian !== 0 ||
+          armies.marksman !== 0 ||
+          armies.medic !== 0)
+      ) {
+        return;
+      }
 
       const originBase = gameState.bases.find(
         (base) => base.id === originBaseId,
@@ -3330,7 +3475,7 @@ server.on("connection", (socket, request) => {
 
         playerId: originBase.playerId,
 
-        type: "attack",
+        type: message.type === "spy-army" ? "spy" : "attack",
         phase: "outbound",
 
         originBaseId: originBase.id,
