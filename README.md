@@ -141,6 +141,72 @@ The production build should be tested before deployment rather than relying excl
 
 ---
 
+## Deploying EXiLE to Production
+
+EXiLE uses **Render** for the multiplayer backend and **GitHub Pages** (via the Ankle Deep Games website repository) for the frontend.
+
+### 1. Push EXiLE changes to GitHub
+
+From the EXiLE repository:
+
+```powershell
+cd C:\Users\davidpc\Documents\GitHub\exile
+
+git add .
+git commit -m "Update EXiLE"
+git push origin main
+```
+
+### 2. Deploy the backend on Render
+
+1. Open [Render Dashboard](https://dashboard.render.com/).
+2. Select the EXiLE service.
+3. Click **Manual Deploy → Deploy latest commit**.
+4. Wait for the service to show **Live**.
+
+Backend URL: https://exile-7ch3.onrender.com
+
+### 3. Build the frontend
+
+From the EXiLE repository:
+
+```powershell
+npm run build
+```
+
+Ensure `.env.production` points to the production WebSocket server:
+
+```text
+wss://exile-7ch3.onrender.com
+```
+
+### 4. Copy the frontend into the website repository
+
+```powershell
+cd C:\Users\davidpc\Documents\GitHub\ankle-deep-games-website
+
+xcopy ..\exile\dist\* exile\ /E /I /Y
+```
+
+### 5. Publish the website
+
+From the website repository:
+
+```powershell
+git add .
+git commit -m "Deploy latest EXiLE frontend"
+git push origin main
+```
+
+### 6. Verify production
+
+1. Wait for the [GitHub Pages deployment](https://github.com/dplorenz23/ankle-deep-games-website/actions) to finish.
+2. Open https://ankledeepgames.com and click **Play**.
+3. Hard-refresh with `Ctrl + Shift + R` if the old version appears.
+4. Create a game and join from a second browser to verify multiplayer connectivity.
+
+**Note:** Updating the Render backend does not automatically update the frontend. Both repositories must be deployed for a complete EXiLE release.
+
 ## Multiplayer Architecture
 
 EXiLE uses a **server-authoritative multiplayer architecture**.
