@@ -2844,6 +2844,54 @@ body {
   }
 }
 
+.how-to-modal {
+  background: rgba(17, 22, 24, 0.98);
+  border: 1px solid rgba(184, 146, 83, 0.45);
+  color: #e6e2d9;
+  font-family: "DM Sans", sans-serif;
+}
+
+.how-to-header {
+  border-bottom: 1px solid rgba(184, 146, 83, 0.3);
+}
+
+.how-to-header h2 {
+  color: #e9c58d;
+  font-family: "Cinzel", Georgia, serif;
+}
+
+.how-to-close {
+  border-color: rgba(184, 146, 83, 0.3);
+  color: #d7ad6c;
+}
+
+.how-to-close:hover {
+  background: rgba(184, 146, 83, 0.12);
+  border-color: #d7ad6c;
+  color: #f1d49e;
+}
+
+.how-to-content section {
+  border-bottom-color: rgba(184, 146, 83, 0.18);
+}
+
+.how-to-content h3 {
+  color: #d7ad6c;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.how-to-content p {
+  color: #b9c2b9;
+  line-height: 1.65;
+}
+
+.how-to-content strong {
+  color: #e9c58d;
+}
+
 /* =========================
    FORFEIT / LEAVE GAME
    ========================= */
