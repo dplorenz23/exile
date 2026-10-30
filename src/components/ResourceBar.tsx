@@ -14,7 +14,7 @@ export default function ResourceBar({ water, fire, grass }: ResourceBarProps) {
           alt="Water"
         />
         <span className="resource-label">WATER</span>
-        <strong>{water}</strong>
+        <strong>{Math.floor(water)}</strong>
       </div>
 
       <div className="resource">
@@ -24,7 +24,7 @@ export default function ResourceBar({ water, fire, grass }: ResourceBarProps) {
           alt="Fuel"
         />
         <span className="resource-label">FUEL</span>
-        <strong>{fire}</strong>
+        <strong>{Math.floor(fire)}</strong>
       </div>
 
       <div className="resource">
@@ -34,7 +34,7 @@ export default function ResourceBar({ water, fire, grass }: ResourceBarProps) {
           alt="Food"
         />
         <span className="resource-label">FOOD</span>
-        <strong>{grass}</strong>
+        <strong>{Math.floor(grass)}</strong>
       </div>
     </div>
   );

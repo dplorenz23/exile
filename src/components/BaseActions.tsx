@@ -3,6 +3,8 @@ import { FlaskConical, Building2, Users, RadioTower } from "lucide-react";
 
 import { BALANCE } from "../game/balance";
 
+import type { CharacterClass } from "../game/characters";
+
 import type {
   Base,
   BaseResources,
@@ -40,6 +42,7 @@ interface BaseActionsProps {
   expansionKeys: number;
   expansionsCompleted: number;
   research: PlayerResearch;
+  faction: CharacterClass;
   onPurchaseResearch: (researchType: ResearchType) => void;
   onUpgradeBase: () => void;
 
@@ -68,6 +71,7 @@ export default function BaseActions({
   expansionKeys,
   expansionsCompleted,
   research,
+  faction,
   onPurchaseResearch,
   onUpgradeBase,
   onTrainArmy,
@@ -153,7 +157,10 @@ export default function BaseActions({
   const trainingCostMultiplier =
     1 -
     (research.efficiency - 1) *
-      BALANCE.research.efficiency.costReductionPerLevel;
+      BALANCE.research.efficiency.costReductionPerLevel -
+    (faction === "scientist"
+      ? BALANCE.factions.scientist.trainingCostReduction
+      : 0);
 
   const discountedUnitCost = (unitType: UnitType): BaseResources => {
     const cost = BALANCE.units[unitType].cost;
@@ -363,6 +370,8 @@ export default function BaseActions({
       ? Math.max(0, Math.ceil((base.upgradeCompletesAt - currentTime) / 1000))
       : 0;
 
+  const nextBaseLevel = (base.level + 1) as 2 | 3 | 4;
+
   /*
    * Base upgrade is underway.
    */
@@ -371,7 +380,8 @@ export default function BaseActions({
       <div className="base-actions">
         <div className="training-status">
           <strong>
-            Upgrading to {BASE_LEVEL_NAMES[base.level]} (Lvl {base.level + 1})
+            Upgrading to {BASE_LEVEL_NAMES[nextBaseLevel - 1] ?? "Citadel"} (Lvl{" "}
+            {nextBaseLevel})
           </strong>
 
           <span>{upgradeSecondsRemaining}s remaining</span>
@@ -753,7 +763,10 @@ export default function BaseActions({
           const multiplier =
             1 -
             (research.efficiency - 1) *
-              BALANCE.research.efficiency.costReductionPerLevel;
+              BALANCE.research.efficiency.costReductionPerLevel -
+            (faction === "scientist"
+              ? BALANCE.factions.scientist.researchCostReduction
+              : 0);
 
           const cost = {
             water: Math.ceil(baseCost.water * multiplier),
@@ -805,8 +818,6 @@ export default function BaseActions({
       </div>
     );
   }
-
-  const nextBaseLevel = (base.level + 1) as 2 | 3 | 4;
 
   const upgradeCost =
     base.level < 4 ? BALANCE.baseUpgrades.costs[nextBaseLevel] : null;

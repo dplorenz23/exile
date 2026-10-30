@@ -1074,6 +1074,7 @@ function App() {
             efficiency: 1,
           }
         }
+        faction={gameState.factionsByPlayer[selectedBase?.playerId ?? 0]}
         onPurchaseResearch={handlePurchaseResearch}
         onUpgradeBase={handleUpgradeBase}
         activeDeployments={

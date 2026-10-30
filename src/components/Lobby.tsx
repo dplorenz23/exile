@@ -18,6 +18,28 @@ const FACTION_ICONS = {
   scientist: FlaskConical,
 };
 
+const FACTION_BONUSES: Record<
+  CharacterClass,
+  { startingBonus: string; effect: string }
+> = {
+  soldier: {
+    startingBonus: "Permanent Military Bonus",
+    effect: "+15% unit attack and max HP",
+  },
+  engineer: {
+    startingBonus: "Starts with Outpost (Lvl 2)",
+    effect: "2× starting base production",
+  },
+  farmer: {
+    startingBonus: "Permanent Production Bonus",
+    effect: "+15% resource production",
+  },
+  scientist: {
+    startingBonus: "Permanent Efficiency Bonus",
+    effect: "−15% training and research costs",
+  },
+};
+
 /*
  * Displays the multiplayer lobby and sends player/host actions
  * upward through callbacks.
@@ -215,6 +237,13 @@ export default function Lobby({
                       <FactionIcon size={19} strokeWidth={2.3} />
                       {characterClass.toUpperCase()}
                     </h3>
+
+                    <div className="lobby-faction-bonus">
+                      <strong>
+                        {FACTION_BONUSES[characterClass].startingBonus}
+                      </strong>
+                      <span>{FACTION_BONUSES[characterClass].effect}</span>
+                    </div>
 
                     {isSelected ? (
                       <span className="lobby-selected-badge">SELECTED</span>

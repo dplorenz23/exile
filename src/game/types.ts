@@ -428,6 +428,8 @@ export type GameState = {
 
   researchByPlayer: Record<number, PlayerResearch>;
 
+  factionsByPlayer: Record<number, CharacterClass>;
+
   expansionKeysByPlayer: Record<number, number>;
 
   expansionsCompletedByPlayer: Record<number, number>;

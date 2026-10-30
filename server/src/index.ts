@@ -282,7 +282,10 @@ function startArmyTraining(
 
   const discount =
     1 -
-    (efficiencyLevel - 1) * BALANCE.research.efficiency.costReductionPerLevel;
+    (efficiencyLevel - 1) * BALANCE.research.efficiency.costReductionPerLevel -
+    (gameState.factionsByPlayer[playerId] === "scientist"
+      ? BALANCE.factions.scientist.trainingCostReduction
+      : 0);
 
   const baseCost = BALANCE.units[unitType].cost;
 
@@ -386,7 +389,10 @@ function purchaseResearch(
 
   const discount =
     1 -
-    (efficiencyLevel - 1) * BALANCE.research.efficiency.costReductionPerLevel;
+    (efficiencyLevel - 1) * BALANCE.research.efficiency.costReductionPerLevel -
+    (gameState.factionsByPlayer[playerId] === "scientist"
+      ? BALANCE.factions.scientist.researchCostReduction
+      : 0);
 
   const baseCost = BALANCE.research[researchType].costs[nextLevel];
 
@@ -874,6 +880,8 @@ function runGameTick(room: GameRoom): void {
         defendingBase.armies,
         gameState.researchByPlayer[mission.playerId]?.military ?? 1,
         gameState.researchByPlayer[defendingBase.playerId]?.military ?? 1,
+        room.gameState.factionsByPlayer[mission.playerId],
+        room.gameState.factionsByPlayer[defendingBase.playerId],
       );
 
       const survivingAttackers = combatResult.attackerSurvivors;
@@ -2156,7 +2164,11 @@ function runGameTick(room: GameRoom): void {
 
     const productionMultiplier =
       1 +
-      (productionResearchLevel - 1) * BALANCE.research.production.bonusPerLevel;
+      (productionResearchLevel - 1) *
+        BALANCE.research.production.bonusPerLevel +
+      (gameState.factionsByPlayer[base.playerId] === "farmer"
+        ? BALANCE.factions.farmer.productionBonus
+        : 0);
 
     const producedResources = {
       ...currentResources,
@@ -2717,10 +2729,15 @@ server.on("connection", (socket, request) => {
 
       const activePlayerIds = players.map((player) => player.playerId);
 
+      const factionsByPlayer = Object.fromEntries(
+        players.map((player) => [player.playerId, player.characterClass]),
+      );
+
       room.gameState = createInitialGameState(
         activePlayerIds,
         room.matchConfig.matchType,
         room.matchConfig.mapId,
+        factionsByPlayer,
       );
 
       if (room.gameTimer) {

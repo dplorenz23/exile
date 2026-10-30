@@ -11,6 +11,8 @@ import { BALANCE } from "../../src/game/balance";
 
 import type { Base, GameState, MatchType, Tile, Treasure } from "./types";
 
+import type { CharacterClass } from "./characters";
+
 /*
  * Builds a fresh runtime GameState from the static configuration in
  * gameState.ts.
@@ -305,6 +307,7 @@ export function createInitialGameState(
   activePlayerIds: number[] = players.map((player) => player.id),
   matchType: MatchType = "30m",
   mapId: string = "exile-island",
+  factionsByPlayer: Record<number, CharacterClass | null> = {},
 ): GameState {
   const { bases: initialBases, treasures: initialTreasures } =
     createStartingLayout(activePlayerIds, mapId);
@@ -321,6 +324,10 @@ export function createInitialGameState(
      */
     bases: initialBases.map((base) => ({
       ...base,
+      level:
+        factionsByPlayer[base.playerId] === "engineer"
+          ? BALANCE.factions.engineer.startingBaseLevel
+          : 1,
 
       armies: {
         ...base.armies,
@@ -347,6 +354,10 @@ export function createInitialGameState(
         ];
       }),
     ),
+
+    factionsByPlayer: Object.fromEntries(
+      activePlayerIds.map((playerId) => [playerId, factionsByPlayer[playerId]]),
+    ) as Record<number, CharacterClass>,
 
     researchByPlayer: Object.fromEntries(
       activePlayerIds.map((playerId) => [

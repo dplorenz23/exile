@@ -1,5 +1,7 @@
 import { BALANCE } from "./balance";
 
+import type { CharacterClass } from "./characters";
+
 import type {
   ArmyCounts,
   CombatResult,
@@ -318,11 +320,14 @@ const UNIT_PRIORITY: UnitType[] = ["guardian", "marksman", "spy", "medic"];
 function createCombatUnits(
   counts: UnitCounts,
   militaryLevel: number = 1,
+  faction?: CharacterClass,
 ): CombatUnit[] {
   const units: CombatUnit[] = [];
 
   const healthMultiplier =
-    1 + (militaryLevel - 1) * BALANCE.research.military.healthBonusPerLevel;
+    1 +
+    (militaryLevel - 1) * BALANCE.research.military.healthBonusPerLevel +
+    (faction === "soldier" ? BALANCE.factions.soldier.healthBonus : 0);
 
   for (const type of UNIT_PRIORITY) {
     for (let i = 0; i < counts[type]; i++) {
@@ -380,9 +385,15 @@ function applyCombatDamage(targets: CombatUnit[], damage: number): void {
  * Each surviving Medic heals the most wounded
  * living friendly soldier, including itself.
  */
-function healCombatUnits(units: CombatUnit[], militaryLevel: number = 1): void {
+function healCombatUnits(
+  units: CombatUnit[],
+  militaryLevel: number = 1,
+  faction?: CharacterClass,
+): void {
   const healthMultiplier =
-    1 + (militaryLevel - 1) * BALANCE.research.military.healthBonusPerLevel;
+    1 +
+    (militaryLevel - 1) * BALANCE.research.military.healthBonusPerLevel +
+    (faction === "soldier" ? BALANCE.factions.soldier.healthBonus : 0);
 
   const medics = units.filter(
     (unit) => unit.type === "medic" && unit.health > 0,
@@ -431,6 +442,8 @@ function healCombatUnits(units: CombatUnit[], militaryLevel: number = 1): void {
 function shouldAttackersRetreat(
   attackers: CombatUnit[],
   defenders: CombatUnit[],
+  attackerAttackMultiplier: number,
+  defenderAttackMultiplier: number,
 ): boolean {
   const remainingHealth = (units: CombatUnit[]) =>
     units.reduce((total, unit) => total + Math.max(0, unit.health), 0);
@@ -445,8 +458,9 @@ function shouldAttackersRetreat(
   const attackerHealth = remainingHealth(attackers);
   const defenderHealth = remainingHealth(defenders);
 
-  const attackerDamage = damagePerRound(attackers);
-  const defenderDamage = damagePerRound(defenders);
+  const attackerDamage = damagePerRound(attackers) * attackerAttackMultiplier;
+
+  const defenderDamage = damagePerRound(defenders) * defenderAttackMultiplier;
 
   if (attackerDamage === 0) {
     return true;
@@ -482,18 +496,32 @@ export function resolveUnitCombat(
   defendingUnits: UnitCounts,
   attackerMilitaryLevel: number = 1,
   defenderMilitaryLevel: number = 1,
+  attackerFaction?: CharacterClass,
+  defenderFaction?: CharacterClass,
 ): UnitCombatResult {
-  const attackers = createCombatUnits(attackingUnits, attackerMilitaryLevel);
+  const attackers = createCombatUnits(
+    attackingUnits,
+    attackerMilitaryLevel,
+    attackerFaction,
+  );
 
-  const defenders = createCombatUnits(defendingUnits, defenderMilitaryLevel);
+  const defenders = createCombatUnits(
+    defendingUnits,
+    defenderMilitaryLevel,
+    defenderFaction,
+  );
 
   const attackerAttackMultiplier =
     1 +
-    (attackerMilitaryLevel - 1) * BALANCE.research.military.attackBonusPerLevel;
+    (attackerMilitaryLevel - 1) *
+      BALANCE.research.military.attackBonusPerLevel +
+    (attackerFaction === "soldier" ? BALANCE.factions.soldier.attackBonus : 0);
 
   const defenderAttackMultiplier =
     1 +
-    (defenderMilitaryLevel - 1) * BALANCE.research.military.attackBonusPerLevel;
+    (defenderMilitaryLevel - 1) *
+      BALANCE.research.military.attackBonusPerLevel +
+    (defenderFaction === "soldier" ? BALANCE.factions.soldier.attackBonus : 0);
 
   let roundsFought = 0;
   let attackerRetreated = false;
@@ -535,8 +563,8 @@ export function resolveUnitCombat(
     /*
      * Surviving Medics heal after damage.
      */
-    healCombatUnits(attackers, attackerMilitaryLevel);
-    healCombatUnits(defenders, defenderMilitaryLevel);
+    healCombatUnits(attackers, attackerMilitaryLevel, attackerFaction);
+    healCombatUnits(defenders, defenderMilitaryLevel, defenderFaction);
 
     /*
      * Check for elimination before retreat.
@@ -554,7 +582,14 @@ export function resolveUnitCombat(
      * Starting at its end, retreat if the
      * defender has a major advantage.
      */
-    if (shouldAttackersRetreat(attackers, defenders)) {
+    if (
+      shouldAttackersRetreat(
+        attackers,
+        defenders,
+        attackerAttackMultiplier,
+        defenderAttackMultiplier,
+      )
+    ) {
       attackerRetreated = true;
       break;
     }

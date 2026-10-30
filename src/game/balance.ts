@@ -37,12 +37,29 @@ export const BALANCE = {
     },
 
     efficiency: {
-      costReductionPerLevel: 0.1,
+      costReductionPerLevel: 0.15,
       costs: {
         2: { water: 150, fire: 50, grass: 50 },
         3: { water: 300, fire: 100, grass: 100 },
         4: { water: 450, fire: 150, grass: 150 },
       },
+    },
+  },
+
+  factions: {
+    soldier: {
+      attackBonus: 0.15,
+      healthBonus: 0.15,
+    },
+    engineer: {
+      startingBaseLevel: 2,
+    },
+    farmer: {
+      productionBonus: 0.15,
+    },
+    scientist: {
+      trainingCostReduction: 0.15,
+      researchCostReduction: 0.15,
     },
   },
 

@@ -2333,6 +2333,25 @@ body {
   border-radius: 8px;
 }
 
+.lobby-faction-bonus {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.lobby-faction-bonus strong {
+  color: var(--faction-color);
+  font-weight: 600;
+}
+
+.lobby-faction-bonus span {
+  color: #aaa;
+}
+
 /* Players and game settings */
 
 .lobby-management-row {
