@@ -925,23 +925,6 @@ function runGameTick(room: GameRoom): void {
         (base) => base.id === mission.destinationBaseId,
       );
 
-      if (!defendingBase) {
-        updatedGameEvents.push({
-          type: "mission-failed",
-          id: nextGameEventId,
-          gameSeconds: gameState.gameSeconds + 1,
-          playerId: mission.playerId,
-          missionType: "spy",
-          reason: "destination-unavailable",
-        });
-
-        nextGameEventId += 1;
-      }
-
-      const originBase = updatedBases.find(
-        (base) => base.id === mission.originBaseId,
-      );
-
       if (mission.originRow === undefined || mission.originCol === undefined) {
         return;
       }
@@ -1006,8 +989,8 @@ function runGameTick(room: GameRoom): void {
         defendingBase.armies,
         gameState.researchByPlayer[mission.playerId]?.military ?? 1,
         gameState.researchByPlayer[defendingBase.playerId]?.military ?? 1,
-        room.gameState.factionsByPlayer[mission.playerId],
-        room.gameState.factionsByPlayer[defendingBase.playerId],
+        gameState.factionsByPlayer[mission.playerId],
+        gameState.factionsByPlayer[defendingBase.playerId],
       );
 
       const survivingAttackers = combatResult.attackerSurvivors;
