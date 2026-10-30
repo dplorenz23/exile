@@ -1,16 +1,12 @@
 # EXiLE
 
-EXiLE is a fast-paced multiplayer strategy game built around territory,
-resource production, army movement, expansion, relocation, and
-deterministic elemental combat.
+EXiLE is a fast-paced, browser-based multiplayer strategy game built around territory control, resource production, research, military training, tactical combat, and expansion.
 
-The current version is a browser-based multiplayer game built with
-React, TypeScript, Vite, Node.js, and WebSockets.
+Players compete to build and defend their empires on a shared island. Every decision matters: where to establish bases, which technologies to research, how to allocate resources, and when to attack.
 
-The immediate development goal is a complete, playable multiplayer game
-for friends. The current architecture uses an authoritative server so
-the project can later move beyond LAN play without requiring the core
-game simulation to be rewritten.
+The game is developed by **Ankle Deep Games** using React, TypeScript, Vite, Node.js, and WebSockets.
+
+The immediate goal is a stable, playable online release for friends, with an authoritative multiplayer server and support for independent game rooms.
 
 ---
 
@@ -19,19 +15,17 @@ game simulation to be rewritten.
 - [Current Game Overview](#current-game-overview)
 - [Local Development Setup](#local-development-setup)
 - [Multiplayer Architecture](#multiplayer-architecture)
-- [Current Maps](#current-maps)
-- [Characters](#characters)
-- [Resource Production](#resource-production)
-- [Army Training](#army-training)
+- [Current Map](#current-map)
+- [Factions](#factions)
+- [Resources and Production](#resources-and-production)
+- [Research and Base Upgrades](#research-and-base-upgrades)
+- [Military Units and Training](#military-units-and-training)
 - [Missions](#missions)
 - [Combat Rules](#combat-rules)
 - [Elimination and Victory](#elimination-and-victory)
 - [Scoring](#scoring)
 - [Game Events](#game-events)
 - [Current Multiplayer Status](#current-multiplayer-status)
-- [Known Issues and Deferred Work](#known-issues-and-deferred-work)
-- [Development Status](#development-status)
-- [Path to Online Alpha](#path-to-online-alpha)
 - [Future Ideas and Improvements](#future-ideas-and-improvements)
 - [Project Structure](#project-structure)
 
@@ -39,32 +33,41 @@ game simulation to be rewritten.
 
 ## Current Game Overview
 
-Players control an empire made up of one to three bases located on a
-shared tile-based map.
+Players control an empire consisting of one to three bases on a shared tile-based map.
 
-Each map tile produces one of three resources:
+Each base produces resources that can be used to:
 
-- 💧 Water
-- 🔥 Fire
-- 🌱 Grass
+- Recruit military units.
+- Research technological improvements.
+- Upgrade bases.
+- Establish additional bases.
+- Relocate existing bases.
+- Support military operations.
 
-Tiles may have increased resource multipliers, and a base's production
-also increases as the base remains in the same location.
+The three resources are:
 
-Players use resources to train armies, move resources between bases,
-attack other players, loot treasure, establish new bases, and relocate
-existing bases.
+- 💧 **Water**
+- 🔥 **Fuel**
+- 🌱 **Food**
 
-The game uses an elemental combat relationship:
+Internally, these resources retain the identifiers `water`, `fire`, and `grass`, the base elements.
 
-- Water defeats Fire.
-- Fire defeats Grass.
-- Grass defeats Water.
+Players select one of four factions, each providing a distinct gameplay advantage.
 
-There is no fog of war. The map and major game events are visible to all
-players.
+Combat uses four military unit types with different health, attack, speed, and support capabilities.
 
-The current game supports 2--4 players depending on the selected map.
+There is no fog of war. The map, bases, and major game events are visible to all players.
+
+The game supports multiplayer matches with human players and computer-controlled opponents.
+
+### Core Gameplay Loop
+
+1. Establish a starting base and begin producing resources.
+2. Recruit units and research improvements.
+3. Collect treasure and Expansion Keys.
+4. Expand into valuable territory.
+5. Attack competing empires while defending your own.
+6. Eliminate opponents or achieve the highest score before time expires.
 
 ---
 
@@ -76,12 +79,12 @@ Install:
 
 - Git
 - Node.js LTS (includes npm)
-- Visual Studio Code
+- Visual Studio Code (recommended)
 
 Recommended VS Code extensions:
 
 - ESLint
-- Prettier - Code formatter
+- Prettier
 
 ### Clone and Install
 
@@ -91,13 +94,6 @@ Clone the repository:
 git clone <EXILE_REPOSITORY_URL>
 cd exile
 ```
-
-For the commands below:
-
-- **Client** = repository root (`../exile`), with the main React
-  coordinator in `src/App.tsx`.
-- **Server** = `../exile/server`, with the authoritative server in
-  `server/src/index.ts`.
 
 Install client dependencies:
 
@@ -114,1448 +110,753 @@ npm install
 
 ### Run EXiLE
 
-From the `server` directory:
+Start the authoritative server from the `server` directory:
 
 ```bash
 npm run dev
 ```
 
-Open a second terminal in the repository root and start the client:
+Open a second terminal in the repository root and start the React client:
 
 ```bash
 npm run dev -- --host
 ```
 
-Vite will display two URLs: a Local URL and a Network URL.
+Vite displays a Local URL and Network URL.
 
-- Open the Local URL to play on the host computer.
-- Other computers on the same LAN can connect using the Network URL.
+- Use the Local URL on the development computer.
+- Use the Network URL for devices on the same local network.
+
+The client and server must both be running.
+
+### Production Build
+
+From the repository root:
+
+```bash
+npm run build
+```
+
+The production build should be tested before deployment rather than relying exclusively on the Vite development server.
 
 ---
 
 ## Multiplayer Architecture
 
-EXiLE uses a server-authoritative multiplayer architecture.
+EXiLE uses a **server-authoritative multiplayer architecture**.
 
-The React client is primarily responsible for:
+The React client handles:
 
-- Rendering the current game state.
-- Displaying the lobby and game interface.
-- Managing temporary UI state.
-- Allowing the player to select actions, armies, cargo, payments, and
-  targets.
-- Sending player requests to the server.
-- Receiving authoritative lobby and game-state updates.
+- Rendering the map and game interface.
+- Lobby creation and joining.
+- Faction and portrait selection.
+- Displaying resources, research, armies, and missions.
+- Sending player actions to the server.
+- Displaying authoritative game-state updates.
 
-The Node.js WebSocket server is responsible for:
+The Node.js WebSocket server handles:
 
-- Lobby state.
-- Match creation.
-- The game clock.
-- Resource production.
-- Army training.
-- Mission movement and arrival.
-- Transfers.
-- Combat.
-- Looting.
-- Expansion.
-- Relocation.
-- Treasure.
-- Elimination.
-- Scoring.
-- Victory.
+- Room and lobby management.
+- Player and bot assignments.
+- Match initialization.
+- Game clock and resource production.
+- Research and base upgrades.
+- Unit training.
+- Mission movement and resolution.
+- Combat and healing.
+- Expansion and relocation.
+- Elimination, scoring, and victory.
 - Public game events.
 
-**Do not move authoritative simulation logic back into `App.tsx`.**
+**The server is the source of truth for gameplay.**
 
-The client may perform checks for UI purposes, such as disabling an
-unavailable button or highlighting a valid destination, but the server
-must independently validate gameplay requests before modifying the
-match.
+Clients may calculate previews or disable unavailable controls, but the server independently validates actions before modifying game state.
 
-Shared deterministic rules belong in `src/game/rules.ts` whenever
-practical so the server and client can use the same formulas without
-maintaining duplicate implementations.
+Shared gameplay constants are centralized in:
 
-The server currently broadcasts full authoritative `GameState` snapshots
-rather than incremental state changes.
+```text
+src/game/balance.ts
+```
+
+Shared types and reusable game rules are located in:
+
+```text
+src/game/types.ts
+src/game/rules.ts
+```
+
+The server broadcasts authoritative game-state updates to connected clients.
+
+### Rooms and Lobbies
+
+Players can:
+
+- Create a new game.
+- Join an existing game using a four-digit room code.
+- Select a faction and portrait.
+- Ready up before the match.
+- Add computer-controlled opponents.
+- Leave a lobby.
+- Start a match when the lobby is valid.
+
+Lobby host ownership can transfer when the current host leaves.
+
+Empty lobbies are removed.
+
+The game also supports a Play Again flow following a completed match.
 
 ---
 
-## Current Maps
+## Current Map
 
 ### EXiLE Island
 
-EXiLE Island is the primary 8x8 map and supports 2--4 players.
+EXiLE Island (`mapOne`) is the current playable map.
 
-The map is hand-authored and contains Grass, Water, and Fire terrain,
-including river and lava-flow visuals and tiles with increased resource
-multipliers.
+It is an 8×8 hand-authored island containing Water, Fuel, and Food terrain.
 
-Starting bases are associated with the participating characters.
+Tiles have resource-production multipliers, making some locations more valuable than others.
 
-### Map Two
+The map supports strategic decisions involving:
 
-Map Two is a compact 4x8 map intended specifically for two-player
-matches.
+- Resource availability.
+- Distance between bases.
+- Expansion opportunities.
+- Defensible positions.
+- Valuable central territory.
+- Treasure locations.
 
-It is designed with 180-degree rotational symmetry so both players
-receive equivalent starting opportunities.
-
-The first active player starts at B1 and the second active player starts
-at C8.
+Additional maps may be introduced in future releases.
 
 ---
 
-## Characters
+## Factions
 
-The current playable characters are:
+Players select one of four factions during lobby setup.
 
-1.  Albus 🧙
-2.  Galahad 🛡️
-3.  Magnus 🪓
-4.  Blackbeard 🏴‍☠️
+Each faction provides a permanent gameplay advantage.
 
-Each character can only be claimed by one player in the lobby.
+| Faction       | Bonus                                             |
+| ------------- | ------------------------------------------------- |
+| **Soldier**   | +15% unit attack and health                       |
+| **Engineer**  | Starting base begins at Level 2                   |
+| **Farmer**    | +15% resource production                          |
+| **Scientist** | 15% reduction to unit training and research costs |
 
-Players may own a maximum of three bases.
+Faction bonuses are defined in `src/game/balance.ts`.
 
----
+### Faction Rules
 
-## Resource Production
+- Faction selection is independent for each player.
+- Human players and bots use the same faction rules.
+- Faction bonuses are separate from research bonuses.
+- Research remains available to every faction.
+- Faction bonuses apply automatically.
 
-Every base produces the resource associated with the tile it occupies.
-
-Production depends on both:
-
-1.  The resource multiplier of the map tile.
-2.  How long the base has remained in its current location.
-
-Current base-location production milestones are:
-
-- Under 2 minutes: 1x
-- 2--5 minutes: 2x
-- 5--10 minutes: 3x
-- 10+ minutes: 4x
-
-Relocating a base stops its production and resets its time-in-location
-when the relocation succeeds.
+Faction choice is intended to influence strategy without restricting access to particular units or technologies.
 
 ---
 
-## Army Training
+## Resources and Production
 
-There are three army types:
+Every base produces resources according to its location and upgrade level.
 
-- Water
-- Fire
-- Grass
+The three resource types are Water, Fuel, and Food.
 
-Each base trains armies independently.
+Resource production is influenced by:
 
-Training takes 10 seconds.
+1. The resource type and multiplier of the occupied tile.
+2. The base's current upgrade level.
+3. The player's Production research level.
+4. Any applicable faction bonus.
 
-The first army of a particular resource type at a base costs 100 of that
-resource. Each additional army of that type trained at that base
-increases the cost by 50.
+### Base Production
 
-Army-training cost is based on the historical number of armies of that
-type trained at the base. Losing armies does not reduce future training
-costs.
+Base production increases through upgrades.
+
+The base-production values configured in `balance.ts` are:
+
+| Base Level | Primary Production | Secondary Production |
+| ---------- | -----------------: | -------------------: |
+| Level 1    |                  1 |                    0 |
+| Level 2    |                  2 |                    1 |
+| Level 3    |                  3 |                    1 |
+| Level 4    |                  4 |                    2 |
+
+These values are applied through the game's production calculations, including applicable tile and research modifiers.
+
+### Local Resource Storage
+
+Resources belong to individual bases rather than one shared empire-wide inventory.
+
+This means:
+
+- A base must have sufficient local resources to pay for its actions.
+- Resources cannot be spent instantly from another base.
+- Transfers are required to move resources between bases.
+
+This creates strategic decisions about where to produce, store, and spend resources.
+
+---
+
+## Research and Base Upgrades
+
+EXiLE includes three player-wide research categories and a separate base-upgrade system.
+
+Research levels range from 1 to 4.
+
+### Military Training
+
+Improves the combat effectiveness of the player's units.
+
+Each level above Level 1 provides:
+
+- +15% attack.
+- +15% health.
+
+Military research applies across the player's empire.
+
+### Resource Production
+
+Increases resource generation.
+
+Each level above Level 1 provides:
+
+- +15% resource production.
+
+Production research applies to all of the player's bases.
+
+### Efficiency
+
+Reduces resource costs.
+
+Each level above Level 1 provides:
+
+- 15% reduction to unit training costs.
+- 15% reduction to research costs.
+
+Efficiency discounts are additive across research levels and applicable faction bonuses.
+
+### Research Costs
+
+| Research   | Level 2 (W/F/Food) | Level 3         | Level 4         |
+| ---------- | ------------------ | --------------- | --------------- |
+| Military   | 50 / 150 / 50      | 100 / 300 / 100 | 150 / 450 / 150 |
+| Production | 50 / 50 / 150      | 100 / 100 / 300 | 150 / 150 / 450 |
+| Efficiency | 150 / 50 / 50      | 300 / 100 / 100 | 450 / 150 / 150 |
+
+Research costs are paid using the selected base's local resources.
+
+Military, Production, and Efficiency research complete immediately when successfully purchased.
+
+### Base Upgrades
+
+Bases can be upgraded individually from Level 1 through Level 4.
+
+| Upgrade     | Cost (Water/Fuel/Food) | Construction Time |
+| ----------- | ---------------------- | ----------------- |
+| Level 1 → 2 | 100 / 100 / 100        | 10 seconds        |
+| Level 2 → 3 | 200 / 200 / 200        | 20 seconds        |
+| Level 3 → 4 | 300 / 300 / 300        | 30 seconds        |
+
+Unlike player-wide research, base upgrades affect individual bases.
+
+The Engineer faction begins with its starting base at Level 2.
+
+Base upgrades are timed, while the three research categories complete immediately.
+
+---
+
+## Military Units and Training
+
+EXiLE has four military unit types.
+
+| Unit         | Health | Attack | Speed | Special Ability     |
+| ------------ | -----: | -----: | ----: | ------------------- |
+| **Guardian** |    150 |     15 |     1 | High durability     |
+| **Marksman** |    100 |     25 |     2 | High damage         |
+| **Medic**    |     70 |      5 |     2 | Heals 10 HP         |
+| **Spy**      |     40 |      5 |     3 | High movement speed |
+
+All units can participate in combat.
+
+Each unit type has different strengths and weaknesses.
+
+### Unit Costs
+
+| Unit     | Water | Fuel | Food |
+| -------- | ----: | ---: | ---: |
+| Guardian |    15 |   65 |   20 |
+| Marksman |    20 |   40 |   40 |
+| Medic    |    65 |   10 |   25 |
+| Spy      |    30 |   15 |   55 |
+
+Unit costs may be modified by Efficiency research and applicable faction bonuses.
+
+### Training Rules
+
+- Training takes 10 seconds per unit.
+- Bases train units independently.
+- Each base can have one active training order.
+- Resources are paid from the training base.
+- Units become available when training completes.
+
+### Cargo Capacity
+
+Each unit provides 200 resources of carrying capacity.
+
+Cargo capacity is used when transferring resources or collecting treasure.
 
 ---
 
 ## Missions
 
-EXiLE currently supports five mission types:
+EXiLE supports the following mission types:
 
 - Transfer
 - Attack
 - Loot
+- Spy
 - Expand
 - Relocate
 
-Army missions normally travel at 5 seconds per tile.
+The server controls all mission movement, arrivals, failures, and returns.
 
-Relocation travels at 15 seconds per tile.
+### Travel
 
-Travel distance uses Manhattan distance between map coordinates.
+Standard mission travel uses a base value of 5 seconds per tile.
+
+Relocation uses 15 seconds per tile.
+
+Unit movement speed influences applicable military mission travel.
+
+Distance is calculated using map coordinates.
+
+The current balance configuration limits players to three active missions.
 
 ### Transfer
 
-Transfer moves armies and optional resources from one friendly base to
-another.
+Transfers move units and optional resources between friendly bases.
 
-Each army can carry up to 200 resources.
+- Units and cargo leave the origin when the mission launches.
+- Each unit contributes 200 cargo capacity.
+- Resources arrive at the destination when the mission completes.
+- If the destination disappears, the mission attempts to return.
 
-Armies and cargo leave the origin immediately and are added to the
-destination when the mission arrives.
-
-If the destination disappears before arrival, the mission returns toward
-its origin.
-
-If the origin is destroyed before a returning mission arrives, the
-returning armies and cargo are lost.
+Transfers are particularly important because resources are stored locally.
 
 ### Attack
 
-Attack sends armies from one player-owned base to an enemy base.
+Attack missions send military units against an enemy base.
 
-The server resolves combat when the mission reaches the target.
+Combat resolves when the attackers reach their destination.
 
-Surviving attackers return toward the base from which they were
-originally launched.
+Depending on the result:
 
-If an attack destroys a base, surviving attackers can loot resources
-from the destroyed base and may return carrying an Expansion Key.
+- The attacking force may retreat.
+- Defending units may survive.
+- The defending base may be destroyed.
+- Resources and Expansion Keys may become available as loot.
+- Surviving attackers may return with resources.
 
-If resources remain after the attackers reach their carrying capacity,
-those resources become treasure on the destroyed base's tile.
-
-If the attack target disappears before the attackers arrive, the mission
-returns home.
+If the target disappears before arrival, the mission attempts to return.
 
 ### Loot
 
-Loot sends armies to collect resources from treasure on the map.
+Loot missions collect resources from treasure on the map.
 
-Each army provides 200 units of carrying capacity.
+Each participating unit provides cargo capacity.
 
-If another player removes the treasure before the mission arrives, the
-loot mission returns without treasure.
+Treasure can remain on the map when a mission cannot carry everything.
 
-Treasure remains on the map until all of its resources have been
-collected.
+If the treasure disappears before the mission arrives, the mission returns without collecting it.
+
+### Spy
+
+Spy units provide a dedicated reconnaissance-oriented mission option.
+
+Spy missions are distinct from ordinary attack missions and are resolved by the authoritative server.
 
 ### Expand
 
-Expansion creates an additional base.
+Expansion establishes another base.
 
-A player may own at most three bases.
+Players may own a maximum of three bases.
 
-Expansion currently costs:
+Expansion requires an Expansion Key and a resource payment.
 
-- 1 Expansion Key
-- 500 total resources
-
-The 500 resources may be paid using a combination of Water, Fire, and
-Grass.
-
-The Expansion Key and payment travel with the mission.
-
-If the destination becomes unavailable before arrival, the settlers
-return to their origin. The Expansion Key and resources are refunded
-only after the return successfully reaches the origin.
+The configured base expansion cost begins at 250 resources and increases by 250 for subsequent expansions.
 
 New bases begin with:
 
-- 50 Water
-- 50 Fire
-- 50 Grass
+- 100 Water
+- 100 Fuel
+- 100 Food
+
+An expansion must reach an eligible destination to succeed.
+
+Failed expansion missions follow the game's return and refund rules.
 
 ### Relocate
 
-Relocation moves an existing base to another map tile.
+Relocation moves an existing base to another tile.
 
-Relocation cost increases with the number of previous relocations
-performed by that base:
+The first relocation costs 250 resources, with subsequent relocations increasing in cost.
 
-- First relocation: 250 resources
-- Second relocation: 500 resources
-- Third relocation: 750 resources
-- And so on
+A relocating base temporarily stops normal production and base actions while traveling.
 
-A relocating base still counts as an existing base for elimination and
-base-count purposes, but it cannot produce resources or perform normal
-base actions while traveling.
+Its units and remaining resources travel with it.
 
-Its armies and remaining resources travel with it.
+If the destination becomes unavailable, the base attempts to return to its original location.
 
-A successful relocation resets the base's time-in-location.
-
-If the destination becomes unavailable before arrival, the base attempts
-to return to its original tile.
-
-If the original tile has also become unavailable by the time the base
-returns, the relocating base and everything traveling with it are lost.
+If neither location is available, the base may be lost.
 
 ---
 
 ## Combat Rules
 
-Combat is deterministic.
+EXiLE uses deterministic, round-based combat.
 
-Before elemental advantages are resolved, matching army types cancel
-each other one-for-one.
+The previous Water/Fire/Grass elemental combat system has been replaced.
 
-The elemental relationship is:
+### Combat Units
 
-- Water is strong against Fire.
-- Fire is strong against Grass.
-- Grass is strong against Water.
+All four unit types participate in combat:
 
-When a strong army fights its weak opposing type, one strong army can
-eliminate up to two weak armies while surviving.
+- Guardian
+- Marksman
+- Medic
+- Spy
 
-Favorable attacker matchups are resolved before favorable defender
-matchups.
+Unit effectiveness depends on health, attack, research bonuses, faction bonuses, and combat rules.
 
-Each defending base also has one militia unit.
+### Combat Rounds
 
-The militia eliminates one remaining attacker, targeting the largest
-remaining attacking army group. Ties use a deterministic Water, Fire,
-Grass ordering.
+Combat proceeds through rounds in which participating units attack and damage is resolved.
 
-The attacker only wins if attackers remain after combat, all defending
-armies are gone, and the militia has been defeated.
+Medics provide healing during combat.
 
-A tie therefore favors the defender.
+Destroyed units cannot be restored by healing.
+
+Combat is limited to a configured maximum of 10 rounds.
+
+### Retreat
+
+Combat includes a retreat mechanic.
+
+The current balance configuration includes:
+
+```ts
+combat: {
+  retreatDisadvantageRatio: 2,
+  maxRounds: 10,
+}
+```
+
+The authoritative combat implementation determines whether a force continues fighting or retreats.
+
+### Combat Research
+
+Military research increases unit attack and health.
+
+The Soldier faction provides an additional combat bonus.
+
+All combat outcomes are calculated by the server, not independently by each player's browser.
 
 ---
 
 ## Elimination and Victory
 
-A player is immediately eliminated when they have no surviving bases.
+A player is eliminated when they have no surviving bases.
 
-Armies, resources, Expansion Keys, or expansion missions in transit do
-not prevent elimination.
+Units, resources, or missions in transit do not independently prevent elimination.
 
-When a player is eliminated, their score is frozen so later changes to
-the remaining game state cannot alter their final result.
+When eliminated, the player's score is frozen.
 
 ### 30-Minute Match
 
-The match ends after 30 minutes.
+The match lasts up to 30 minutes.
 
-If only one player remains before the timer expires, that player wins
-immediately.
+If only one player remains, that player wins immediately.
 
-Otherwise, the surviving player with the highest score when time expires
-wins.
+Otherwise, the highest-scoring eligible surviving player wins when time expires.
 
 ### Sudden Death
 
 The match continues until only one player remains.
 
+### End Screen
+
+At the end of a match, players can view the final standings and use the Play Again flow to begin another game.
+
 ---
 
 ## Scoring
 
-Current scoring includes:
+Players earn points through their surviving empire.
 
-### Bases
+The balance configuration includes:
 
-Each surviving base is worth 500 points.
+| Scoring Component | Value |
+| ----------------- | ----: |
+| Surviving base    |   500 |
+| Military unit     |   200 |
 
-### Resources
+Resources and other eligible holdings also contribute according to the authoritative scoring implementation.
 
-Resources are worth one point each.
+The server calculates scores and final standings.
 
-Resources traveling with unresolved missions still belong to the player
-and count toward scoring when appropriate.
-
-### Armies
-
-Surviving stationed and in-transit armies count toward scoring.
-
-Army value is based on the player's historical average training cost:
-
-`historical resources spent training armies / historical armies trained`
-
-That average value is multiplied by the player's surviving army count.
-
-Historical training totals do not decrease when armies are destroyed.
-
-Relocating bases count toward scoring, but their armies and resources
-are stored on the relocation mission while traveling and must not be
-counted twice.
+Eliminated players retain their frozen final score.
 
 ---
 
 ## Game Events
 
-Important events are recorded by the authoritative server and displayed
-in the public Game Log.
+The server records significant gameplay events in the public game log, labeled **COMMS**.
 
-Current events include:
+Events include:
 
-- Battles
-- Base destruction
-- Loot
-- Transfers
-- Expansion
-- Relocation
-- Mission failures
-- Player elimination
-- Victory
+- Battles.
+- Base destruction.
+- Transfers.
+- Loot collection.
+- Expansion.
+- Relocation.
+- Mission failures.
+- Player elimination.
+- Victory.
 
-Mission failures can include situations such as:
+The COMMS interface displays a compact event summary with expandable details.
 
-- Destination unavailable
-- Origin base destroyed
-- Relocation return location blocked
+Recent events appear first.
 
-When multiple events occur during the same game second, the client
-applies a deterministic display priority so victory and elimination
-appear above the battle that caused them.
+Combat reports use unit icons and counts to communicate military outcomes.
+
+Player-private actions, such as ordinary research purchases, do not need to generate public COMMS events.
 
 ---
 
 ## Current Multiplayer Status
 
-The core multiplayer architecture is functional.
+EXiLE has a functional server-authoritative multiplayer foundation.
 
-The following systems have been moved to and tested on the authoritative
-server:
+Implemented systems include:
 
-- Lobby synchronization
-- Host assignment and reassignment
-- Character selection
-- Ready state
-- Map and match-type selection
-- Match start validation
-- Game clock
-- Resource production
-- Base aging
-- Army training
-- Transfer
-- Attack
-- Combat
-- Loot
-- Expansion
-- Relocation
-- Mission failure and return behavior
-- Treasure
-- Elimination
-- Scoring
-- Victory
-- Full game-state broadcasting
+- Room creation and joining with four-digit codes.
+- Lobby synchronization.
+- Host reassignment.
+- Human and bot player slots.
+- Faction and portrait selection.
+- Ready state and match-start validation.
+- Match clock.
+- Resource production.
+- Research.
+- Base upgrades.
+- Military training.
+- Transfers.
+- Attacks and combat.
+- Looting.
+- Spy missions.
+- Expansion.
+- Relocation.
+- Treasure and Expansion Keys.
+- Elimination.
+- Scoring and victory.
+- COMMS event reporting.
+- End-game standings.
+- Play Again.
 
-EXiLE has successfully been run on two separate physical computers over
-a local network, with synchronized training and combat observed on both
-clients.
+The current priority is verifying the full multiplayer experience, including simultaneous actions and unusual mission interactions.
 
-A clean repository clone has also been tested on another computer by
-installing the project dependencies and starting the client and server
-from the cloned repository.
-
-The next multiplayer milestone is a complete multi-computer match
-involving three players.
-
----
-
-## Known Issues and Deferred Work
-
-The following items are intentionally deferred and should not be
-mistaken for missing pieces of the current milestone.
-
-### Networking
-
-- Runtime validation of incoming WebSocket message payloads.
-- Internet-hosted multiplayer.
-- Persistent rooms / room codes.
-- Reconnection after a network interruption.
-- Additional privacy rules for player-specific information.
-- More robust handling of clients joining or leaving during an active
-  match.
-
-### Gameplay / Simulation
-
-- Investigate the rare same-second edge case where simultaneous
-  actions may occasionally produce unexpected behavior.
-- More exhaustive testing of failed Expansion returns.
-- Future map shrinkage mechanics.
-- Additional maps and eventual randomized map generation.
-- Additional balancing after multiplayer playtesting.
-
-### UI / UX
-
-- Further responsive-layout refinement.
-- Replace temporary emoji-based visuals with final artwork/icons where
-  desired.
-- Additional polish for multiplayer status and connection feedback.
-- Further Play Again / rematch synchronization work.
-
-### Code Quality
-
-- Possible extraction of repeated mission/event helpers after gameplay
-  behavior is stable.
-- Possible decomposition of the large authoritative server tick after
-  the multiplayer milestone.
-- Remove remaining obsolete development-only CSS if discovered.
-
-These refactors should not take priority over validating the current
-authoritative multiplayer gameplay.
-
----
-
-## Development Status
-
-The current priority is stability and complete multiplayer playtesting
-rather than adding major new systems.
-
-The immediate test plan is:
-
-1.  Run a three- and four-player LAN match on three separate computers.
-2.  Verify simultaneous actions and interactions between multiple
-    players.
-3.  Confirm all clients finish with the same winner and standings.
-4.  Fix multiplayer bugs discovered during those tests before adding
-    substantial new features.
-5.  Discuss and prioritize feature list ahead of the main 1st milestone
-    of making it a legit browser-based game on ankledeepgames.com
-
----
-
-## Path to Online Alpha
-
-The current EXiLE build is running over LAN. The next major milestone is
-making the game playable over the internet from AnkleDeepGames.com.
-
-The first online release should remain intentionally simple. The goal is to
-allow friends to visit the website, launch EXiLE, and play together.
-
-The first alpha does not need to support multiple unrelated groups playing
-simultaneously.
-
-### Required Before Going Online
-
-- [ ] **Finalize current balance decisions**
-  - Resolve known expansion affordability issue caused by payments being made
-    in 50-resource increments.
-  - Make any final pre-alpha map/resource balance decisions.
-  - Avoid major balance redesign solely for deployment.
-
-- [ ] **Production client build**
-  - Verify `npm run build` creates a working production build.
-  - Test the production build rather than relying on the Vite development server.
-
-- [ ] **Configurable WebSocket server URL**
-  - Remove the assumption that the game server is available at the browser's
-    LAN hostname on port 8080.
-  - Use environment/configuration values so development can connect locally
-    while production connects to the hosted server.
-  - Production should use a secure WebSocket connection (`wss://`).
-
-- [ ] **Host the authoritative Node/WebSocket server**
-  - Deploy the server to an internet-accessible application host.
-  - Keep authoritative `GameState` in server memory for the initial alpha.
-  - A database is not required for the first release.
-  - Server restarts may terminate active games during the initial alpha.
-
-- [ ] **Configure production server domain and HTTPS/WSS**
-  - Give the hosted game server a stable address, potentially something like
-    `game-server.ankledeepgames.com`.
-  - Configure DNS and TLS so browsers can connect securely using `wss://`.
-
-- [ ] **Host the EXiLE browser client**
-  - Publish the production React build at an Ankle Deep Games URL, such as
-    `ankledeepgames.com/exile/` or `play.ankledeepgames.com`.
-  - Verify assets, routing, and WebSocket connections work from the hosted build.
-
-- [ ] **Internet multiplayer test**
-  - Test from devices on different networks, not just LAN.
-  - Verify lobby, game start, gameplay, refresh/reconnect, game over, and
-    Play Again behavior.
-  - Test at least one client using cellular or another outside network.
-
-- [ ] **Basic public-server hardening**
-  - Reject malformed WebSocket messages without crashing the server.
-  - Validate message types and required data.
-  - Continue validating all gameplay actions server-side.
-  - Ensure clients cannot control another player's units/resources.
-  - Ensure unexpected disconnects do not crash or reset the match.
-
-- [ ] **Connect the Ankle Deep Games website**
-  - Replace EXiLE's "Coming Soon!" status/button with a "Play" link.
-  - Point the link to the hosted EXiLE client.
-  - Verify the complete flow from `ankledeepgames.com` to a playable match.
-
-### Optional Alpha Add-ons
-
-These features are desirable but should not block the first internet-playable
-version of EXiLE.
-
-- [ ] **Disconnected-player indicator**
-  - Show other players when someone is currently disconnected.
-  - Connection status should not affect production, combat, missions, or scoring.
-
-- [ ] **Room codes and multiple simultaneous games**
-  - Allow a player to create a game and receive a short room code.
-  - Friends can use the room code to join that specific lobby.
-  - Server maintains independent `GameState` instances for multiple rooms.
-  - Until this exists, the online alpha will support only one active lobby/match.
-
-### Definition of "Online Alpha Ready"
-
-EXiLE is ready for its first online alpha when a player can:
-
-1. Visit AnkleDeepGames.com.
-2. Click **Play EXiLE**.
-3. Open the hosted game in a normal browser without installing anything.
-4. Join friends from separate internet connections.
-5. Play a complete match using the authoritative server.
-6. Refresh or temporarily disconnect without resetting the match.
-7. Complete the match and determine a winner.
+Implementation of a feature does not necessarily mean every multiplayer edge case has been tested.
 
 ---
 
 ## Future Ideas and Improvements
 
-The following ideas are possible future additions rather than committed
-features. They should generally be evaluated through multiplayer playtesting
-before implementation.
+These are possible future additions, not commitments for the first release.
 
-### Speculative Missions and Timing Attacks
+### Additional Maps
 
-A major future gameplay goal is allowing players to launch missions based on
-what they expect the map to look like when the mission arrives, rather than
-requiring the destination to already be valid when the mission is launched.
+Future maps may include:
 
-The server would evaluate the destination when the mission arrives.
+- Larger islands.
+- More valuable resource tiles.
+- Mixed-resource production.
+- Randomized maps.
+- Different terrain layouts.
 
-This could allow planned sequences such as:
+### Additional Players and Teams
 
-- Attack an enemy base and immediately send a Loot mission toward the same tile.
-  If the attack succeeds and creates treasure, the following Loot mission can
-  collect it. If the attack fails, the Loot mission fails and returns.
-- Attack, Loot, and then Expand toward the same tile. Expansion succeeds only
-  if the base has been destroyed and all blocking treasure has been removed
-  before the settlers arrive.
-- Send multiple players' expansion missions toward the same location, with the
-  first successful arrival claiming the tile.
-- Send a Transfer toward a location where a friendly expansion is expected to
-  establish a base before the transfer arrives.
-- Potentially attack a tile where another player's expansion or relocation is
-  expected to arrive.
+Potential modes include:
 
-This would make mission timing and travel distance important strategic tools.
-Players could coordinate several missions into a single planned operation, but
-each mission would still independently succeed or fail based on the actual map
-state when it arrives.
+- More than four players.
+- 2v2.
+- 4v4.
+- Other team configurations.
 
-### Map Resources and Valuable Territory
+Team modes would require changes to transfers, combat targeting, and victory conditions.
 
-Future maps may contain more variation in resource production.
+### Neutral Camps and Objectives
 
-Possible additions include:
+Neutral enemies or special map locations could provide additional objectives.
 
-- More 2x and 3x resource tiles.
-- Rare 4x resource tiles.
-- Mixed-resource tiles that produce two resource types.
-- Rare triple-resource tiles that produce all 3 resources at the same time.
-- Secondary-resource production being determined by nearby tiles.
-
-The goal would be to make base location and control of valuable territory more
-strategically important without requiring a separate technology or upgrade
-system.
-
-This is easily done by modifying export type ResourceMultiplier = 1 | 2 | 3; in types.ts, then changing mapone/maptwo.
-
-### Neutral Camps and Map Objectives
-
-Smaller matches, particularly 1v1 games, could include neutral enemies such as
-Troll camps to create additional objectives and competition.
-
-Neutral camps could have visible army strength and provide rewards when
-defeated, such as:
+Possible rewards include:
 
 - Resources.
 - Expansion Keys.
 - Treasure.
 
-The number and strength of neutral camps could depend on player count. A
-four-player match may need few or none, while a two-player match could use them
-to make otherwise-empty portions of the map strategically important.
+### New Victory Conditions
 
-Treasure chests and Expansion Keys could also be placed on the map when the
-match begins (e.g. hunger games cornucopia)
+Potential modes include:
 
-Starting treasure should have known contents so players can make strategic
-decisions about whether it is worth competing for.
+- King of the Hill.
+- Territory control.
+- Resource accumulation objectives.
+- Timed special objectives.
 
-### Expansion Keys and Loot
+### Improved Computer Players
 
-Expansion Keys could become physical loot rather than disappearing when the
-base that owns them is destroyed.
+Future bot improvements could include distinct strategic personalities:
 
-If a destroyed base owns multiple Expansion Keys, those keys would be included
-with the treasure left behind on the tile.
+- Aggressive attacker.
+- Fast expander.
+- Defensive builder.
+- Resource-focused player.
+- Opportunistic looter.
 
-A possible balancing rule is limiting each Loot mission to carrying one
-Expansion Key, even when several keys are present. This would prevent a single
-army mission from immediately collecting every key from a destroyed empire and
-could create continued competition over the remaining treasure.
-
-### Additional Players
-
-Future versions may support more than four players.
-
-EXiLE Island may be large enough to support as many as eight players, although
-starting positions, resource balance, UI layout, and match pacing would need to
-be tested.
-
-The base exile map (mapOne) is large enough to host 8 players.
-
-### Team games
-
-2v2 or 2v2v2v2 or 4v4 could be game play options.
-
-This would require the ability to transfer to your teammates, disallow the
-ability to attack them, and modifying the winning condition.
-
-### Computer Players
-
-Computer-controlled players could allow matches to be filled without requiring
-a human player in every slot.
-
-Different computer players could use recognizable strategic archetypes, such
-as:
-
-- Fast Expander
-- Army Builder
-- Aggressive Attacker
-- Resource Accumulator
-- Opportunist
-
-This could be particularly useful for 1v1 or other small-player-count games.
-
-Computer players should use the same gameplay actions and rules available to
-human players rather than receiving hidden advantages.
-
-### Post-Game Awards
-
-In addition to the final leaderboard, EXiLE could award players post-game titles
-based on what actually happened during the match.
-
-Examples could include:
-
-- Most bases destroyed.
-- Most armies trained.
-- Most resources produced or accumulated.
-- Most expansions completed.
-- Most relocations completed.
-- Most treasure collected.
-- Most Expansion Keys collected.
-- Most resources looted.
-- Most battles won.
-
-Rather than relying only on a fixed list of titles, a future AI-assisted system
-could analyze the completed match statistics and generate appropriate awards,
-titles, or short descriptions of each player's performance.
-
-This could make the post-game summary different from match to match and give
-players interesting accomplishments even when they do not win.
-
-### Additional Match Types
-
-Additional victory conditions could eventually be added alongside 30-Minute and
-Sudden Death matches.
-
-One promising option is **King of the Hill**.
-
-A valuable 2x2 region could act as the objective, with players
-earning progress by controlling it. This would naturally complement maps whose
-most valuable resource tiles are concentrated toward the center and would force
-players into direct competition.
-
-Possible idea is that the 2x2 region moves around every so often, meaning players
-would need to relocate/expand to that area to get those extra points.
-
-The exact scoring and control rules would require playtesting, but first idea
-would be to have a 5m limit. Once that 5m limit is done, the person who gathered
-the most resources in that 2x2 region wins a specific amount of resources.
+Bots should continue using the same underlying rules as human players.
 
 ### Army Training Queue
 
-Army training currently requires the player to return to a base and manually
-start each new army after the previous training period finishes.
+A future training queue could allow players to order multiple units in advance.
 
-A future army-training queue could allow several armies to be ordered in
-advance while preserving the existing training times and escalating costs.
+This should be evaluated through playtesting before implementation.
 
-This is intentionally undecided. The manual system creates player interaction
-and attention requirements that may be desirable, so feedback from multiplayer
-playtesting should determine whether a queue improves the game.
+### Army Recall
 
-Should the queue take longer with each more costly army?
-Should the game allow you to do other things while the army is training?
+Players could potentially recall missions before arrival.
 
-### Possible Army Recall
+Returning units would still need to travel back rather than teleporting.
 
-A future option could allow an outbound army to be recalled before reaching its
-destination.
+### Post-Game Awards
 
-The army would not teleport home; it would reverse course and spend the
-appropriate travel time returning to its origin.
+Additional match statistics could support awards such as:
 
-This feature is currently uncertain. While army recall is common in strategy
-games, forcing players to commit to launched missions may better fit EXiLE's
-emphasis on planning, timing, and consequences.
+- Most bases destroyed.
+- Most units trained.
+- Most resources collected.
+- Most battles won.
+- Most expansions completed.
+- Most treasure collected.
+
+### Persistent Accounts and Statistics
+
+Longer-term possibilities include:
+
+- Player profiles.
+- Match history.
+- Win/loss records.
+- Leaderboards.
+- Achievements.
+
+These are not requirements for the initial private alpha.
 
 ### Design Principles for Future Features
 
-Future additions should generally reinforce the existing strengths of EXiLE:
+Future additions should generally:
 
-- Geography should matter.
-- Travel time should matter.
-- Players should be rewarded for anticipating what other players will do.
-- Actions should involve meaningful commitment and consequences.
-- The map should create reasons for players to interact and compete.
-- New systems should use the existing resource, army, base, and mission mechanics
-  when possible rather than adding unnecessary currencies or upgrade systems.
-- Randomness should remain limited unless playtesting demonstrates that it
-  improves the game.
+- Reward strategic decisions.
+- Reward attacking, discourage turtling.
+- Make geography meaningful.
+- Encourage interaction between players.
+- Preserve clear, understandable gameplay.
+- Avoid unnecessary complexity.
+- Be informed by actual playtesting.
 
 ---
 
 ## Project Structure
 
-The sections below document the responsibility of the major source
-files.
+The project separates the React client, shared gameplay logic, and authoritative server.
 
-They are intentionally more detailed than a typical README so this
-document can also serve as an architectural snapshot of the project. A
-developer---or a future AI-assisted development session---should be able
-to use this README to understand the current system boundaries before
-modifying the code.
+```text
+exile/
+├── public/
+│   └── Game images and static assets
+├── src/
+│   ├── assets/
+│   ├── components/
+│   │   └── React game interface components
+│   ├── game/
+│   │   ├── balance.ts
+│   │   ├── characters.ts
+│   │   ├── gameState.ts
+│   │   ├── rules.ts
+│   │   └── types.ts
+│   ├── App.tsx
+│   └── App.css
+├── server/
+│   ├── src/
+│   │   └── index.ts
+│   └── package.json
+├── package.json
+└── README.md
+```
 
-### `src/game/types.ts`
+### Important Files
 
-Defines the shared TypeScript data model used throughout EXiLE.
+**`src/App.tsx`**
 
-This file contains the core types for players, bases, resources, armies,
-tiles, missions, combat results, game events, treasure, scoring, lobby
-state, match configuration, and the authoritative `GameState`.
+Main React application coordinator.
 
-Important architectural details represented here include:
+**`src/App.css`**
 
-- Players may own up to three bases.
-- Missions can be outbound or returning and may represent transfers,
-  attacks, loot, expansion, or relocation.
-- Mission origin coordinates are stored directly on missions so
-  already-launched missions can continue even if their origin base is
-  destroyed.
-- Historical army-training totals are preserved for end-game scoring.
-- Eliminated-player scores can be frozen in `finalScoreByPlayer`.
-- `winnerPlayerId` is `null` while a match is active and is set by the
-  authoritative server when the match ends.
+Game interface styling.
 
-Because these types are shared across the client, shared game logic, and
-server, changes here can affect networking and authoritative state
-handling across the entire project.
+**`src/components/`**
 
-### `src/game/gameState.ts`
+Reusable interface components for the map, bases, military units, missions, lobby, and game controls.
 
-Contains EXiLE's static game configuration and default starting data.
+**`src/game/balance.ts`**
 
-This file defines:
+Central configuration for:
 
-- Available maps and their supported player counts/dimensions.
-- Match types, including the 30-minute and Sudden Death modes.
-- The four playable characters, including name, color, and avatar.
-- The three possible base names assigned to each player.
-- `getBaseName()`, which resolves a player's base name from its base
-  slot.
-- Default starting bases and starting resources used when initializing
-  a new match.
-
-This file represents configuration rather than live match state. Runtime
-state such as current resources, missions, treasure, eliminations, and
-the winner is created separately in `createInitialGameState.ts` and then
-maintained by the authoritative server.
-
-### `src/game/createInitialGameState.ts`
-
-Creates a fresh runtime `GameState` whenever a match starts or resets.
-
-The function accepts the active player IDs, selected match type, and
-selected map, then builds the initial authoritative state used by the
-server.
-
-It is responsible for:
-
-- Including only the players participating in the current match.
-- Assigning map-specific starting base positions.
-- Creating fresh copies of bases, armies, training state, and starting
-  resources so a new match cannot reuse mutated objects from a
-  previous game.
-- Giving each active player one starting Expansion Key.
-- Initializing historical army-training and resource-spending totals
-  used for end-game scoring.
-- Resetting missions, game events, treasure, eliminations, IDs, the
-  game clock, and the winner.
-
-Map Two currently supports two players and overrides their normal EXiLE
-Island starting positions with B1 and C8.
-
-This file bridges the static configuration in `gameState.ts` and the
-live authoritative match state maintained by the server.
-
-### `src/game/rules.ts`
-
-Contains EXiLE's shared deterministic game rules.
-
-This file is intended to be the common source of truth for rules that
-must behave identically on the client and authoritative server. It
-currently handles production multipliers, army costs, combat resolution,
-automatic loot distribution, and end-game player scoring.
-
-#### Base production
-
-A base's production multiplier increases based on how long it has
-remained in its current location:
-
-- 0--1:59: 1x
-- 2:00--4:59: 2x
-- 5:00--9:59: 3x
-- 10:00+: 4x
-
-Relocating a base resets its time-in-location elsewhere in the game
-logic.
-
-#### Army training cost
-
-Each resource type tracks its historical armies built at that base.
-
-Training starts at 100 resources and increases by 50 for each previously
-trained army of that resource type. Losing an army does not reduce
-future training costs.
-
-#### Combat
-
-Combat is deterministic.
-
-1.  Matching army types cancel each other 1-for-1.
-2.  Attacker-favorable elemental matchups resolve.
-3.  Defender-favorable elemental matchups resolve.
-4.  The defending base's militia fights one remaining attacker.
-5.  The attacker only wins if at least one attacking army remains, all
-    defending armies are gone, and the militia is defeated.
-
-The elemental advantage cycle is:
-
-- Water \> Fire
-- Fire \> Grass
-- Grass \> Water
-
-One army fighting with elemental advantage can eliminate up to two
-armies of the weaker type and survives that matchup.
-
-Militia casualty selection is deterministic. If multiple attacking army
-types remain, militia targets the largest group, with ties resolved in
-Water → Fire → Grass order.
-
-#### Loot
-
-Automatic raid/treasure loot is distributed as evenly as possible among
-Water, Fire, and Grass.
-
-If one resource type runs out, unused capacity is redistributed among
-the remaining types. Any final indivisible remainder is taken from the
-resource type with the largest amount remaining, with Water → Fire →
-Grass used as the deterministic tie order.
-
-#### Player scoring
-
-Player score consists of:
-
-- 500 points per surviving base.
-- 1 point per owned resource, including resources currently in
-  transit.
-- Surviving armies valued using the player's historical average
-  training cost per army.
-
-Relocating bases still count toward base score. Their armies and
-resources are represented by the relocation mission while in transit and
-are therefore excluded from the stationary-base totals to prevent
-double-counting.
-
-Refundable relocation payments also remain part of the player's resource
-score while the relocation is unresolved.
-
-### src/game/balance.ts
-
-Centralized configuration for gameplay values that are expected to change during balance testing. Both client and server systems reference these values so gameplay tuning can be performed without searching for hardcoded constants throughout the project.
-
-Currently controls:
-
-Production
-Base maturity thresholds
-Primary resource production by base level
-Secondary resource production by base level
-Armies
-Training time
-Initial training cost
-Cost increase per previously trained army
-Cargo capacity per army
-Expansion
-Initial expansion resource cost
-Cost increase after each successful expansion
-Expansion Key cost
-Maximum bases per player
-Starting resources for newly established bases
-Relocation
-Initial relocation cost
-Cost increase after each relocation
-Travel time per tile
-Missions
-Standard travel time per tile
-Scoring
-Score value of each surviving base
-Match
-Timed-match duration
-
-balance.ts should contain tunable gameplay values only. The rules that use those values remain in rules.ts, while the authoritative server enforces them during gameplay. UI components may also reference balance values or shared rules when needed so displayed costs, timers, and limits remain synchronized with server validation.
-
-### `src/game/maps/mapOne.ts`
-
-Defines EXiLE Island, the primary 8x8 game map.
-
-The map is authored as a human-readable two-dimensional grid using three
-helper functions:
-
-- `G(...)` creates Grass tiles.
-- `W(...)` creates Water tiles.
-- `F(...)` creates Fire tiles.
-
-Each tile can define its terrain type, resource multiplier, and optional
-river or lava flow direction.
-
-The file includes coordinate and flow-direction documentation so the map
-can be edited directly without having to reason about zero-based array
-indexes.
-
-After the 8x8 layout is defined, it is converted into the flat `Tile[]`
-format used by the rest of EXiLE. Each exported tile receives its
-zero-based row and column coordinates during this conversion.
-
-Flow-direction values describe which two edges of a river or lava tile
-connect; they do not indicate the direction the liquid is moving.
-
-### `src/game/maps/mapTwo.ts`
-
-Defines Map Two, a compact 4x8 map designed for two-player matches.
-
-Like EXiLE Island, the map is authored as a human-readable
-two-dimensional grid using the `G`, `W`, and `F` helper functions for
-Grass, Water, and Fire tiles.
-
-Each tile can define its terrain type, resource multiplier, and optional
-river or lava flow direction.
-
-Map Two is 180-degree rotationally symmetrical to give the two starting
-players equivalent terrain and resource opportunities.
-
-The first active player starts at B1 and the second active player starts
-at C8. Those starting-base overrides are applied in
-`createInitialGameState.ts`.
-
-The hand-authored grid is converted into the flat `Tile[]` format used
-by the rest of EXiLE, with zero-based row and column coordinates
-assigned during that conversion.
-
-### `src/components/ArmyMovements.tsx`
-
-Displays the current player's missions that are traveling across the
-map.
-
-The component receives missions, known bases, and treasure locations and
-converts each mission into a human-readable movement summary showing:
-
-- Mission status, such as attacking, returning, expanding, or
-  relocating.
-- Origin and destination.
-- Remaining travel time.
-- Armies in transit.
-- Resources being carried.
-- Expansion Keys being carried.
-
-Expansion and relocation missions use map coordinates as destinations,
-while normal army missions generally use base IDs.
-
-Loot missions reuse `destinationBaseId` to store the target Treasure ID,
-so the component resolves those destinations against the supplied
-treasure list.
-
-The component is display-only. It does not update mission state or
-resolve arrivals; those behaviors are handled by the authoritative game
-logic.
-
-### `src/components/GameClock.tsx`
-
-Displays the current match time in `minutes:seconds` format.
-
-The component receives the authoritative game's elapsed time in seconds
-and formats it for display. It does not maintain or advance the game
-clock itself; the match timer is controlled by the authoritative server.
-
-### `src/components/BasePiece.tsx`
-
-Renders a player's base on the game map.
-
-The component displays the base's visual structure, player avatar,
-optional base name, and tooltip information. It can also visually
-indicate when a base is selected or is a valid attack or transfer
-target.
-
-A base's visual tier changes according to how long it has remained in
-its current location:
-
-- Under 2 minutes: Tent
-- 2--5 minutes: House
-- 5--10 minutes: Settlement
-- 10+ minutes: Castle
-
-The component can display travel time when the base is being considered
-as a mission target.
-
-Player color is passed into CSS through the `--player-color` custom
-property so the component's styling can reflect the base owner.
-
-`BasePiece` is presentation-only. It does not modify bases, resolve
-attacks, or control mission movement.
-
-### `src/components/ResourceBar.tsx`
-
-Displays the Water, Fire, and Grass resource totals for the currently
-selected base.
-
-The component receives the three resource values as props and renders
-them with their corresponding resource icons.
-
-`ResourceBar` is presentation-only. It does not produce, spend, or
-modify resources; resource state is maintained by the authoritative game
-state.
-
-### `src/components/Leaderboard.tsx`
-
-Displays the current player standings for the match.
-
-The component calculates each active player's score using the shared
-`calculatePlayerScore()` rule and sorts players from highest to lowest
-score.
-
-For active players, the displayed score is calculated from the current
-game state. When a player is eliminated, the component uses that
-player's frozen score from `finalScoreByPlayer` so later changes to
-missions or other state do not change their final standing.
-
-Eliminated players are visually marked with a separate leaderboard
-style.
-
-The scoring formula itself is not defined in this component. It lives in
-`src/game/rules.ts`, keeping scoring behavior shared with the
-authoritative server.
-
-### `src/components/GameLog.tsx`
-
-Displays the public chronological log of important match events.
-
-The Game Log currently renders:
-
-- Battles and their surviving armies.
-- Base destruction and loot results.
-- Expansion.
-- Relocation.
-- Treasure looting.
-- Transfers.
-- Mission failures.
-- Player elimination.
-- Match victory.
-
-Events are displayed newest-first.
-
-Battle events store their timestamp inside their battle report, while
-other game events store `gameSeconds` directly. When multiple events
-happen during the same second, the display uses a deterministic ordering
-so victory and elimination events appear above the battle that caused
-them.
-
-Mission-failure events explain failures such as an unavailable
-destination, a destroyed origin base, or a relocation that cannot return
-to its original location.
-
-`GameLog` is presentation-only. The authoritative server creates the
-game events; this component only sorts and renders them for players.
-
-### `src/components/Tile.tsx`
-
-Renders one tile of the game map.
-
-The component is responsible for displaying:
-
-- Terrain and resource type.
-- Resource multipliers.
-- River or lava flow styling.
-- Map-edge styling.
-- Treasure.
-- Bases.
-- Travel-time indicators.
-- Valid or unavailable mission targets.
-
-`Tile` also routes click behavior for attacks, transfers, loot,
-expansion, and relocation to the callback supplied by its parent.
-
-Bases are rendered through `BasePiece`, while treasure and tile-level
-targeting are rendered directly inside this component.
-
-The component does not resolve missions or modify game state. It only
-displays the current authoritative state and forwards user interactions
-to higher-level game logic.
-
-### `src/components/GameMap.tsx`
-
-Builds and renders the interactive game map from the current
-authoritative match state.
-
-For each map tile, the component determines:
-
-- Whether a base occupies the tile.
-- Whether treasure occupies the tile.
-- Which player owns a base.
-- The base's display name.
-- Whether the tile is a valid attack, loot, expansion, transfer, or
-  relocation target.
-- Whether the tile should be marked unavailable during targeting.
-- Travel time from the currently selected origin base.
-
-Travel time is calculated using Manhattan distance between map
-coordinates.
-
-Most army missions currently use 5 seconds of travel time per tile,
-while relocation uses 15 seconds per tile.
-
-`GameMap` does not execute missions itself. It derives targeting and
-display state, renders each map position through `Tile`, and forwards
-valid target selections to callbacks supplied by the parent game
-component.
-
-### `src/components/BaseActions.tsx`
-
-Controls the action menus for the currently selected base.
-
-The component provides the player-facing workflows for:
-
-- Training Water, Fire, or Grass armies.
-- Sending armies to attack.
-- Sending armies to loot treasure.
-- Transferring armies and resources between friendly bases.
-- Paying for and beginning an expansion.
-- Paying for and beginning a base relocation.
-
-`BaseActions` manages temporary UI state such as selected armies, cargo,
-and resource payments. Army selection is limited by the armies currently
-stationed at the base, and cargo capacity is 200 resources per selected
-army.
-
-Expansion currently costs one Expansion Key plus 500 resources.
-
-Relocation cost increases with the number of previous relocations
-performed by that base.
-
-The component performs client-side UI checks to control selections and
-button availability, but completed actions are passed upward through
-callbacks. Authoritative validation and changes to the match state are
-handled by the server.
-
-### `src/components/Lobby.tsx`
-
-Displays the multiplayer lobby before a match begins.
-
-The component renders:
-
-- Available player slots.
-- Character selection.
-- Ready status.
-- Join and leave controls.
-- Host designation.
-- Map selection.
-- Match-type selection.
-- Match-start requirements and validation messages.
-
-Each playable character can only be selected by one occupied lobby slot
-at a time.
-
-Only the host can change the map, change the match type, or start the
-game. The Play Game button becomes available when the selected map
-supports the current number of players and every occupied slot is ready.
-
-The lobby performs client-side checks to control the interface, but
-lobby state and authoritative validation are maintained by the server.
-Player actions such as joining, leaving, changing characters, readying
-up, and starting the match are passed upward through callbacks and sent
-to the server.
-
-### `src/App.tsx`
-
-Acts as the main client-side coordinator for EXiLE.
-
-`App` connects the React interface to the authoritative multiplayer
-server and holds the latest lobby and match state received over
-WebSockets.
-
-Its primary responsibilities include:
-
-- Connecting to the EXiLE WebSocket server on port 8080.
-- Receiving and storing authoritative lobby and `GameState` updates.
-- Determining which player and bases belong to the current client.
-- Maintaining temporary client-side map-targeting state for attack,
-  loot, transfer, expansion, and relocation workflows.
-- Sending player action requests to the server.
-- Selecting the correct map layout for the current match.
-- Deriving client display data such as the selected base, resources,
-  standings, elimination state, and winner.
-- Rendering the lobby before a match and the main game interface after
-  the server starts the match.
-- Coordinating the Game Map, Game Log, Leaderboard, Base Actions,
-  Resource Bar, Army Movements, Game Clock, and base selector.
-
-`App.tsx` does not run the authoritative game simulation. Training,
-production, mission resolution, combat, resource changes, elimination,
-scoring, and victory are validated and resolved by the server.
-
-The targeting state stored in `App` is temporary UI state only. For
-example, when a player chooses armies for an attack, `App` remembers
-those armies while the player selects a destination on the map. Once the
-destination is chosen, the action is sent to the server for
-authoritative validation and execution.
-
-The client currently receives full authoritative `GameState` snapshots
-from the server and renders the interface from those snapshots.
-
-### `src/App.css`
-
-Contains the primary visual styling for the EXiLE client.
-
-The stylesheet defines the layout and appearance of the game map,
-terrain, bases, resources, game log, leaderboard, army movements, base
-actions, lobby, targeting indicators, treasure, game-over interface, and
-base selector.
-
-It also contains desktop-responsive layouts for medium-size displays and
-smaller desktop/laptop screens.
-
-Map terrain and flow-direction classes are used by the map components to
-render Grass, Water, Fire, rivers, lava, map edges, and resource
-multipliers.
-
-Mission-targeting styles visually distinguish valid attack, loot,
-transfer, expansion, and relocation destinations without controlling
-whether those actions are actually legal. Target validation remains part
-of the game logic and authoritative server.
-
-### `server/src/index.ts`
-
-Runs the authoritative EXiLE multiplayer game server using Node.js and
-WebSockets.
-
-The server listens on port `8080` and owns both the multiplayer lobby
-and the live match simulation.
-
-#### Lobby responsibilities
-
-The server manages:
-
-- Connected clients and client IDs.
-- Lobby slots and character selection.
-- Ready status.
-- Host assignment and host reassignment when the host leaves or
-  disconnects.
-- Map selection.
-- Match-type selection.
-- Validation that the selected map supports the current player count.
-- Starting a match only when the lobby is valid and all players are
-  ready.
-
-The first connected player becomes the host. If the host leaves or
-disconnects, host control passes to another player in the lobby.
-
-#### Authoritative game state
-
-When a match begins, the server creates the initial `GameState` and
-advances the match once per second.
-
-The server is authoritative for:
-
-- Match time.
-- Base aging.
 - Resource production.
-- Army training and training costs.
-- Army movement.
-- Transfers.
-- Attacks and combat.
-- Looting.
+- Research bonuses and costs.
+- Faction bonuses.
+- Base upgrades.
+- Unit statistics.
+- Combat limits.
+- Training.
 - Expansion.
 - Relocation.
-- Mission failures and returns.
-- Treasure creation and removal.
-- Expansion Keys.
-- Player elimination.
-- Score calculation.
-- Victory.
-- Public game events.
+- Mission timing.
+- Scoring.
 
-Clients do not directly modify these systems. They send action requests
-to the server, the server validates those requests, updates the
-authoritative `GameState`, and broadcasts the resulting state to
-connected clients.
+**`src/game/characters.ts`**
 
-#### Missions
+Faction identifiers, portrait types, and faction display colors.
 
-The server currently supports five mission types:
+**`src/game/types.ts`**
 
-- `transfer`
-- `attack`
-- `loot`
-- `expand`
-- `relocate`
+Shared TypeScript definitions for players, bases, units, missions, research, and game state.
 
-Mission travel and arrival are processed by the server game tick.
+**`src/game/rules.ts`**
 
-Attack, transfer, loot, and expansion travel currently use 5 seconds per
-map tile. Relocation uses 15 seconds per tile.
+Reusable gameplay calculations and deterministic rules.
 
-Missions preserve enough origin and destination information to resolve
-failures and returns even when the map changes while they are traveling.
+**`src/game/gameState.ts`**
 
-Examples include:
+Shared game-state definitions and initialization logic.
 
-- An attack returning when its target no longer exists.
-- A transfer returning when its destination is destroyed.
-- A loot mission failing when its treasure has already been taken.
-- A failed expansion returning its resources and Expansion Key.
-- A relocation returning when its destination becomes occupied.
-- A relocating base being lost if both its destination and original
-  location become unavailable.
+**`server/src/index.ts`**
 
-If a mission's required origin base is destroyed before a return can
-complete, the returning armies, resources, and other carried items are
-lost.
+Authoritative multiplayer server, including room handling, gameplay actions, and simulation.
 
-#### Combat and scoring
+---
 
-Combat, loot distribution, army costs, production multipliers, and
-player scoring use the shared deterministic rules from
-`src/game/rules.ts`.
+**EXiLE — Ankle Deep Games**
 
-This keeps the authoritative server and client display logic based on
-the same rule definitions without duplicating those formulas.
-
-A player is eliminated immediately when they have no surviving bases.
-Their score is frozen at elimination.
-
-In a 30-minute match, the server determines the winner from the
-surviving players' scores when time expires. In Sudden Death, play
-continues until only one player remains.
-
-#### Networking
-
-The server currently broadcasts full authoritative `GameState` snapshots
-to connected clients after state-changing player actions and after each
-server game tick.
-
-The current multiplayer implementation is designed first for LAN play.
-Features such as persistent rooms, reconnect support, internet
-matchmaking, protocol hardening, and runtime validation of incoming
-WebSocket message payloads are future work.
+_Build your empire. Defend your territory. Survive the island._
