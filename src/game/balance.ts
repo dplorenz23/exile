@@ -8,12 +8,8 @@ export const BALANCE = {
   },
 
   production: {
-    level2Seconds: 120,
-    level3Seconds: 300,
-    level4Seconds: 600,
-
-    primaryByLevel: [1, 2, 3, 4],
-    secondaryByLevel: [0, 1, 1, 2],
+    primaryByLevel: [2, 3, 4, 5],
+    secondaryByLevel: [1, 1, 2, 2],
   },
 
   research: {

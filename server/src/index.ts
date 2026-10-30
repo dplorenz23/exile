@@ -96,7 +96,7 @@ const roomCodeByClient = new Map<number, string>();
 function generateRoomCode(): string {
   const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-  let code = "";
+  let code: string;
 
   do {
     code = "";

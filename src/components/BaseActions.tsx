@@ -100,17 +100,19 @@ export default function BaseActions({
     | "base-management"
   >("main");
 
-  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [currentTime, setCurrentTime] = useState(0);
 
   useEffect(() => {
     if (!base || base.upgradeCompletesAt === null) return;
 
-    const interval = window.setInterval(() => {
-      setCurrentTime(Date.now());
-    }, 250);
+    const updateTime = () => setCurrentTime(Date.now());
+
+    updateTime();
+
+    const interval = window.setInterval(updateTime, 250);
 
     return () => window.clearInterval(interval);
-  }, [base?.upgradeCompletesAt]);
+  }, [base]);
 
   const [selectedArmies, setSelectedArmies] = useState<UnitCounts>({
     guardian: 0,

@@ -29,8 +29,8 @@ export default function HowToPlay({ onClose }: HowToPlayProps) {
               eliminate your rivals.
             </p>
             <p>
-              <strong>Timed Match:</strong> The highest-scoring surviving player
-              when time expires wins.
+              <strong>30-Minute Match:</strong> The highest-scoring surviving
+              player when time expires wins.
             </p>
             <p>
               <strong>Sudden Death:</strong> The last surviving player wins.
@@ -71,7 +71,8 @@ export default function HowToPlay({ onClose }: HowToPlayProps) {
             </p>
             <p>
               Resources are used to recruit units, purchase research, upgrade
-              bases, expand, and relocate.
+              bases, expand, and relocate. Transfer resources between bases when
+              one base needs supplies from another.
             </p>
           </section>
 
@@ -125,7 +126,8 @@ export default function HowToPlay({ onClose }: HowToPlayProps) {
             <h3>⚔ Recruit Units — Bottom Right</h3>
             <p>
               Recruit units by spending resources at your selected base. Each
-              unit takes 10 seconds to train.
+              unit takes 10 seconds to train. Each unit also carries up to 200
+              resources on applicable missions.
             </p>
             <p>
               <strong>Guardian:</strong> Durable frontline unit.
@@ -138,8 +140,7 @@ export default function HowToPlay({ onClose }: HowToPlayProps) {
               rounds.
             </p>
             <p>
-              <strong>Spy:</strong> Specialized unit with its own combat
-              statistics.
+              <strong>Spy:</strong> Fast-moving unit that can also fight.
             </p>
           </section>
 
@@ -147,7 +148,8 @@ export default function HowToPlay({ onClose }: HowToPlayProps) {
             <h3>➤ Deploy Army — Bottom Right</h3>
             <p>
               Select units from your base and send them on missions. Travel time
-              depends on distance.
+              depends on distance and unit speed. You can have up to three
+              active missions.
             </p>
             <p>
               <strong>Attack:</strong> Fight enemy units and attempt to destroy
@@ -165,8 +167,9 @@ export default function HowToPlay({ onClose }: HowToPlayProps) {
           <section>
             <h3>⚔ Combat</h3>
             <p>
-              Both armies attack during each combat round. Medics heal surviving
-              allies at the end of the round, but cannot revive dead units.
+              Both armies attack during each combat round, up to 10 rounds.
+              Medics heal surviving allies at the end of the round, but cannot
+              revive dead units.
             </p>
             <p>
               Attacking armies may retreat when significantly outmatched.
@@ -211,8 +214,9 @@ export default function HowToPlay({ onClose }: HowToPlayProps) {
           <section>
             <h3>🏆 Standings & Timer — Top Right</h3>
             <p>
-              Standings show each player's current score. Scores are based on
-              surviving bases, resources, and armies.
+              Standings show each player's current score. Surviving bases,
+              units, and resources contribute to your score. Each surviving base
+              is worth 500 points and each unit is worth 200 points.
             </p>
             <p>The timer shows the remaining time in a timed match.</p>
           </section>
