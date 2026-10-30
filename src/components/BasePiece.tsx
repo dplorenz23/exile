@@ -1,7 +1,5 @@
 import type { CSSProperties } from "react";
 
-import { BALANCE } from "../game/balance";
-
 import type { Base, Player } from "../game/types";
 
 interface BasePieceProps {
@@ -23,22 +21,6 @@ function formatTime(seconds: number): string {
   return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
 }
 
-function getBaseTier(seconds: number): number {
-  if (seconds >= BALANCE.production.level4Seconds) {
-    return 4;
-  }
-
-  if (seconds >= BALANCE.production.level3Seconds) {
-    return 3;
-  }
-
-  if (seconds >= BALANCE.production.level2Seconds) {
-    return 2;
-  }
-
-  return 1;
-}
-
 const BASE_IMAGES = [
   "base_stage_0_encampment.png",
   "base_stage_1_outpost.png",
@@ -57,7 +39,7 @@ export default function BasePiece({
   onClick,
   isOwned = false,
 }: BasePieceProps) {
-  const tier = getBaseTier(base.timeInLocationSeconds);
+  const tier = base.level;
 
   return (
     <div

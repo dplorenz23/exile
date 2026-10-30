@@ -250,10 +250,25 @@ export default function GameLog({
                 );
               }
 
+              const baseLevelNames = [
+                "Encampment",
+                "Outpost",
+                "Stronghold",
+                "Citadel",
+              ];
+
               if (event.type === "base-upgrade") {
                 return (
-                  <div key={event.id}>
-                    {event.baseName} upgraded to Level {event.level}
+                  <div key={event.id} className="battle-report">
+                    <div className="battle-report-header">
+                      <strong>
+                        🏰 {factionLabel(event.playerId)} upgraded{" "}
+                        {event.baseName} to {baseLevelNames[event.level - 1]}{" "}
+                        (Lvl {event.level}).
+                      </strong>
+
+                      <span>{formatTime(event.gameSeconds)}</span>
+                    </div>
                   </div>
                 );
               }

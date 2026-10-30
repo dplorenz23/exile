@@ -17,6 +17,13 @@ import { getExpansionCost, getSpendableResourceTotal } from "../game/rules";
 
 import UnitIcon from "./UnitIcon";
 
+const BASE_LEVEL_NAMES = [
+  "Encampment",
+  "Outpost",
+  "Stronghold",
+  "Citadel",
+] as const;
+
 /*
  * Controls the action menus for the currently selected base.
  *
@@ -349,6 +356,28 @@ export default function BaseActions({
     });
 
     setMode("main");
+  }
+
+  const upgradeSecondsRemaining =
+    base.upgradeCompletesAt !== null
+      ? Math.max(0, Math.ceil((base.upgradeCompletesAt - currentTime) / 1000))
+      : 0;
+
+  /*
+   * Base upgrade is underway.
+   */
+  if (base.upgradeCompletesAt !== null) {
+    return (
+      <div className="base-actions">
+        <div className="training-status">
+          <strong>
+            Upgrading to {BASE_LEVEL_NAMES[base.level]} (Lvl {base.level + 1})
+          </strong>
+
+          <span>{upgradeSecondsRemaining}s remaining</span>
+        </div>
+      </div>
+    );
   }
 
   /*
@@ -747,8 +776,25 @@ export default function BaseActions({
               disabled={!canPurchase}
               onClick={() => onPurchaseResearch(key)}
             >
-              {label} L{currentLevel} → L{nextLevel} — 💧{cost.water} 🔥
-              {cost.fire} 🌱{cost.grass}
+              {label} L{currentLevel} → L{nextLevel} —{" "}
+              <img
+                src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+                alt="Water"
+                className="resource-icon"
+              />
+              {cost.water}{" "}
+              <img
+                src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+                alt="Fuel"
+                className="resource-icon"
+              />
+              {cost.fire}{" "}
+              <img
+                src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+                alt="Food"
+                className="resource-icon"
+              />
+              {cost.grass}
             </button>
           );
         })}
@@ -759,11 +805,6 @@ export default function BaseActions({
       </div>
     );
   }
-
-  const upgradeSecondsRemaining =
-    base.upgradeCompletesAt !== null
-      ? Math.max(0, Math.ceil((base.upgradeCompletesAt - currentTime) / 1000))
-      : 0;
 
   const nextBaseLevel = (base.level + 1) as 2 | 3 | 4;
 
@@ -792,11 +833,35 @@ export default function BaseActions({
           disabled={!canUpgradeBase}
           onClick={onUpgradeBase}
         >
-          {base.upgradeCompletesAt !== null
-            ? `Upgrading Base... ${upgradeSecondsRemaining}s remaining`
-            : upgradeCost
-              ? `Upgrade Base L${base.level} → L${nextBaseLevel} — 💧${upgradeCost.water} 🔥${upgradeCost.fire} 🌱${upgradeCost.grass} (${BALANCE.baseUpgrades.upgradeSeconds[nextBaseLevel]}s)`
-              : "Base Level 4 (MAX)"}
+          {base.upgradeCompletesAt !== null ? (
+            "Upgrading Base..."
+          ) : upgradeCost ? (
+            <>
+              Upgrade to {BASE_LEVEL_NAMES[nextBaseLevel - 1]} (Lvl{" "}
+              {nextBaseLevel}){" — "}
+              <img
+                src={`${import.meta.env.BASE_URL}assets/resources/water.png`}
+                alt="Water"
+                className="resource-icon"
+              />
+              {upgradeCost.water}{" "}
+              <img
+                src={`${import.meta.env.BASE_URL}assets/resources/fuel.png`}
+                alt="Fuel"
+                className="resource-icon"
+              />
+              {upgradeCost.fire}{" "}
+              <img
+                src={`${import.meta.env.BASE_URL}assets/resources/food.png`}
+                alt="Food"
+                className="resource-icon"
+              />
+              {upgradeCost.grass} (
+              {BALANCE.baseUpgrades.upgradeSeconds[nextBaseLevel]}s)
+            </>
+          ) : (
+            "Citadel (Lvl 4) — MAX"
+          )}
         </button>
 
         <button

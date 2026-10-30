@@ -1159,6 +1159,14 @@ body {
   background: rgba(184, 146, 83, 0.08);
 }
 
+.base-action-button .resource-icon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin: 0 3px 0 6px;
+}
+
 .train-menu {
   grid-template-columns: repeat(2, 1fr);
 }
