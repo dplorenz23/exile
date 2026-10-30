@@ -25,7 +25,6 @@ import { players, getBaseName } from "./game/gameState";
 import { createInitialGameState } from "./game/createInitialGameState";
 
 import { mapOne } from "./game/maps/mapOne";
-import { mapTwo } from "./game/maps/mapTwo";
 
 import { calculatePlayerScore } from "./game/rules";
 
@@ -234,7 +233,7 @@ function App() {
    */
   const [gameState, setGameState] = useState<GameState>(createInitialGameState);
 
-  const currentMapTiles = gameState.mapId === "map-two" ? mapTwo : mapOne;
+  const currentMapTiles = mapOne;
 
   const [showHowToPlay, setShowHowToPlay] = useState(false);
 

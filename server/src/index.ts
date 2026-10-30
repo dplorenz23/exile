@@ -1,7 +1,6 @@
 import { BALANCE } from "../../src/game/balance";
 import { createInitialGameState } from "../../src/game/createInitialGameState";
 import { mapOne } from "../../src/game/maps/mapOne";
-import { mapTwo } from "../../src/game/maps/mapTwo";
 import {
   resolveUnitCombat,
   calculateLoot,
@@ -43,11 +42,6 @@ const mapConfigs = {
   "exile-island": {
     minPlayers: 2,
     maxPlayers: 4,
-  },
-
-  "map-two": {
-    minPlayers: 2,
-    maxPlayers: 2,
   },
 };
 
@@ -193,14 +187,11 @@ function isValidMapCoordinate(
   row: number,
   col: number,
 ): boolean {
-  const map =
-    mapId === "map-two" ? mapTwo : mapId === "exile-island" ? mapOne : null;
-
-  if (!map) {
+  if (mapId !== "exile-island") {
     return false;
   }
 
-  return map.some((tile) => tile.row === row && tile.col === col);
+  return mapOne.some((tile) => tile.row === row && tile.col === col);
 }
 
 function isValidResourcePayment(payment: BaseResources): boolean {
@@ -2272,7 +2263,7 @@ function runGameTick(room: GameRoom): void {
       return;
     }
 
-    const activeMapTiles = gameState.mapId === "map-two" ? mapTwo : mapOne;
+    const activeMapTiles = mapOne;
 
     const tile = activeMapTiles.find(
       (tile) => tile.row === base.row && tile.col === base.col,

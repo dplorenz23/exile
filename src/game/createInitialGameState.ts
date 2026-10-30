@@ -5,7 +5,6 @@ import {
 } from "./gameState";
 
 import { mapOne } from "../../src/game/maps/mapOne";
-import { mapTwo } from "../../src/game/maps/mapTwo";
 
 import { BALANCE } from "../../src/game/balance";
 
@@ -26,7 +25,7 @@ function createStartingLayout(
   activePlayerIds: number[],
   mapId: string,
 ): { bases: Base[]; treasures: Treasure[] } {
-  const map = mapId === "map-two" ? mapTwo : mapOne;
+  const map = mapOne;
 
   const initialBases = startingBases.filter((base) =>
     activePlayerIds.includes(base.playerId),
@@ -234,10 +233,10 @@ function createStartingTreasureResources(): {
 
 function createStartingTreasures(
   initialBases: Base[],
-  mapId: string,
+  _mapId: string,
   playerCount: number,
 ): Treasure[] {
-  const map: Tile[] = mapId === "map-two" ? mapTwo : mapOne;
+  const map = mapOne;
 
   const treasureCount = playerCount * BALANCE.startingTreasure.chestsPerPlayer;
 

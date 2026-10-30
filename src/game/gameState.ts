@@ -31,14 +31,6 @@ export const maps: MapConfig[] = [
     rows: 8,
     columns: 8,
   },
-  {
-    id: "map-two",
-    name: "Map Two",
-    minPlayers: 2,
-    maxPlayers: 2,
-    rows: 8,
-    columns: 4,
-  },
 ];
 
 export const matchTypes: Record<MatchType, MatchTypeConfig> = {

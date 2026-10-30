@@ -50,9 +50,6 @@ export const mapOne: Tile[] = mapLayout.flatMap((row, rowIndex) =>
       col: colIndex,
       resource,
       multiplier,
-
-      // Temporary compatibility with existing Tile type.
-      terrain: "meadow",
     };
   }),
 );
